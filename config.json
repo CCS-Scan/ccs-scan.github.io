@@ -1,0 +1,31 @@
+{
+  "app": "CCS Scan Helper",
+  "master": "master_list.xlsx",
+  "photos": "photos/",
+  "units": [
+    {
+      "id": "pltcu1",
+      "name": "PLTCU-1",
+      "syncUrl": "https://script.google.com/macros/s/AKfycbyfNnGdiFSu1A2er_i1oW7pgBZJpDxycLhHrfAjQgGzb7X6b6cCHxQrMKBzfBx414FYjg/exec",
+      "locations": true
+    },
+    {
+      "id": "pltcu2",
+      "name": "PLTCU-2",
+      "syncUrl": "https://script.google.com/macros/s/AKfycbyVLfZijQ-5Dvg4uWky0BwOk9hu_-tDLj0ffloaTtX6YZPYdO94XV-fhzvvhYUW2OqW/exec",
+      "locations": false
+    },
+    {
+      "id": "pltcu3",
+      "name": "PLTCU-3",
+      "syncUrl": "https://script.google.com/macros/s/AKfycbxd0NYjm5OxxD9Lc6G3XBv_2KJGhGT9Ef5gIiW3sFulwqDA9ZnT3IgVE1Dn5NLybBF3QA/exec",
+      "locations": false
+    },
+    {
+      "id": "pedinp",
+      "name": "PED INP",
+      "syncUrl": "https://script.google.com/macros/s/AKfycbyS79mQUeRydpIYy56b9EbM5xyGix6rmtlwKYKaK8w0sG7rFOWyOtYsXnUhhDSIBh0S/exec",
+      "locations": false
+    }
+  ]
+}
