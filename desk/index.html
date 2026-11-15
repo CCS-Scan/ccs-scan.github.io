@@ -122,7 +122,7 @@ tr.errrow td{background:#fff5f5}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='1.0';
+const VERSION='1.1';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -577,7 +577,7 @@ function startApp(){
   $('sideUnit').textContent=DB.unit;$('sideVer').textContent='version '+VERSION;
   $('sideWho').innerHTML='Signed in as <b>'+esc(ME.name)+'</b><br>'+esc(ME.u)+' · '+(ME.role==='admin'?'admin':'charge nurse');
   $('nav').innerHTML=NAV.filter(n=>!(n[4]==='admin'&&ME.role!=='admin')).map(n=>n[0]==='grp'?'<div class="grp">'+esc(n[1])+'</div>':'<button type="button" data-p="'+n[0]+'" class="'+(n[3]?'soon':'')+'"><span class="dot" style="background:var('+n[2]+')"></span>'+esc(n[1])+'</button>').join('');
-  saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();
+  saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();phInit().then(()=>{if(page==='dash'||page==='set'||MOV[page]||page==='cnt')go(page);});
 }
 $('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(b)go(b.dataset.p);});
 $('logoutBtn').onclick=()=>{audit('LOGOUT','');save();ME=null;page='dash';loginScreen();};
@@ -607,8 +607,8 @@ PAGES.dash=async()=>{
     +'<div class="tile" style="--c:var(--cnt)"><div class="k">Expired / expiring in 90 days</div><div class="v">'+invRows().filter(r=>r.expd).length+' / '+invRows().filter(r=>r.soon).length+'</div></div>'
     +'<div class="tile" style="--c:var(--cnt)"><div class="k">Needs a real count</div><div class="v">'+nf+'</div></div>'
     +'<div class="tile" style="--c:var(--users)"><div class="k">Users</div><div class="v">'+DB.users.filter(u=>u.active).length+'</div></div></div>'
-    +'<div class="card"><h3>Data</h3><table class="t"><tr><td style="width:220px">Data folder</td><td><b>'+esc(DIR.name)+'</b> · file '+DATA+'</td></tr><tr><td>Last saved</td><td>'+esc(disp(DB.savedAt))+' by '+esc(DB.savedBy||'')+'</td></tr><tr><td>Newest backup</td><td id="dBk">…</td></tr><tr><td>Data file created</td><td>'+esc(disp(DB.created))+'</td></tr></table></div>'
-    +'<div class="card"><h3>CCS Desk '+VERSION+'</h3><p class="note" style="margin:0">Inventory (stock per item and expiry date) · Stock In, Stock Out, Write Off (by hand or from Excel) · Inventory Count (by hand or from the count Excel of the CCS Scan Helper app) · Transaction Log · Reports: stock and value, expiring soon, monthly use, order list, write offs, movements · daily backups in the data folder.</p></div>';
+    +'<div class="card"><h3>Data</h3><table class="t"><tr><td style="width:220px">Data folder</td><td><b>'+esc(DIR.name)+'</b> · file '+DATA+'</td></tr><tr><td>Last saved</td><td>'+esc(disp(DB.savedAt))+' by '+esc(DB.savedBy||'')+'</td></tr><tr><td>Newest backup</td><td id="dBk">…</td></tr><tr><td>Data file created</td><td>'+esc(disp(DB.created))+'</td></tr><tr><td>Phones</td><td>'+(phOk()?'linked to <b>'+esc(PH.unitName||PH.unitId||'')+'</b> · stock sent '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+(DB.markQueue&&DB.markQueue.length?' · <span class="st-err">'+DB.markQueue.length+' posting(s) waiting to be sent</span>':''):'not linked (Settings > Phones)')+'</td></tr></table></div>'
+    +'<div class="card"><h3>CCS Desk '+VERSION+'</h3><p class="note" style="margin:0">Inventory (stock per item and expiry date) · Stock In, Stock Out, Write Off (by hand or from Excel) · Inventory Count (by hand, from Excel, or straight from the phones) · lists of the phones with one button · stock shown on the phones · shelf labels · Transaction Log · Reports: stock and value, expiring soon, monthly use, order list, write offs, movements · daily backups in the data folder.</p></div>';
   try{const b=await listBackups();$('dBk').textContent=b.length?b[0].name+' ('+b.length+' backup'+(b.length===1?'':'s')+')':'none yet';}catch(e){$('dBk').textContent='-';}
 };
 
@@ -702,7 +702,7 @@ async function loadStartStock(){
     unknown.forEach(ir=>{const r=rows.find(x=>x.ir===ir);DB.items.push({ir,name:(r&&r.name)||ir,unit:'',loc:'',price:null,max:null,min:null,alias:''});});
     DB.stock={};rows.forEach(r=>{const k=r.ir+'|'+r.exp;DB.stock[k]=(DB.stock[k]||0)+r.qty;});Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])delete DB.stock[k];});
     DB.flags={};Object.keys(DB.stock).forEach(k=>{const ir=k.split('|')[0];DB.seq++;DB.ledger.push({id:DB.seq,t:now,type:'OPEN',ir,exp:k.slice(ir.length+1),qty:DB.stock[k],bal:DB.stock[k],by:ME.u,ref,note:'Starting stock ('+f.name+')'});});
-    DB.stockSince=now;audit('STOCK_START',f.name+': '+Object.keys(DB.stock).length+' lines, '+units+' units');await save();invF='stock';go('inv');
+    DB.stockSince=now;audit('STOCK_START',f.name+': '+Object.keys(DB.stock).length+' lines, '+units+' units');await save();phStockSoon();invF='stock';go('inv');
     pm('ok','Starting stock loaded: '+items+' items, '+Object.keys(DB.stock).length+' item / expiry lines, '+units+' units.');}
   catch(e){pm('err','Could not read '+f.name+': '+(e.message||e.name));}
 }
@@ -725,7 +725,7 @@ function movPage(kind){
   const M=MOV[kind];
   $('main').innerHTML='<div class="card"><div class="row"><div class="search" style="position:relative"><input type="text" id="mQ" autocomplete="off" placeholder="Add an item: last digits of the IR, or part of the name"><div class="sugg hidden" id="mSug"></div></div>'
     +(kind==='wo'?'<label style="margin:0">Reason</label><select id="mWo" style="width:auto">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===woDefault?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select>':'')
-    +'<button class="btn alt" id="mImp">Import from Excel…</button></div><input type="file" id="mFile" accept=".xlsx" class="hidden"><div class="msg" id="pmsg"></div></div>'
+    +'<button class="btn alt" id="mImp">Import from Excel…</button>'+phBtn('mPh','⬇ From phones')+'</div><input type="file" id="mFile" accept=".xlsx" class="hidden"><div class="msg" id="pmsg"></div></div>'
     +'<div class="card"><div class="drafthead"><h3 id="mHead"></h3><button class="btn alt" id="mClear" style="margin-left:auto">Clear list</button></div><div style="max-height:52vh;overflow:auto"><table class="t" id="mTab"></table></div>'
     +'<div class="sumbar"><input type="text" id="mNote" placeholder="Reference / note (optional), e.g. store issue number" style="flex:1;min-width:240px"><span id="mSum" class="note"></span><button class="btn" id="mPost">Post</button></div></div>'
     +'<div class="card"><h3>Last '+esc(M.name)+' postings</h3><table class="t" id="mLast"></table></div>';
@@ -767,6 +767,7 @@ function movPage(kind){
   $('mClear').onclick=()=>{if(DRAFT[kind].length&&confirm('Clear the whole list? Nothing is posted.')){DRAFT[kind]=[];draw();}};
   $('mImp').onclick=()=>{$('mFile').value='';$('mFile').click();};
   $('mFile').onchange=()=>importMov(kind,draw);
+  if($('mPh'))$('mPh').onclick=()=>phPullMov(kind,draw);
   $('mPost').onclick=()=>postMov(kind,draw);
   const last=()=>{const L=DB.ledger.filter(x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type).slice(-15).reverse();
     $('mLast').innerHTML='<tr><th>When</th><th>Item</th><th>Expiry</th><th style="text-align:right">Qty</th><th>Scanned / entered by</th><th>Posted by</th><th>Note</th></tr>'+(L.length?L.map(x=>{const it=DB.items.find(i=>i.ir===x.ir);return '<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(it?it.name:x.ir)+(kind==='wo'?'<div class="lots">'+esc(typeName(x.type))+'</div>':'')+'</td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.posted||'')+'</td><td>'+esc(x.note||'')+'</td></tr>';}).join(''):'<tr><td colspan="7" class="note">Nothing yet</td></tr>');};
@@ -853,7 +854,7 @@ async function postMov(kind,draw){
   DB.stock=plan.stock;
   if(!DB.imports)DB.imports=[];const seen=new Set();L.forEach(l=>{if(l.hash&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind,t:plan.now,u:ME.u,ref});}});
   audit('POST_'+kind.toUpperCase(),ref+': '+L.length+' lines'+(plan.moved?', '+plan.moved+' from another expiry date':'')+(plan.flags.length?', '+plan.flags.length+' corrected':''));
-  await save();DRAFT[kind]=DRAFT[kind].filter(l=>l.err);$('mNote').value='';draw();movPage.last();
+  await save();phAfterPost(L,ref);phStockSoon();DRAFT[kind]=DRAFT[kind].filter(l=>l.err);$('mNote').value='';draw();movPage.last();
   $('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+').'+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
 }
 
@@ -882,7 +883,7 @@ function xlsxOut(name,sheet,cols,rows,title){download(name,buildXlsx(sheet,cols,
 const CDRAFT={lines:[],full:false};
 PAGES.cnt=()=>{
   $('main').innerHTML='<div class="card"><div class="row"><div class="search" style="position:relative"><input type="text" id="cQ" autocomplete="off" placeholder="Add a counted item: last digits of the IR, or part of the name"><div class="sugg hidden" id="cSug"></div></div>'
-    +'<button class="btn alt" id="cImp">Import count from Excel…</button></div><input type="file" id="cFile" accept=".xlsx" class="hidden">'
+    +'<button class="btn alt" id="cImp">Import count from Excel…</button>'+phBtn('cPh','⬇ Counts from phones')+'</div><input type="file" id="cFile" accept=".xlsx" class="hidden">'
     +'<p class="note" style="margin:8px 0 0">Excel: the count file of the CCS Scan Helper app (INVENTORY COUNT > Save Excel) or any file with the columns IR number, Qty and Expiry. Qty 0 is allowed.</p><div class="msg" id="pmsg"></div></div>'
     +'<div class="card"><div class="drafthead"><h3 id="cHead"></h3><label style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center;font-weight:600"><input type="checkbox" id="cFull"'+(CDRAFT.full?' checked':'')+'> Full count (items NOT in this list become 0)</label><button class="btn alt" id="cClear">Clear list</button></div>'
     +'<div style="max-height:56vh;overflow:auto"><table class="t" id="cTab"></table></div>'
@@ -925,6 +926,7 @@ PAGES.cnt=()=>{
   $('cClear').onclick=()=>{if(CDRAFT.lines.length&&confirm('Clear the whole count list? Nothing is posted.')){CDRAFT.lines=[];draw();}};
   $('cImp').onclick=()=>{$('cFile').value='';$('cFile').click();};
   $('cFile').onchange=()=>importCount(draw);
+  if($('cPh'))$('cPh').onclick=()=>phPullCount(draw);
   $('cPost').onclick=()=>postCount(draw);
   const last=()=>{const refs=[],seen=new Set();for(let i=DB.ledger.length-1;i>=0&&refs.length<12;i--){const x=DB.ledger[i];if(x.type==='COUNT'&&!seen.has(x.ref)){seen.add(x.ref);refs.push(x.ref);}}
     $('cLast').innerHTML='<tr><th>When</th><th>Reference</th><th style="text-align:right">Items</th><th style="text-align:right">Difference (units)</th><th>Posted by</th><th>Note</th></tr>'+(refs.length?refs.map(r=>{const L=DB.ledger.filter(x=>x.ref===r);return '<tr><td>'+esc(disp(L[0].t))+'</td><td class="mono">'+esc(r)+'</td><td class="num">'+new Set(L.map(x=>x.ir)).size+'</td><td class="num">'+(L.reduce((a,x)=>a+x.qty,0)>0?'+':'')+L.reduce((a,x)=>a+x.qty,0)+'</td><td>'+esc(L[0].posted||'')+'</td><td>'+esc(L[0].note||'')+'</td></tr>';}).join(''):'<tr><td colspan="6" class="note">None yet</td></tr>');};
@@ -976,7 +978,7 @@ async function postCount(draw){
   if(!DB.imports)DB.imports=[];const seen=new Set();CDRAFT.lines.forEach(l=>{if(l.hash&&!l.err&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind:'cnt',t:now,u:ME.u,ref});}});
   const diff=led.reduce((a,x)=>a+x.qty,0);
   audit('POST_COUNT',ref+': '+ok.length+' items'+(zero.length?', '+zero.length+' set to 0 (full count)':'')+', difference '+(diff>0?'+':'')+diff);
-  await save();CDRAFT.lines=CDRAFT.lines.filter(l=>bad.includes(l.ir));CDRAFT.full=false;$('cFull').checked=false;$('cNote').value='';draw();PAGES.cnt.last();
+  await save();phStockSoon();CDRAFT.lines=CDRAFT.lines.filter(l=>bad.includes(l.ir));CDRAFT.full=false;$('cFull').checked=false;$('cNote').value='';draw();PAGES.cnt.last();
   pm('ok','Count posted ('+ref+'): '+ok.length+' item'+(ok.length===1?'':'s')+(zero.length?', '+zero.length+' other items set to 0':'')+'. Difference: '+(diff>0?'+':'')+diff+' units. “Needs a real count” cleared for these items.');
 }
 
@@ -1072,8 +1074,111 @@ async function restoreBackup(name){
   if(!o.users.some(u=>u.role==='admin'&&u.active))throw new Error('the backup has no active admin');
   const safe='ccs_desk_data_before_restore_'+nowStamp().replace(/\D/g,'').slice(0,12)+'.json';await writeBackup(safe);
   const me=ME;DB=o;['ledger','audit','imports','pins'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=[];});if(!DB.flags)DB.flags={};if(!DB.settings)DB.settings={idleMin:15,backupDays:30};
-  ME=DB.users.find(u=>u.u===me.u&&u.active)||null;audit('RESTORE',name+' (the data before it: '+BKDIR+'/'+safe+')');await save(true);
+  ME=DB.users.find(u=>u.u===me.u&&u.active)||null;audit('RESTORE',name+' (the data before it: '+BKDIR+'/'+safe+')');await save(true);phStockSoon();
   return{safe,still:!!ME};
+}
+
+// ---------------------------------------------------------------- PHONES: link to the CCS Scan Helper app (the unit's Google Sheet)
+// The link is kept on THIS computer only (not in the data file): unit, web app link, and the sign-in of a charge nurse account.
+let PH=null,phStockT=null;
+async function phInit(){try{PH=(await kvGet('phones'))||null;}catch(e){PH=null;}phRetryMarks();}
+async function phSave(){try{await kvSet('phones',PH);}catch(e){}}
+const phOk=()=>!!(PH&&PH.url&&PH.token);
+async function phPost(action,extra,ms){
+  if(!PH||!PH.url)throw new Error('CCS Desk is not linked to the phones yet (Settings > Phones).');
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),ms||30000);
+  try{const body=Object.assign({},extra||{},{action},PH.token&&!('code' in (extra||{}))?{code:PH.token}:{},PH.unitId?{hubUnit:PH.unitId}:{});
+    const r=await fetch(PH.url,{method:'POST',body:JSON.stringify(body),redirect:'follow',signal:ctl.signal});let j;
+    try{j=await r.json();}catch(e){throw new Error('the Google Sheet link did not answer correctly');}
+    if(!j||j.ok!==true){const m=(j&&j.error)||'refused';if(/^signed out/i.test(m)&&PH){PH.token='';phSave();}throw new Error(m);}
+    return j;}
+  catch(e){if(e.name==='AbortError')throw new Error('no answer from the Google Sheet (internet?)');if(e instanceof TypeError)throw new Error('no internet connection');throw e;}
+  finally{clearTimeout(to);}
+}
+function phBtn(id,label){return phOk()?'<button class="btn alt" id="'+id+'" title="Lists scanned with the CCS Scan Helper app">'+label+'</button>':'';}
+// ---- after a posting: tell the phones these lines are done (they leave the SHARED list); kept in the data file until it works
+function phAfterPost(lines,ref){
+  const items=lines.filter(l=>l.src==='phone'&&l.key).map(l=>({key:l.key,ir:l.ir,expiry:l.pexp||'',qty:Math.min(l.qty,l.pqty||l.qty)}));
+  if(!items.length)return;if(!DB.markQueue)DB.markQueue=[];DB.markQueue.push({ref,items,t:nowStamp()});save();phRetryMarks();
+}
+async function phRetryMarks(){
+  if(!DB||!DB.markQueue||!DB.markQueue.length||!phOk())return;
+  for(const m of DB.markQueue.slice()){try{await phPost('mark',{status:'EXPORTED',exportId:m.ref,items:m.items});DB.markQueue=DB.markQueue.filter(x=>x!==m);await save();}
+    catch(e){saveState('err','Phones not updated: '+(e.message||e.name));return;}}
+}
+// ---- the stock goes to the phones (they show "In the store: …")
+function phStockSoon(){if(!phOk()||PH.auto===false)return;clearTimeout(phStockT);phStockT=setTimeout(()=>phSendStock(false),3000);}
+async function phSendStock(show){
+  const st={};Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])return;const i=k.indexOf('|'),ir=k.slice(0,i);(st[ir]=st[ir]||{lots:[]}).lots.push({exp:k.slice(i+1),qty:DB.stock[k]});});
+  try{const j=await phPost('stockSet',{stock:st},60000);PH.stockAt=j.at;phSave();if(show)return j;}
+  catch(e){saveState('err','Stock not sent to the phones: '+(e.message||e.name));if(show)throw e;}
+}
+// ---- Stock In / Stock Out / Write Off: take the open lists of the phones
+async function phPullMov(kind,draw){
+  const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};pm('warn','Getting the lists of the phones…');
+  try{const j=await phPost('list',{mode:kind==='in'?'IN':kind==='out'?'OUT':'WO'});const known=new Set(DB.items.map(i=>i.ir));let n=0,skip=0,bad=0;const who=new Set();
+    (j.batches||[]).forEach(b=>(b.lines||[]).forEach(l=>{
+      if(DRAFT[kind].some(x=>x.src==='phone'&&x.key===b.key&&x.ir===l.ir&&x.pexp===(l.expiry||''))){skip++;return;}
+      const row={ir:l.ir,exp:l.expiry||'',pexp:l.expiry||'',qty:l.qty,pqty:l.qty,name:l.name||'',by:b.by||'',src:'phone',key:b.key,wo:kind==='wo'?(+String(b.mode).slice(2)||woDefault):0};
+      if(!known.has(l.ir)){row.err='not in the master list (add it in Items first)';bad++;}
+      DRAFT[kind].push(row);n++;if(b.by)who.add(b.by);}));
+    draw();pm(n?(bad?'warn':'ok'):'warn',n?'Added '+n+' line'+(n===1?'':'s')+' from the phones'+(who.size?' ('+[...who].join(', ')+')':'')+(skip?', '+skip+' already in the list':'')+(bad?'. '+bad+' not in the master list (red)':'')+'. Check, then Post: the phones are told that these lines are done.':'No new lines on the phones'+(skip?' ('+skip+' already in the list)':'')+'.');}
+  catch(e){pm('err','Could not get the lists of the phones: '+(e.message||e.name));}
+}
+// ---- Inventory Count: take the counts of the phones newer than the last count posted here
+async function phPullCount(draw){
+  const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};pm('warn','Getting the counts of the phones…');
+  try{const j=await phPost('counts',{}),c=j.counts||{},known=new Set(DB.items.map(i=>i.ir)),since=addDays(-31),lastCnt=new Map();
+    DB.ledger.forEach(x=>{if(x.type==='COUNT'&&x.t>(lastCnt.get(x.ir)||''))lastCnt.set(x.ir,x.t);});
+    let n=0,old=0;Object.keys(c).forEach(ir=>{const o=c[ir];if(!o||!Array.isArray(o.lots))return;const at=String(o.at||'');
+      if(at<since||(lastCnt.get(ir)&&at<=lastCnt.get(ir))){old++;return;}
+      CDRAFT.lines=CDRAFT.lines.filter(l=>l.ir!==ir);const by=new Map();o.lots.forEach(l=>{const e=l.expiry||'';by.set(e,(by.get(e)||0)+(+l.qty||0));});if(!by.size)by.set('',0);
+      by.forEach((q,e)=>{const row={ir,exp:e,qty:q,by:o.by||'',src:'phone',name:ir};if(!known.has(ir))row.err='not in the master list (add it in Items first)';CDRAFT.lines.push(row);});n++;});
+    draw();pm(n?'ok':'warn',n?'Added '+n+' counted item'+(n===1?'':'s')+' from the phones (counted in the last 31 days, newer than the last count posted here)'+(old?'. '+old+' older counts skipped':'')+'. Check the differences, then Post count.':'No new counts on the phones'+(old?' ('+old+' older or already posted)':'')+'.');}
+  catch(e){pm('err','Could not get the counts of the phones: '+(e.message||e.name));}
+}
+// ---- Settings > Phones
+async function phSettings(box){
+  let units=[];if(location.protocol==='https:'){try{const r=await fetch('../config.json',{cache:'no-store'});const c=await r.json();units=(c.units||[]).filter(u=>u.id&&u.syncUrl);}catch(e){}}
+  const draw=()=>{
+    if(phOk()){box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p>Linked to <b>'+esc(PH.unitName||PH.unitId||'the unit')+'</b> as <b>'+esc(PH.name||'')+'</b> ('+esc(PH.corp||'')+', charge nurse). Last stock sent: '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+'.'+(DB.markQueue&&DB.markQueue.length?' <span class="st-err">'+DB.markQueue.length+' posting(s) not yet sent to the phones.</span>':'')+'</p>'
+        +'<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="phAuto"'+(PH.auto===false?'':' checked')+'> Send the stock to the phones after every posting</label>'
+        +'<div class="row" style="margin-top:10px"><button class="btn" id="phSend">Send the stock now</button><button class="btn alt" id="phOut">Unlink</button></div><div class="msg" id="phMsg"></div>';
+      $('phAuto').onchange=()=>{PH.auto=$('phAuto').checked;phSave();};
+      $('phSend').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Sending…';try{const j=await phSendStock(true);m.className='msg ok';m.textContent='Sent: '+j.items+' items. The phones show it within 5 minutes.';await phRetryMarks();draw();}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
+      $('phOut').onclick=()=>{if(confirm('Unlink CCS Desk from the phones on this computer?')){PH=null;phSave();draw();}};return;}
+    box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p class="note">Link CCS Desk to the Google Sheet of the unit: then Stock Out, Stock In, Write Off and Inventory Count get the phones\' lists with one button, the phones are told what was posted, and the phones show the stock of CCS Desk. Use a <b>charge nurse</b> account of the app.</p>'
+      +'<div class="grid2">'+(units.length?'<div><label>Unit</label><select id="phU">'+units.map(u=>'<option value="'+esc(u.id)+'"'+(u.name===DB.unit?' selected':'')+'>'+esc(u.name)+'</option>').join('')+'</select></div>':'<div><label>Google Sheet web app link of the unit</label><input type="text" id="phL" placeholder="https://script.google.com/macros/s/…/exec"></div><div><label>Unit id (central script only, e.g. pltcu1)</label><input type="text" id="phId" placeholder="empty if the unit has its own script"></div>')
+      +'<div><label>Corp No.</label><input type="text" id="phC" autocomplete="off"></div><div><label>Password (of the app)</label><input type="password" id="phP" autocomplete="off"></div></div>'
+      +'<div class="row" style="margin-top:10px"><button class="btn" id="phGo">Link</button></div><div class="msg" id="phMsg"></div>';
+    $('phGo').onclick=async()=>{const m=$('phMsg'),corp=$('phC').value.trim().toUpperCase(),pw=$('phP').value;let url,id='',nm='';
+      if(units.length){const u=units.find(x=>x.id===$('phU').value);url=u.syncUrl;id=u.id;nm=u.name;}else{url=$('phL').value.trim();id=$('phId').value.trim().toLowerCase();nm=DB.unit;}
+      if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url||'')){m.className='msg err';m.textContent='Paste the web app link (https://script.google.com/macros/s/…/exec).';return;}
+      if(!corp||!pw){m.className='msg err';m.textContent='Type the Corp No. and the password of the app.';return;}
+      m.className='msg warn';m.textContent='Signing in…';PH={url,unitId:id,unitName:nm,auto:true};
+      try{const j=await phPost('login',{corp,password:pw,device:'ccsdesk'+Math.random().toString(36).slice(2,8),unit:nm,code:''});
+        if(j.role!=='charge'){PH=null;m.className='msg err';m.textContent='This account is not a charge nurse. In the app: tap your name > I am a charge nurse, then try again.';return;}
+        Object.assign(PH,{token:j.token,name:j.name,corp:j.corp});await phSave();audit('PHONES_LINK',nm+' as '+j.corp);await save();
+        try{await phSendStock(false);}catch(e){}draw();}
+      catch(e){PH=null;m.className='msg err';m.textContent=e.message||e.name;}};
+  };
+  draw();
+}
+
+// ---------------------------------------------------------------- shelf labels (Code 128 barcode of the IR number)
+const C128=['212222','222122','222221','121223','121322','131222','122213','122312','132212','221213','221312','231212','112232','122132','122231','113222','123122','123221','223211','221132','221231','213212','223112','312131','311222','321122','321221','312212','322112','322211','212123','212321','232121','111323','131123','131321','112313','132113','132311','211313','231113','231311','112133','112331','132131','113123','113321','133121','313121','211331','231131','213113','213311','213131','311123','311321','331121','312113','312311','332111','314111','221411','431111','111224','111422','121124','121421','141122','141221','112214','112412','122114','122411','142112','142211','241211','221114','413111','241112','134111','111242','121142','121241','114212','124112','124211','411212','421112','421211','212141','214121','412121','111143','111341','131141','114113','114311','411113','411311','113141','114131','311141','411131','211412','211214','211232','2331112'];
+function code128Svg(txt){
+  const v=[104];for(const ch of txt){const c=ch.charCodeAt(0)-32;if(c<0||c>94)continue;v.push(c);}
+  let sum=v[0];for(let i=1;i<v.length;i++)sum+=v[i]*i;v.push(sum%103,106);
+  let x=10,bars='';v.forEach(k=>{const p=C128[k];for(let i=0;i<p.length;i++){const w=+p[i];if(i%2===0)bars+='<rect x="'+x+'" y="0" width="'+w+'" height="50"/>';x+=w;}});
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+(x+10)+' 50" preserveAspectRatio="none" style="width:100%;height:13mm">'+bars+'</svg>';
+}
+function printLabels(list){
+  if(!list.length){alert('No item to print.');return;}if(list.length>240&&!confirm(list.length+' labels. Print all of them?'))return;
+  const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for CCS Desk and try again.');return;}
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Shelf labels</title><style>@page{size:A4;margin:8mm}body{margin:0;font-family:Arial,sans-serif}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}.l{border:1px dashed #999;padding:2.5mm 3mm;height:36mm;box-sizing:border-box;overflow:hidden;break-inside:avoid;display:flex;flex-direction:column}.n{font-size:9pt;font-weight:700;line-height:1.15;max-height:3.5em;overflow:hidden}.i{font:700 11pt monospace;letter-spacing:1px;text-align:center}.o{font-size:7.5pt;color:#333;margin-top:auto}svg rect{fill:#000}.tip{font:12px Arial;padding:8px;background:#fff4d6;margin-bottom:6px}@media print{.tip{display:none}}</style></head><body><div class="tip">'+list.length+' labels · A4, 3 per row · use “Print” of the browser (Ctrl+P), scale 100%.</div><div class="g">'
+    +list.map(it=>'<div class="l"><div class="n">'+esc(it.name)+'</div>'+code128Svg(it.ir)+'<div class="i">'+esc(it.ir)+'</div><div class="o">'+esc([it.unit,it.loc].filter(Boolean).join(' · '))+'</div></div>').join('')+'</div></body></html>');
+  w.document.close();setTimeout(()=>{try{w.focus();w.print();}catch(e){}},400);
 }
 
 // ---------------------------------------------------------------- items (master list)
@@ -1081,11 +1186,11 @@ let itemQ='';
 function itemsKeyed(){return DB.items.map(i=>Object.assign(i,{key:(i.name+' '+(i.alias||'')).toLowerCase()}));}
 PAGES.items=()=>{
   $('main').innerHTML='<div class="card"><div class="row"><div class="search"><input type="text" id="iQ" placeholder="Search: last digits of the IR, or part of the name / other name" value="'+esc(itemQ)+'"></div>'
-    +(canEdit()?'<button class="btn" id="iNew">＋ New item</button>':'')+(ME.role==='admin'?'<button class="btn alt" id="iLoad">Load master list (Excel)…</button>':'')+'<button class="btn alt" id="iXlsx">⬇ Excel</button></div>'
+    +(canEdit()?'<button class="btn" id="iNew">＋ New item</button>':'')+(ME.role==='admin'?'<button class="btn alt" id="iLoad">Load master list (Excel)…</button>':'')+'<button class="btn alt" id="iXlsx">⬇ Excel</button><button class="btn alt" id="iLbl" title="Shelf labels with barcode of the items in this list">🏷 Print labels</button></div>'
     +'<input type="file" id="iFile" accept=".xlsx" class="hidden"><div class="msg" id="pmsg"></div><div id="iInfo" class="note"></div><div style="max-height:70vh;overflow:auto"><table class="t" id="iTab"></table></div></div>';
   const draw=()=>{itemQ=$('iQ').value;const q=itemQ.trim().toLowerCase(),all=itemsKeyed();
     let L=q?all.filter(i=>q.split(/\s+/).every(w=>i.key.includes(w)||i.ir.endsWith(w)||i.ir.startsWith(w))):all;
-    $('iInfo').textContent=(q?L.length+' of ':'')+all.length+' items'+(L.length>300?' - showing the first 300, type more to narrow':'');
+    PAGES.items.L=L;$('iInfo').textContent=(q?L.length+' of ':'')+all.length+' items'+(L.length>300?' - showing the first 300, type more to narrow':'');
     $('iTab').innerHTML='<tr><th>IR number</th><th>Item</th><th>Unit</th><th>Location</th><th style="text-align:right">Price</th><th style="text-align:right">Min / Max</th></tr>'
       +L.slice(0,300).map(i=>'<tr class="click" data-ir="'+esc(i.ir)+'"><td class="mono">'+esc(i.ir)+'</td><td>'+esc(i.name)+(i.alias?'<span class="alt2">'+esc(i.alias)+'</span>':'')+'</td><td>'+esc(i.unit)+'</td><td>'+esc(i.loc)+'</td><td style="text-align:right">'+(i.price==null?'':Number(i.price).toFixed(2))+'</td><td style="text-align:right">'+(i.min==null?'-':i.min)+' / '+(i.max==null?'-':i.max)+'</td></tr>').join('');};
   draw();$('iQ').addEventListener('input',draw);$('iQ').focus();
@@ -1093,6 +1198,7 @@ PAGES.items=()=>{
   if($('iNew'))$('iNew').onclick=()=>itemDialog(null);
   if($('iLoad'))$('iLoad').onclick=()=>{$('iFile').value='';$('iFile').click();};
   $('iFile').onchange=loadMaster;
+  $('iLbl').onclick=()=>printLabels(PAGES.items.L||[]);
   $('iXlsx').onclick=()=>{const rows=DB.items.map(i=>({ir:i.ir,name:i.name,alias:i.alias||'',unit:i.unit,loc:i.loc,max:i.max,min:i.min,price:i.price,expiry:'',qty:''}));
     const cols=[['ir_number','ir','s',14],['item name','name','s',70],['other names','alias','s',30],['Qty_type','unit','s',10],['Location','loc','s',40],['max_stock','max','n',10],['min_stock','min','n',10],['Unit Price','price','n',11]];
     download('CCS_Desk_master_list_'+today()+'.xlsx',buildXlsx('inventory list',cols,rows,null));};
@@ -1157,6 +1263,7 @@ PAGES.set=async()=>{
   const adm=ME.role==='admin';
   $('main').innerHTML='<div class="card"><h3>Data folder and backups</h3><p>Folder <b>'+esc(DIR.name)+'</b> · file <span class="mono">'+DATA+'</span> · backups in the sub-folder <span class="mono">'+BKDIR+'</span> (one per day, the last '+((DB.settings&&DB.settings.backupDays)||30)+' days are kept)</p>'
     +'<div class="row"><button class="btn" id="sBk">Backup now</button><button class="btn alt" id="sDl">Download a copy of the data file</button>'+(adm?'<button class="btn alt" id="sDir">Use another data folder…</button>':'')+'</div><div class="msg" id="pmsg"></div><div id="sBkList" class="note"></div></div>'
+    +'<div class="card" id="phBox"></div>'
     +'<div class="card"><h3>My account</h3><p>'+esc(ME.name)+' (<span class="mono">'+esc(ME.u)+'</span>)</p><button class="btn alt" id="sPw">Change my password</button></div>'
     +(adm?'<div class="card"><h3>Unit and safety</h3><div class="grid2"><div><label>Unit name</label><input type="text" id="sUnit" value="'+esc(DB.unit)+'"></div><div><label>Sign out after … minutes without use</label><input type="number" id="sIdle" min="2" max="240" value="'+((DB.settings&&DB.settings.idleMin)||15)+'"></div></div><button class="btn" id="sSave" style="margin-top:12px">Save</button></div>':'')
     +'<div class="card"><h3>Recent changes</h3><table class="t" id="sAud"></table></div>';
@@ -1170,6 +1277,7 @@ PAGES.set=async()=>{
   $('sBk').onclick=async()=>{try{const n='ccs_desk_data_'+nowStamp().replace(' ','_').replace(/:/g,'').slice(0,15)+'.json';await writeBackup(n);audit('BACKUP',n);await save();pm('ok','Backup saved: '+BKDIR+'/'+n);showBk();}catch(e){pm('err','Backup failed: '+(e.message||e.name));}};
   $('sDl').onclick=()=>{const b=new Blob([JSON.stringify(DB)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ccs_desk_data_copy_'+today()+'.json';a.click();};
   $('sPw').onclick=()=>changePwScreen(false);
+  phSettings($('phBox'));
   if(adm){$('sDir').onclick=()=>{if(confirm('Switch to another data folder? You will be signed out. The current folder is not changed.')){ME=null;chooseFolder();}};
     $('sSave').onclick=()=>{const u=$('sUnit').value.trim(),m=Math.max(2,Math.min(240,+$('sIdle').value||15));if(!u){pm('err','Type the unit name.');return;}DB.unit=u;DB.settings.idleMin=m;audit('SETTINGS','unit '+u+', sign out after '+m+' min');save();startApp();go('set');};}
   $('sAud').innerHTML='<tr><th>When</th><th>User</th><th>What</th><th>Details</th></tr>'+DB.audit.slice(-40).reverse().map(a=>'<tr><td>'+esc(disp(a.t))+'</td><td>'+esc(a.u)+'</td><td>'+esc(a.a)+'</td><td>'+esc(a.d)+'</td></tr>').join('');

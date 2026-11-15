@@ -471,6 +471,7 @@ header input{font-size:14px!important;padding:5px 8px!important;width:170px!impo
 
   <div class="card" id="recv">
     <div class="name" id="recvName"></div>
+    <div class="note" id="recvStock" style="margin:2px 0 4px"></div>
     <div class="phbox"><div id="rPhoto"></div><div><button class="btn alt" id="rPhotoBtn" type="button">📷 Add photo</button><button class="btn alt" id="rPhotoDel" type="button" style="display:none">Remove photo</button><br><a id="rPhotoSearch" href="#" target="_blank" rel="noopener">🔎 Find a picture on the internet</a></div><input id="rPhotoFile" type="file" accept="image/*" style="display:none"></div>
     <div class="snrow"><input id="rAlt" type="text" autocomplete="off" placeholder="Second name (for easier search, all units)"><button class="btn alt" id="rAltSave" type="button">Save name</button></div>
     <div class="grid">
@@ -581,7 +582,7 @@ const TEMPLATE_COLS = [['ir_number','ir','s',14],['item name','name','s',70],['E
 // DEFAULT shared folder link (OneDrive / SharePoint / Microsoft Forms upload link). It is part of this file, so everybody who gets
 // the file already has it and it never gets lost when the page is closed. To change it for everybody, edit the text between the quotes.
 const UPLOAD_LINK = '';
-const VERSION = '5.2';
+const VERSION = '6.0';
 const FOLDER_FEATURE = false;          // shared-folder sync is switched off (not usable on the hospital PCs); the code is kept          // shown in the page header, so you can see which copy of the file you are running
 const EXPORT = {
   OUT: { sheet: 'inventory list', file: 'CCS_StockOut', cols: TEMPLATE_COLS },
@@ -1136,7 +1137,7 @@ function c128Scan(gray, w, h, K) {
     }
     const wo=isWo(st.mode),out=st.mode==='OUT'||wo;
     pendingItem=item;$('recv').className=wo?'out wo':out?'out':'';$('recv').style.display='block';
-    $('rAlt').value=(SN[item.ir]&&SN[item.ir].n)||'';
+    $('rAlt').value=(SN[item.ir]&&SN[item.ir].n)||'';$('recvStock').innerHTML=dsTxt(item.ir,item.unit);
     $('recvName').textContent=(tag||'')+(wo?'WRITE OFF - '+woName(st.mode)+': ':out?'OUT: ':(isCnt(st.mode)?'COUNT '+roomName(st.mode)+': ':'IN: '))+item.name+'  ('+item.ir+')'+(item.loc?'  ·  '+shortLoc(item.loc):'');$('recvName').insertAdjacentHTML('beforeend',altHtml(item.ir));
     const un=item.unit||'';$('rQtyLbl').textContent=(wo?'Qty written off':out?'Qty taken':(isCnt(st.mode)?'Qty counted':'Qty received'))+(un?' ('+un+')':'');$('rSave').className='btn'+(out?'':' in');
     $('rUnit').textContent=un;$('rUnit').className='u'+(un&&un!=='EAC'?' odd':'');$('rUnit').style.fontSize='15px';
@@ -1537,7 +1538,7 @@ function c128Scan(gray, w, h, K) {
   async function shPost(action,extra,timeoutMs){
     const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),timeoutMs||20000);
     try{
-      const res=await fetch(sh.url,{method:'POST',body:JSON.stringify(Object.assign({},extra||{},{action})),redirect:'follow',signal:ctl.signal});
+      const res=await fetch(sh.url,{method:'POST',body:JSON.stringify(Object.assign({},extra||{},{action},PROFILE&&UNITS.length?{hubUnit:PROFILE}:{})),redirect:'follow',signal:ctl.signal});
       let j;try{j=await res.json();}catch(e){throw new Error('the link did not answer correctly - check the web app link');}
       if(!j||j.ok!==true)throw new Error((j&&j.error)||'the shared list refused the request');
       return j;
@@ -2036,7 +2037,7 @@ function c128Scan(gray, w, h, K) {
     if(c&&c.lots)c.lots.forEach(l=>{const a=l.store===2?exps2:exps;if(l.expiry&&l.expiry>=today&&a.indexOf(l.expiry)<0)a.push(l.expiry);});
     if(!exps.length)exps.push('');
     icRenderPhoto(it);$('icAlt').value=(SN[it.ir]&&SN[it.ir].n)||'';$('icName').innerHTML=icNameHtml(it);
-    $('icLast').innerHTML=icLastTxt(it.ir,it.unit);
+    $('icLast').innerHTML=icLastTxt(it.ir,it.unit)+(DS.at?'<br>'+dsTxt(it.ir,it.unit):'');
     $('icRows').innerHTML=exps.map((e,i)=>icRowHtml('',e?dmy(e):'',i===0,i===0)).join('');
     icS2Set(exps2.length?exps2.map(e=>[ '',dmy(e),false]):null);$('icNote').value='';icTotal();
     $('icSkip').style.display=ic.mode==='app'?'':'none';$('icCancel').style.display=ic.mode==='app'?'none':'';
@@ -2157,7 +2158,17 @@ function c128Scan(gray, w, h, K) {
     catch(e){gateOnError(e);if(st.mode==='IC'&&/old version|unknown action/i.test(e.message||''))msg('warn','Counts are kept on this phone: the Google Sheet script is an old version (paste the new SharedList_Code and deploy a new version).');}
     finally{icBusy=false;}
   }
-  async function icLoad(){
+  // ---- stock of CCS Desk (the computer of the unit sends it to the Google Sheet)
+  let DS={at:'',stock:{},got:0},dsBusy=false;try{DS=JSON.parse(localStorage.getItem('ccsDeskStock.v1'+PROFILE)||'null')||DS;}catch(e){}
+  function dsTxt(ir,unit){if(!DS.at)return '';const s=DS.stock[ir],t=s?s.total:0,lots=s&&s.lots||[];
+    return 'In the store (CCS Desk): <b>'+t+'</b>'+(unit?' '+xmlEsc(unit):'')+(lots.length>1||(lots[0]&&lots[0].exp)?' · '+lots.map(l=>(l.exp?dmy(l.exp):'no expiry')+': '+l.qty).join(', '):'')+' <span style="opacity:.7">('+xmlEsc(String(DS.at).slice(8,10)+'/'+String(DS.at).slice(5,7)+' '+String(DS.at).slice(11,16))+')</span>';}
+  async function dsLoad(force){
+    if(dsBusy||!shReady()||navigator.onLine===false||needLogin())return;if(!force&&Date.now()-(DS.got||0)<5*60000)return;dsBusy=true;
+    try{const j=await shPost('stock',{code:sh.scanCode||sh.chargeCode},20000);DS={at:j.at||'',stock:j.stock||{},got:Date.now()};try{localStorage.setItem('ccsDeskStock.v1'+PROFILE,JSON.stringify(DS));}catch(e){}}
+    catch(e){DS.got=Date.now();}finally{dsBusy=false;}
+  }
+  setTimeout(()=>dsLoad(false),4000);setInterval(()=>{if(!document.hidden)dsLoad(false);},5*60000);
+  async function icLoad(){dsLoad(false);
     if(icLoading||!shReady()||navigator.onLine===false||needLogin())return;icLoading=true;
     try{const j=await shPost('counts',{code:sh.scanCode||sh.chargeCode},20000),srv=j.counts||{},out={};
       Object.keys(srv).forEach(ir=>{const c=srv[ir];if(c&&Array.isArray(c.lots)){out[ir]={lots:c.lots,total:+c.total||0,by:c.by||'',at:c.at||''};if(c.note)out[ir].note=String(c.note);}});

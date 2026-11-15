@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCS Units Status</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--ink:#1b2430;--muted:#5b6675;--line:#e1e6ee;--blue:#1f4e78;--ok:#1e7a3c;--okbg:#e7f5ec;--warn:#9a5b00;--warnbg:#fff4e0;--bad:#b3261e;--badbg:#fdecea}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#11161d;--card:#1b222c;--ink:#e8edf3;--muted:#a3adba;--line:#2c3542;--blue:#4c8fd0;--okbg:#14301f;--warnbg:#3a2a0d;--badbg:#3d1714;--ok:#5fd38d;--warn:#f0b35a;--bad:#ff8a80}}
+:root[data-theme=dark]{--bg:#11161d;--card:#1b222c;--ink:#e8edf3;--muted:#a3adba;--line:#2c3542;--blue:#4c8fd0;--okbg:#14301f;--warnbg:#3a2a0d;--badbg:#3d1714;--ok:#5fd38d;--warn:#f0b35a;--bad:#ff8a80}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+header{background:#1f4e78;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px}header h1{font-size:19px;margin:0}header .s{opacity:.8;font-size:13px;margin-left:auto}
+main{max-width:1200px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.row>div{display:flex;flex-direction:column;gap:4px;flex:1;min-width:200px}
+label{font-weight:600;font-size:13px;color:var(--muted)}input{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.btn{font:inherit;font-weight:700;padding:9px 16px;border-radius:8px;border:0;background:var(--blue);color:#fff;cursor:pointer}.btn.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px}.tile .k{font-size:12px;color:var(--muted);font-weight:600}.tile .v{font-size:24px;font-weight:700}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:900px}th,td{text-align:left;padding:8px 8px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em}td.n{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;border-radius:20px;padding:2px 10px;font-weight:700;font-size:12px}.ok{background:var(--okbg);color:var(--ok)}.warn{background:var(--warnbg);color:var(--warn)}.bad{background:var(--badbg);color:var(--bad)}
+.why{font-size:12px;color:var(--muted);margin-top:3px}.msg{margin-top:8px;font-weight:600}.msg.err{color:var(--bad)}.note{color:var(--muted);font-size:13px}
+@media(max-width:640px){main{padding:10px}header .s{display:none}}
+</style>
+</head>
+<body>
+<header><h1>CCS units status</h1><span class="s" id="when"></span></header>
+<main>
+  <div class="card" id="login">
+    <div class="row">
+      <div><label for="url">Central script link</label><input id="url" type="text" placeholder="https://script.google.com/macros/s/…/exec"></div>
+      <div style="max-width:260px"><label for="key">Status key</label><input id="key" type="password" autocomplete="off"></div>
+      <div style="flex:0;min-width:0"><button class="btn" id="go" type="button">Show</button></div>
+    </div>
+    <div class="msg" id="msg"></div>
+    <p class="note" style="margin:8px 0 0">The key is made in the central Google Sheet: menu Shared list &gt; 7. Status page key. It is kept only until this tab is closed.</p>
+  </div>
+  <div id="out" style="display:none">
+    <div class="tiles" id="tiles"></div>
+    <div class="card"><div class="row" style="justify-content:space-between;align-items:center;margin-bottom:6px"><b id="sum"></b><span><button class="btn alt" id="csv" type="button">⬇ CSV</button> <button class="btn" id="again" type="button">↻ Refresh</button></span></div>
+      <div class="wrap"><table id="tab"></table></div>
+      <p class="note">Amber / red when: no scan for 7 days · scans waiting more than 3 days to be imported · no inventory count in 30 days · CCS Desk stock older than 7 days · the unit's sheet cannot be opened.</p></div>
+  </div>
+</main>
+<script>
+(()=>{
+const $=id=>document.getElementById(id),esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+let rows=[],stamp='';
+try{const k=sessionStorage.getItem('ccsStatusKey');if(k)$('key').value=k;const u=localStorage.getItem('ccsStatusUrl');if(u)$('url').value=u;}catch(e){}
+fetch('config.json',{cache:'no-store'}).then(r=>r.json()).then(c=>{const u=(c.units||[]).map(x=>x.syncUrl).filter(Boolean);if(!$('url').value&&u.length&&u.every(x=>x===u[0]))$('url').value=u[0];if($('url').value&&$('key').value)load();}).catch(()=>{});
+const days=t=>{if(!t)return null;const d=new Date(String(t).replace(' ','T'));return isNaN(d)?null:(Date.now()-d.getTime())/864e5;};
+const show=t=>t?String(t).slice(8,10)+'/'+String(t).slice(5,7)+' '+String(t).slice(11,16):'-';
+function judge(u){if(u.error)return{c:'bad',t:'ERROR',why:[u.error]};const w=[];
+  const ls=days(u.lastScan),oo=days(u.oldestOpen),lc=days(u.lastCount),ds=days(u.deskStock);
+  if(ls===null)w.push('no scan yet');else if(ls>7)w.push('no scan for '+Math.floor(ls)+' days');
+  if(oo!==null&&oo>3)w.push(u.openLines+' scan(s) waiting '+Math.floor(oo)+' days');
+  if(lc===null||lc>30)w.push('no count in 30 days');
+  if(u.deskStock&&ds>7)w.push('CCS Desk stock '+Math.floor(ds)+' days old');
+  if(!u.passwords)w.push('no unit password');
+  return w.length?{c:w.some(x=>/ERROR|cannot|no scan yet/.test(x))||w.length>2?'bad':'warn',t:w.length>2?'CHECK':'WATCH',why:w}:{c:'ok',t:'OK',why:[]};}
+async function load(){
+  const url=$('url').value.trim(),key=$('key').value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url)){$('msg').className='msg err';$('msg').textContent='Paste the link of the central script.';return;}
+  if(!key){$('msg').className='msg err';$('msg').textContent='Type the status key.';return;}
+  $('msg').className='msg';$('msg').textContent='Loading all units… (can take up to a minute)';$('go').disabled=true;
+  try{const r=await fetch(url,{method:'POST',body:JSON.stringify({action:'status',key}),redirect:'follow'}),j=await r.json();if(!j.ok)throw new Error(j.error||'refused');
+    try{sessionStorage.setItem('ccsStatusKey',key);localStorage.setItem('ccsStatusUrl',url);}catch(e){}
+    rows=j.units||[];stamp=j.now;render();$('msg').textContent='';$('login').style.display='none';$('out').style.display='';}
+  catch(e){$('msg').className='msg err';$('msg').textContent='Could not load: '+(e.message||e.name);}
+  finally{$('go').disabled=false;}
+}
+function render(){
+  const J=rows.map(u=>Object.assign({},u,{j:judge(u)})).sort((a,b)=>({bad:0,warn:1,ok:2}[a.j.c]-{bad:0,warn:1,ok:2}[b.j.c])||String(a.name).localeCompare(b.name));
+  const s=k=>rows.reduce((a,u)=>a+(+u[k]||0),0),n=c=>J.filter(u=>u.j.c===c).length;
+  $('when').textContent='updated '+show(stamp);
+  $('tiles').innerHTML=[['Units',rows.length],['OK',n('ok')],['Watch',n('warn')],['Check / error',n('bad')],['Staff with accounts',s('users')],['Active in 30 days',s('active30')],['Stock Out 30 days (units)',s('out30')],['Write off 30 days (units)',s('wo30')]].map(t=>'<div class="tile"><div class="k">'+esc(t[0])+'</div><div class="v">'+esc(t[1])+'</div></div>').join('');
+  $('sum').textContent=rows.length+' units';
+  $('tab').innerHTML='<tr><th>Unit</th><th>Status</th><th>Staff (active 30 d)</th><th>Last scan</th><th>Waiting scans</th><th>Last import</th><th>Counted 30 d</th><th>CCS Desk stock</th><th>Stock Out 30 d</th><th>Write off 30 d</th></tr>'
+    +J.map(u=>'<tr><td><b>'+esc(u.name)+'</b><div class="why">'+esc(u.id)+'</div></td><td><span class="pill '+u.j.c+'">'+u.j.t+'</span>'+(u.j.why.length?'<div class="why">'+esc(u.j.why.join(' · '))+'</div>':'')+'</td>'
+      +(u.error?'<td colspan="8" class="why">'+esc(u.error)+'</td>':'<td class="n">'+u.users+' ('+u.active30+')</td><td>'+show(u.lastScan)+'</td><td class="n">'+u.openLines+(u.openLines?'<div class="why">since '+show(u.oldestOpen)+'</div>':'')+'</td><td>'+show(u.lastImport)+'</td><td class="n">'+u.counted30+'<div class="why">last '+show(u.lastCount)+'</div></td><td>'+(u.deskStock?show(u.deskStock):'not linked')+'</td><td class="n">'+u.out30+'</td><td class="n">'+u.wo30+'</td>')+'</tr>').join('');
+}
+$('go').onclick=load;$('key').addEventListener('keydown',e=>{if(e.key==='Enter')load();});$('again').onclick=()=>{$('login').style.display='';load();};
+$('csv').onclick=()=>{const h=['Unit','Id','Status','Reasons','Staff','Active 30d','Last scan','Waiting scans','Oldest waiting','Last import','Counted 30d','Last count','CCS Desk stock','Stock Out 30d','Write off 30d'];
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"',L=[h.map(q).join(',')].concat(rows.map(u=>{const j=judge(u);return [u.name,u.id,j.t,j.why.join('; '),u.users,u.active30,u.lastScan,u.openLines,u.oldestOpen,u.lastImport,u.counted30,u.lastCount,u.deskStock,u.out30,u.wo30].map(q).join(',');}));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+L.join('\r\n')],{type:'text/csv'}));a.download='ccs_units_status_'+String(stamp).slice(0,10)+'.csv';a.click();};
+})();
+</script>
+</body>
+</html>
