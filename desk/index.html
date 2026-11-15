@@ -1,0 +1,1188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCS Desk</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#141b2d">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--ink:#1d2433;--muted:#667085;--line:#e3e7ee;--side:#141b2d;--side2:#1e2740;--sideink:#cfd6e6;
+--dash:#1f6feb;--inv:#0f8a63;--in:#1e7a3c;--out:#c0392b;--wo:#8e44ad;--cnt:#b7791f;--log:#4c51bf;--rep:#475569;--items:#0e7490;--users:#8b5e34;--set:#4b5563;--accent:#1f6feb}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;color:var(--ink);background:var(--bg);font-size:14px}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit}
+.hidden{display:none!important}
+/* start screens */
+.center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
+.box{background:var(--card);border-radius:16px;box-shadow:0 10px 40px rgba(20,27,45,.12);padding:28px 32px;width:min(520px,100%)}
+.box h1{margin:0 0 4px;font-size:22px}.box .sub{color:var(--muted);margin:0 0 18px}
+.logo{font-weight:800;letter-spacing:.5px;font-size:28px;color:var(--dash);margin-bottom:6px}
+.logo span{color:var(--ink)}
+label{display:block;font-weight:600;font-size:13px;margin:12px 0 4px}
+input[type=text],input[type=password],input[type=number],select,textarea{width:100%;padding:9px 11px;border:1px solid #cdd3de;border-radius:9px;background:#fff}
+input:focus,select:focus,textarea:focus{outline:2px solid rgba(31,111,235,.35);border-color:var(--accent)}
+.btn{border:0;border-radius:9px;padding:9px 16px;background:var(--accent);color:#fff;font-weight:600}
+.btn:hover{filter:brightness(1.07)}.btn:disabled{opacity:.5;cursor:default}
+.btn.alt{background:#fff;color:var(--ink);border:1px solid #cdd3de}
+.btn.danger{background:#fff;color:var(--out);border:1px solid var(--out)}
+.btn.big{width:100%;padding:12px;font-size:15px;margin-top:16px}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.msg{margin-top:12px;padding:9px 12px;border-radius:9px;font-size:13px;display:none}
+.msg.ok{display:block;background:#e7f5ec;color:#1e7a3c}.msg.err{display:block;background:#fdecea;color:#b3261e}.msg.warn{display:block;background:#fff4d6;color:#8a5a00}
+.note{color:var(--muted);font-size:12.5px;margin:6px 0}
+/* layout */
+#app{display:flex;min-height:100vh}
+#side{width:232px;flex:0 0 232px;background:var(--side);color:var(--sideink);display:flex;flex-direction:column;position:sticky;top:0;height:100vh}
+#side .brand{padding:20px 20px 10px;font-weight:800;font-size:22px;color:#fff;letter-spacing:.5px}
+#side .brand small{display:block;font-weight:500;font-size:11.5px;color:#8f9bb3;letter-spacing:0}
+#side .who{margin:8px 14px 12px;padding:10px 12px;border-radius:10px;background:var(--side2);font-size:12.5px}
+#side .who b{color:#fff}
+#nav{flex:1;overflow:auto;padding:4px 10px}
+#nav button{display:flex;align-items:center;gap:10px;width:100%;background:none;border:0;color:var(--sideink);padding:9px 12px;border-radius:9px;text-align:left;margin:1px 0;font-size:13.5px}
+#nav button .dot{width:10px;height:10px;border-radius:3px;flex:0 0 10px}
+#nav button:hover{background:var(--side2);color:#fff}
+#nav button.on{background:#fff;color:var(--side);font-weight:700}
+#nav button.soon{opacity:.55}#nav button.soon::after{content:"soon";margin-left:auto;font-size:10px;border:1px solid #5b6680;border-radius:6px;padding:0 5px}
+#nav .grp{font-size:10.5px;text-transform:uppercase;letter-spacing:1px;color:#6f7b94;margin:12px 12px 4px}
+#side .foot{padding:10px 14px 14px;font-size:11.5px;color:#8f9bb3;border-top:1px solid #253055}
+#side .foot button{width:100%;margin-top:8px;background:var(--side2);color:#fff;border:0;border-radius:8px;padding:8px}
+#mainwrap{flex:1;min-width:0;display:flex;flex-direction:column}
+#top{display:flex;align-items:center;gap:12px;padding:16px 26px;background:var(--card);border-bottom:4px solid var(--accent)}
+#top h2{margin:0;font-size:20px}#top .crumb{color:var(--muted);font-size:12.5px}
+#top .right{margin-left:auto;display:flex;gap:10px;align-items:center;font-size:12px;color:var(--muted)}
+#saveDot{width:9px;height:9px;border-radius:50%;background:#22c55e;display:inline-block}
+#saveDot.busy{background:#f59e0b}#saveDot.err{background:#ef4444}
+#main{padding:22px 26px;max-width:1400px;width:100%}
+.card{background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(20,27,45,.08);padding:18px 20px;margin-bottom:16px}
+.card h3{margin:0 0 10px;font-size:15px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:14px;margin-bottom:16px}
+.tile{background:var(--card);border-radius:14px;padding:16px 18px;box-shadow:0 1px 3px rgba(20,27,45,.08);border-left:5px solid var(--c,var(--accent))}
+.tile .k{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.6px}.tile .v{font-size:26px;font-weight:800;margin-top:4px}.tile .s{font-size:12px;color:var(--muted);margin-top:2px}
+table.t{width:100%;border-collapse:collapse}
+table.t th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);padding:9px 10px;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--card)}
+table.t td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
+table.t tr.click:hover td{background:#f6f8fc;cursor:pointer}
+.alt2{display:block;font-size:12px;font-style:italic;color:#0f8a63;margin-top:2px}
+.pill{display:inline-block;font-size:11px;font-weight:700;border-radius:20px;padding:2px 9px;background:#eef2f7;color:#475569}
+.pill.g{background:#e7f5ec;color:#1e7a3c}.pill.r{background:#fdecea;color:#b3261e}.pill.b{background:#e8f0fe;color:#1f6feb}
+.search{position:relative;flex:1;min-width:260px}.search input{padding-left:34px;font-size:15px}
+.search::before{content:"⌕";position:absolute;left:12px;top:6px;font-size:18px;color:var(--muted)}
+.soonbox{text-align:center;padding:50px 20px;color:var(--muted)}.soonbox b{display:block;font-size:18px;color:var(--ink);margin-bottom:6px}
+/* modal */
+#modal{position:fixed;inset:0;background:rgba(15,20,35,.45);display:flex;align-items:center;justify-content:center;padding:20px;z-index:50}
+#modal .box{width:min(620px,100%);max-height:92vh;overflow:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+.mono{font-family:Consolas,monospace}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}
+.chip{border:1px solid #cdd3de;background:#fff;border-radius:20px;padding:5px 12px;font-size:12.5px}
+.chip.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.chip b{margin-left:4px}
+.lots{font-size:12px;color:var(--muted);margin-top:2px}
+.lot{display:inline-block;margin:2px 6px 0 0;padding:1px 7px;border-radius:6px;background:#eef2f7;color:#334155;white-space:nowrap}
+.lot.exp{background:#fdecea;color:#b3261e;font-weight:700}.lot.soon{background:#fff4d6;color:#8a5a00}
+.qty{font-size:16px;font-weight:800;text-align:right;white-space:nowrap}
+.star{background:none;border:0;font-size:18px;color:#c3c9d4;padding:0 4px}.star.on{color:#f5a524}
+td.num{text-align:right;white-space:nowrap}
+.flag{display:inline-block;font-size:10.5px;font-weight:700;color:#8a5a00;background:#fff4d6;border-radius:6px;padding:1px 6px;margin-left:6px}
+.low{display:inline-block;font-size:10.5px;font-weight:700;color:#b3261e;background:#fdecea;border-radius:6px;padding:1px 6px;margin-left:6px}
+.sugg{position:absolute;left:0;right:0;top:100%;z-index:20;background:#fff;border:1px solid #cdd3de;border-radius:10px;box-shadow:0 8px 30px rgba(20,27,45,.15);max-height:380px;overflow:auto;margin-top:4px}
+.sugg div{padding:8px 12px;border-bottom:1px solid var(--line);cursor:pointer}.sugg div:hover,.sugg div.hl{background:#f2f6fd}
+.sugg small{color:var(--muted);display:block}
+table.t input,table.t select{padding:6px 8px;font-size:13.5px}
+.st-ok{color:#1e7a3c;font-weight:600}.st-mv{color:#8a5a00;font-weight:600}.st-short{color:#b3261e;font-weight:700}.st-err{color:#b3261e;font-weight:700}
+tr.errrow td{background:#fff5f5}
+.drafthead{display:flex;align-items:center;gap:10px;margin-bottom:8px}.drafthead h3{margin:0}
+.sumbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+.filt{align-items:flex-end;gap:10px}.filt>div{display:flex;flex-direction:column}.filt label{margin:0 0 4px}.filt input,.filt select{width:auto}
+.reptabs{display:flex;flex-wrap:wrap;gap:6px}.reptabs button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:20px;padding:7px 14px;font-weight:600}.reptabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
+#cTab input.cq{width:90px}#cTab td.stc{max-width:260px}
+</style>
+</head>
+<body>
+
+<!-- start screens -->
+<div id="scr" class="center"><div class="box" id="scrBox"></div></div>
+
+<!-- application -->
+<div id="app" class="hidden">
+  <aside id="side">
+    <div class="brand">CCS Desk<small id="sideUnit"></small></div>
+    <div class="who" id="sideWho"></div>
+    <nav id="nav"></nav>
+    <div class="foot"><span id="sideVer"></span><button id="logoutBtn" type="button">Sign out</button></div>
+  </aside>
+  <div id="mainwrap">
+    <div id="top"><div><div class="crumb" id="crumb"></div><h2 id="title"></h2></div><div class="right"><span id="saveDot"></span><span id="saveTxt"></span></div></div>
+    <main id="main"></main>
+  </div>
+</div>
+<div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
+
+<script>
+const VERSION='1.0';
+// ==CORE START==
+function pad2(n){return (n<10?'0':'')+n;}
+function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
+function lastDay(y,m){return new Date(Date.UTC(y,m,0)).getUTCDate();}
+// -> 'YYYY-MM-DD' | null
+function parseExpiry(s){
+  s=(s||'').trim(); let m;
+  if((m=s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})$/))){const d=+m[1],mo=+m[2],y=+m[3];return validYMD(y,mo,d)?y+'-'+pad2(mo)+'-'+pad2(d):null;}
+  if((m=s.match(/^(\d{4})[\/.\-](\d{1,2})[\/.\-](\d{1,2})$/))){const y=+m[1],mo=+m[2],d=+m[3];return validYMD(y,mo,d)?y+'-'+pad2(mo)+'-'+pad2(d):null;}
+  if((m=s.match(/^(\d{1,2})[\/.\-](\d{4})$/))){const mo=+m[1],y=+m[2];return(mo>=1&&mo<=12&&y>=2000&&y<=2100)?y+'-'+pad2(mo)+'-'+pad2(lastDay(y,mo)):null;}
+  if((m=s.match(/^(\d{4})[\/.\-](\d{1,2})$/))){const y=+m[1],mo=+m[2];return(mo>=1&&mo<=12&&y>=2000&&y<=2100)?y+'-'+pad2(mo)+'-'+pad2(lastDay(y,mo)):null;}
+  if((m=s.match(/^(\d{2})(\d{2})(\d{4})$/))){const d=+m[1],mo=+m[2],y=+m[3];return validYMD(y,mo,d)?y+'-'+pad2(mo)+'-'+pad2(d):null;}
+  if((m=s.match(/^(\d{1,2})[\- ]([A-Za-z]{3,9})[\- ,]*(\d{4})$/))){const mi=['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'].indexOf(m[2].slice(0,3).toLowerCase());if(mi<0)return null;const d=+m[1],y=+m[3];return validYMD(y,mi+1,d)?y+'-'+pad2(mi+1)+'-'+pad2(d):null;}
+  return null;
+}
+function excelSerial(iso){const p=iso.split('-').map(Number);return Math.round((Date.UTC(p[0],p[1]-1,p[2])-Date.UTC(1899,11,30))/86400000);}
+function xmlEsc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])).replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g,'');}
+function colLetter(i){let s='';i++;while(i>0){const r=(i-1)%26;s=String.fromCharCode(65+r)+s;i=Math.floor((i-1)/26);}return s;}
+let CRC_T=null;
+function crc32(b){if(!CRC_T){CRC_T=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;CRC_T[n]=c>>>0;}}
+  let c=0xFFFFFFFF;for(let i=0;i<b.length;i++)c=CRC_T[(c^b[i])&255]^(c>>>8);return(c^0xFFFFFFFF)>>>0;}
+function zipStore(files){ // files: [{name, data:Uint8Array}]  (no compression)
+  const enc=new TextEncoder(),parts=[],central=[];let off=0;
+  for(const f of files){
+    const nm=enc.encode(f.name),crc=crc32(f.data),sz=f.data.length;
+    const h=new DataView(new ArrayBuffer(30));
+    h.setUint32(0,0x04034b50,true);h.setUint16(4,20,true);h.setUint16(6,0x0800,true);h.setUint16(8,0,true);
+    h.setUint16(10,0,true);h.setUint16(12,0x21,true);h.setUint32(14,crc,true);h.setUint32(18,sz,true);h.setUint32(22,sz,true);
+    h.setUint16(26,nm.length,true);h.setUint16(28,0,true);
+    parts.push(new Uint8Array(h.buffer),nm,f.data);
+    const c=new DataView(new ArrayBuffer(46));
+    c.setUint32(0,0x02014b50,true);c.setUint16(4,20,true);c.setUint16(6,20,true);c.setUint16(8,0x0800,true);c.setUint16(10,0,true);
+    c.setUint16(12,0,true);c.setUint16(14,0x21,true);c.setUint32(16,crc,true);c.setUint32(20,sz,true);c.setUint32(24,sz,true);
+    c.setUint16(28,nm.length,true);c.setUint32(42,off,true);
+    central.push(new Uint8Array(c.buffer),nm);
+    off+=30+nm.length+sz;
+  }
+  let csz=0;for(const p of central)csz+=p.length;
+  const e=new DataView(new ArrayBuffer(22));
+  e.setUint32(0,0x06054b50,true);e.setUint16(8,files.length,true);e.setUint16(10,files.length,true);e.setUint32(12,csz,true);e.setUint32(16,off,true);
+  const all=[...parts,...central,new Uint8Array(e.buffer)];let tot=0;for(const p of all)tot+=p.length;
+  const out=new Uint8Array(tot);let o=0;for(const p of all){out.set(p,o);o+=p.length;}return out;
+}
+// cols: [[heading,key,type('s'|'n'|'d'),width]], rows: array of objects
+function buildXlsx(sheetName,cols,rows,meta){
+  const enc=new TextEncoder();
+  let sd='<row r="1">'+cols.map((c,i)=>'<c r="'+colLetter(i)+'1" t="inlineStr" s="2"><is><t>'+xmlEsc(c[0])+'</t></is></c>').join('')+'</row>';
+  rows.forEach((r,ri)=>{
+    const rn=ri+2;
+    sd+='<row r="'+rn+'"'+((meta&&meta.rowHt&&meta.rowHt[rn])?' ht="'+meta.rowHt[rn]+'" customHeight="1"':'')+'>'+cols.map((c,i)=>{
+      const ref=colLetter(i)+rn,v=r[c[1]];
+      if(v===undefined||v===null||v==='')return '';
+      if(c[2]==='n')return '<c r="'+ref+'"><v>'+Number(v)+'</v></c>';
+      if(c[2]==='d')return '<c r="'+ref+'" s="1"><v>'+excelSerial(v)+'</v></c>';
+      return '<c r="'+ref+'" t="inlineStr" s="3"><is><t>'+xmlEsc(v)+'</t></is></c>';
+    }).join('')+'</row>';
+  });
+  const ns='http://schemas.openxmlformats.org/spreadsheetml/2006/main',rel='http://schemas.openxmlformats.org/officeDocument/2006/relationships';
+  const X='<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
+  const parts=[
+    ['[Content_Types].xml',X+'<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/></Types>'],
+    ['_rels/.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+rel+'/officeDocument" Target="xl/workbook.xml"/></Relationships>'],
+    ['xl/workbook.xml',X+'<workbook xmlns="'+ns+'" xmlns:r="'+rel+'"><sheets><sheet name="'+xmlEsc(sheetName)+'" sheetId="1" r:id="rId1"/></sheets></workbook>'],
+    ['xl/_rels/workbook.xml.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+rel+'/worksheet" Target="worksheets/sheet1.xml"/><Relationship Id="rId2" Type="'+rel+'/styles" Target="styles.xml"/></Relationships>'],
+    ['xl/styles.xml',X+'<styleSheet xmlns="'+ns+'"><numFmts count="1"><numFmt numFmtId="164" formatCode="dd\\-mmm\\-yyyy"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="4"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="49" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>'],
+    ['xl/worksheets/sheet1.xml',X+'<worksheet xmlns="'+ns+'"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'+cols.map((c,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+c[3]+'" customWidth="1"/>').join('')+'</cols><sheetData>'+sd+'</sheetData></worksheet>']
+  ];
+  if(meta){                                                  // who saved it: file author + optional "Info" sheet (second sheet)
+    const P=n=>parts.find(p=>p[0]===n);
+    (meta.extra||[]).forEach((x,k)=>{
+      const n=3+k,rid='rId'+(10+n);
+      let xd='<row r="1">'+x.cols.map((c,i)=>'<c r="'+colLetter(i)+'1" t="inlineStr" s="2"><is><t>'+xmlEsc(c[0])+'</t></is></c>').join('')+'</row>';
+      x.rows.forEach((r,ri)=>{const rn=ri+2;xd+='<row r="'+rn+'">'+x.cols.map((c,i)=>{const ref=colLetter(i)+rn,v=r[c[1]];if(v===undefined||v===null||v==='')return '';
+        if(c[2]==='n')return '<c r="'+ref+'"><v>'+Number(v)+'</v></c>';if(c[2]==='d')return '<c r="'+ref+'" s="1"><v>'+excelSerial(v)+'</v></c>';
+        return '<c r="'+ref+'" t="inlineStr" s="3"><is><t>'+xmlEsc(v)+'</t></is></c>';}).join('')+'</row>';});
+      P('[Content_Types].xml')[1]=P('[Content_Types].xml')[1].replace('</Types>','<Override PartName="/xl/worksheets/sheet'+n+'.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+      P('xl/workbook.xml')[1]=P('xl/workbook.xml')[1].replace('</sheets>','<sheet name="'+xmlEsc(x.name)+'" sheetId="'+n+'" r:id="'+rid+'"/></sheets>');
+      P('xl/_rels/workbook.xml.rels')[1]=P('xl/_rels/workbook.xml.rels')[1].replace('</Relationships>','<Relationship Id="'+rid+'" Type="'+rel+'/worksheet" Target="worksheets/sheet'+n+'.xml"/></Relationships>');
+      parts.push(['xl/worksheets/sheet'+n+'.xml',X+'<worksheet xmlns="'+ns+'"><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews><cols>'+x.cols.map((c,i)=>'<col min="'+(i+1)+'" max="'+(i+1)+'" width="'+c[3]+'" customWidth="1"/>').join('')+'</cols><sheetData>'+xd+'</sheetData></worksheet>']);
+    });
+    if(meta.info&&meta.info.length){
+      P('[Content_Types].xml')[1]=P('[Content_Types].xml')[1].replace('</Types>','<Override PartName="/xl/worksheets/sheet2.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>');
+      P('xl/workbook.xml')[1]=P('xl/workbook.xml')[1].replace('</sheets>','<sheet name="'+xmlEsc(meta.infoName||'Info')+'" sheetId="2" r:id="rId3"/></sheets>');
+      P('xl/_rels/workbook.xml.rels')[1]=P('xl/_rels/workbook.xml.rels')[1].replace('</Relationships>','<Relationship Id="rId3" Type="'+rel+'/worksheet" Target="worksheets/sheet2.xml"/></Relationships>');
+      const r2=meta.info.map((kv,i)=>'<row r="'+(i+1)+'"><c r="A'+(i+1)+'" t="inlineStr" s="2"><is><t>'+xmlEsc(kv[0])+'</t></is></c><c r="B'+(i+1)+'" t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(kv[1])+'</t></is></c></row>').join('');
+      parts.push(['xl/worksheets/sheet2.xml',X+'<worksheet xmlns="'+ns+'"><cols><col min="1" max="1" width="22" customWidth="1"/><col min="2" max="2" width="60" customWidth="1"/></cols><sheetData>'+r2+'</sheetData></worksheet>']);
+    }
+    const iso=(meta.created||new Date()).toISOString().replace(/\.\d+Z$/,'Z'),who=xmlEsc(meta.who||'CCS Scan Helper');
+    P('[Content_Types].xml')[1]=P('[Content_Types].xml')[1].replace('</Types>','<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>');
+    P('_rels/.rels')[1]=P('_rels/.rels')[1].replace('</Relationships>','<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>');
+    parts.push(['docProps/core.xml',X+'<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>'+xmlEsc(meta.title||sheetName)+'</dc:title><dc:creator>'+who+'</dc:creator><cp:lastModifiedBy>'+who+'</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">'+iso+'</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">'+iso+'</dcterms:modified></cp:coreProperties>']);
+  }
+  const bin=[];
+  if(meta&&meta.images&&meta.images.length){                 // pictures in the first sheet (one-cell anchors)
+    const P=n=>parts.find(p=>p[0]===n),EMU=9525,dr='http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing',da='http://schemas.openxmlformats.org/drawingml/2006/main';
+    let d=X+'<xdr:wsDr xmlns:xdr="'+dr+'" xmlns:a="'+da+'" xmlns:r="'+rel+'">',dRel=X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+    meta.images.forEach((im,k)=>{const n=k+1,ext=im.ext==='png'?'png':'jpeg',cx=Math.round(im.w*EMU),cy=Math.round(im.h*EMU);
+      d+='<xdr:oneCellAnchor><xdr:from><xdr:col>'+im.col+'</xdr:col><xdr:colOff>'+(4*EMU)+'</xdr:colOff><xdr:row>'+(im.row-1)+'</xdr:row><xdr:rowOff>'+(4*EMU)+'</xdr:rowOff></xdr:from><xdr:ext cx="'+cx+'" cy="'+cy+'"/>'
+        +'<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="'+(n+1)+'" name="Picture '+n+'"/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr><xdr:blipFill><a:blip r:embed="rId'+n+'"/><a:stretch><a:fillRect/></a:stretch></xdr:blipFill>'
+        +'<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="'+cx+'" cy="'+cy+'"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></xdr:spPr></xdr:pic><xdr:clientData/></xdr:oneCellAnchor>';
+      dRel+='<Relationship Id="rId'+n+'" Type="'+rel+'/image" Target="../media/image'+n+'.'+ext+'"/>';bin.push({name:'xl/media/image'+n+'.'+ext,data:im.bytes});});
+    d+='</xdr:wsDr>';dRel+='</Relationships>';
+    parts.push(['xl/drawings/drawing1.xml',d],['xl/drawings/_rels/drawing1.xml.rels',dRel],
+      ['xl/worksheets/_rels/sheet1.xml.rels',X+'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="'+rel+'/drawing" Target="../drawings/drawing1.xml"/></Relationships>']);
+    const sh1=P('xl/worksheets/sheet1.xml');sh1[1]=sh1[1].replace('<worksheet xmlns="'+ns+'">','<worksheet xmlns="'+ns+'" xmlns:r="'+rel+'">').replace(/<\/worksheet>$/,'<drawing r:id="rId1"/></worksheet>');
+    const ct=P('[Content_Types].xml');ct[1]=ct[1].replace('<Default Extension="xml"','<Default Extension="jpeg" ContentType="image/jpeg"/><Default Extension="png" ContentType="image/png"/><Default Extension="xml"').replace('</Types>','<Override PartName="/xl/drawings/drawing1.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>');
+  }
+  if(meta&&meta.fitWide){                                     // print: landscape, all columns on one page width
+    const s1=parts.find(p=>p[0]==='xl/worksheets/sheet1.xml');
+    s1[1]=s1[1].replace(/(<worksheet [^>]*>)/,'$1<sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>').replace(/(<drawing r:id="rId1"\/>)?<\/worksheet>$/,'<pageMargins left="0.4" right="0.4" top="0.5" bottom="0.5" header="0.3" footer="0.3"/><pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0"/>$1</worksheet>');
+  }
+  return zipStore(parts.map(f=>({name:f[0],data:enc.encode(f[1])})).concat(bin));
+}
+// -> {ir,name,unit,loc} | null     (items: array of [ir,name,unit,loc])
+function lookupItem(map,code){const c=(code||'').trim();return map.get(c)||null;}
+function searchItems(items,text,limit){
+  const w=(text||'').toLowerCase().split(/\s+/).filter(Boolean);if(!w.length)return[];
+  const out=[];for(const it of items){const n=it.key||it.name.toLowerCase();if(w.every(x=>n.includes(x)||it.ir.startsWith(x))){out.push(it);if(out.length>=limit)break;}}return out;
+}
+// add to a list (array of {ir,name,expiry,qty}); merge identical lines. returns the touched line
+function addLine(list,mode,item,qty,expiry){
+  let l=list.find(x=>x.ir===item.ir&&(x.expiry||'')===(expiry||''));
+  if(l){l.qty+=qty;}else{l={ir:item.ir,name:item.name,qty:qty,expiry:expiry||'',t:nowStamp()};list.push(l);}
+  return l;
+}
+function nowStamp(){const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes())+':'+p(d.getSeconds());}
+function dmy(iso){return iso&&/^\d{4}-\d{2}-\d{2}$/.test(iso)?iso.slice(8)+'/'+iso.slice(5,7)+'/'+iso.slice(0,4):(iso||'');}
+// rows for the Excel file. includeAll=false: only scanned lines. true: the whole item list (template style),
+// Qty filled only where something was scanned.
+function buildRows(list,items,includeAll){
+  const info=new Map(items.map(i=>[i.ir,i]));
+  const mk=(it,l)=>({ir:it.ir,name:it.name,expiry:(l&&l.expiry)||'',loc:it.loc||'',max:it.max,min:it.min,price:it.price,unit:it.unit||'',qty:l?l.qty:''});
+  if(!includeAll)return list.map(l=>mk(info.get(l.ir)||{ir:l.ir,name:l.name},l));
+  const by=new Map();list.forEach(l=>{if(!by.has(l.ir))by.set(l.ir,[]);by.get(l.ir).push(l);});
+  const out=[];items.forEach(it=>{const ls=by.get(it.ir);if(ls)ls.forEach(l=>out.push(mk(it,l)));else out.push(mk(it,null));});
+  return out;
+}
+// Video: one "presentation" = the same code seen in consecutive frames. Same code shown again later = another unit.
+function groupDetections(dets,gap){
+  gap=gap||1.5;const groups=[];let cur=null;
+  for(const d of dets){
+    if(cur&&cur.code===d.code&&d.t-cur.last<=gap){cur.last=d.t;cur.n++;cur.strong=cur.strong||d.c>=2;}
+    else{cur={code:d.code,first:d.t,last:d.t,n:1,strong:d.c>=2};groups.push(cur);}
+  }
+  const cnt=new Map(),order=[];
+  for(const g of groups){if(g.n<2&&!g.strong)continue;if(!cnt.has(g.code)){cnt.set(g.code,0);order.push(g.code);}cnt.set(g.code,cnt.get(g.code)+1);}
+  return order.map(c=>({code:c,qty:cnt.get(c)}));
+}
+
+// ---- item list import: the CCS inventory Excel (.xlsx) or a setup file (.json) -> [[ir,name,unit,loc,price,max,min,[expiries]]]
+function serialToIso(n){const d=new Date(Date.UTC(1899,11,30)+Math.round(n)*86400000);return d.getUTCFullYear()+'-'+pad2(d.getUTCMonth()+1)+'-'+pad2(d.getUTCDate());}
+function unxml(t){return String(t).replace(/&lt;/g,'<').replace(/&gt;/g,'>').replace(/&quot;/g,'"').replace(/&apos;/g,"'").replace(/&#(\d+);/g,(_,n)=>String.fromCharCode(+n)).replace(/&#x([0-9a-fA-F]+);/g,(_,h)=>String.fromCharCode(parseInt(h,16))).replace(/&amp;/g,'&');}
+function colIndex(ref){const m=/^([A-Z]+)/.exec(ref);let n=0;for(const ch of m[1])n=n*26+ch.charCodeAt(0)-64;return n-1;}
+async function inflateRaw(u8){const ds=new DecompressionStream('deflate-raw'),w=ds.writable.getWriter();w.write(u8);w.close();return new Uint8Array(await new Response(ds.readable).arrayBuffer());}
+function zipEntries(u8){
+  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength);let e=u8.length-22;
+  while(e>=0&&dv.getUint32(e,true)!==0x06054b50)e--;
+  if(e<0)throw new Error('this is not an .xlsx file');
+  const n=dv.getUint16(e+10,true);let p=dv.getUint32(e+16,true);const out={};
+  for(let i=0;i<n;i++){
+    if(dv.getUint32(p,true)!==0x02014b50)break;
+    const method=dv.getUint16(p+10,true),csz=dv.getUint32(p+20,true),nl=dv.getUint16(p+28,true),el=dv.getUint16(p+30,true),cl=dv.getUint16(p+32,true),lho=dv.getUint32(p+42,true);
+    out[new TextDecoder().decode(u8.subarray(p+46,p+46+nl))]={method,csz,lho};p+=46+nl+el+cl;
+  }
+  return out;
+}
+async function zipText(u8,ents,name){
+  const ent=ents[name];if(!ent)return null;
+  const dv=new DataView(u8.buffer,u8.byteOffset,u8.byteLength),start=ent.lho+30+dv.getUint16(ent.lho+26,true)+dv.getUint16(ent.lho+28,true);
+  const data=u8.subarray(start,start+ent.csz);
+  return new TextDecoder().decode(ent.method===0?data:await inflateRaw(data));
+}
+function sheetRows(xml,shared){
+  const rows=[],rowRe=/<row\b[^>]*?(?:\/>|>([\s\S]*?)<\/row>)/g;let rm;
+  while((rm=rowRe.exec(xml))){
+    const row=[],body=rm[1]||'',cRe=/<c\b([^>]*?)(?:\/>|>([\s\S]*?)<\/c>)/g;let cm;
+    while((cm=cRe.exec(body))){
+      const at=cm[1],inner=cm[2]||'',r=/\br="([A-Z]+\d+)"/.exec(at),t=/\bt="(\w+)"/.exec(at);if(!r)continue;
+      const vm=/<v>([\s\S]*?)<\/v>/.exec(inner);let v;
+      if(t&&t[1]==='s'&&vm)v=shared[+vm[1]];
+      else if(t&&t[1]==='inlineStr')v=[...inner.matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>unxml(x[1])).join('');
+      else if(vm)v=(t&&t[1]==='str')?unxml(vm[1]):Number(vm[1]);
+      row[colIndex(r[1])]=v;
+    }
+    rows.push(row);
+  }
+  return rows;
+}
+function catalogFromRows(rows){
+  let hi=-1;const cols={};
+  for(let i=0;i<rows.length&&i<30;i++){const r=rows[i]||[];if(r.some(v=>typeof v==='string'&&v.trim().toLowerCase()==='ir_number')){hi=i;r.forEach((v,j)=>{if(typeof v==='string')cols[v.trim().toLowerCase()]=j;});break;}}
+  if(hi<0)return null;
+  const g=(r,k)=>cols[k]===undefined?undefined:r[cols[k]],num=v=>(v===undefined||v===null||v==='')?null:(isFinite(+v)?+v:null);
+  const by=new Map(),order=[];
+  for(let i=hi+1;i<rows.length;i++){
+    const r=rows[i];if(!r)continue;let ir=g(r,'ir_number');if(typeof ir==='number')ir=String(Math.round(ir));ir=String(ir==null?'':ir).trim();
+    if(!/^\d{10}$/.test(ir))continue;
+    let it=by.get(ir);if(!it){it={ir,name:'',unit:'',loc:'',price:null,max:null,min:null,exps:new Set(),alias:''};by.set(ir,it);order.push(ir);}
+    {const al=[g(r,'other names'),g(r,'other name'),g(r,'alias'),g(r,'aliases')].find(v=>v!=null&&String(v).trim());if(al&&!it.alias)it.alias=String(al).trim().slice(0,300);}
+    const nm=String(g(r,'item name')||'').trim(),un=g(r,'qty_type'),lc=g(r,'location');
+    if(!it.name&&nm)it.name=nm;if(!it.unit&&un)it.unit=String(un).trim().toUpperCase();if(!it.loc&&lc)it.loc=String(lc).trim();
+    if(it.price==null)it.price=num(g(r,'unit price'));if(it.max==null)it.max=num(g(r,'max_stock'));if(it.min==null)it.min=num(g(r,'min_stock'));
+    const ex=g(r,'expiry');let iso='';
+    if(typeof ex==='number'&&ex>20000&&ex<80000)iso=serialToIso(ex);else if(typeof ex==='string')iso=parseExpiry(ex)||'';
+    if(/^\d{4}-\d{2}-\d{2}$/.test(iso))it.exps.add(iso);
+  }
+  return order.map(ir=>{const it=by.get(ir);return[ir,it.name||ir,it.unit,it.loc,it.price,it.max,it.min,[...it.exps].sort(),it.alias||''];});
+}
+async function parseXlsxCatalog(arrayBuffer){
+  const u8=new Uint8Array(arrayBuffer),ents=zipEntries(u8);
+  const wb=await zipText(u8,ents,'xl/workbook.xml'),rels=await zipText(u8,ents,'xl/_rels/workbook.xml.rels');
+  if(!wb||!rels)throw new Error('this is not an Excel workbook');
+  const ss=await zipText(u8,ents,'xl/sharedStrings.xml');
+  const shared=ss?[...ss.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)].map(m=>[...m[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>unxml(x[1])).join('')):[];
+  const sheets=[...wb.matchAll(/<sheet\b[^>]*>/g)].map(m=>({name:unxml((/\bname="([^"]*)"/.exec(m[0])||[])[1]||''),rid:(/\br:id="([^"]*)"/.exec(m[0])||[])[1]}));
+  sheets.sort((a,b)=>(b.name.toLowerCase()==='inventory list')-(a.name.toLowerCase()==='inventory list'));
+  for(const sh of sheets){
+    const rm=new RegExp('<Relationship\\b[^>]*\\bId="'+sh.rid+'"[^>]*>').exec(rels);if(!rm)continue;
+    const tg=/\bTarget="([^"]*)"/.exec(rm[0]);if(!tg)continue;
+    const xml=await zipText(u8,ents,tg[1].startsWith('/')?tg[1].slice(1):'xl/'+tg[1]);if(!xml)continue;
+    const items=catalogFromRows(sheetRows(xml,shared));if(items&&items.length)return{items,sheet:sh.name};
+  }
+  throw new Error('no sheet with the columns ir_number / item name was found');
+}
+function parseSetupJson(text){
+  const o=JSON.parse(text),arr=Array.isArray(o)?o:(o&&o.items);if(!Array.isArray(arr))throw new Error('this is not a setup file');
+  const items=[];
+  for(const a of arr){if(!Array.isArray(a))continue;const ir=String(a[0]||'').trim();if(!/^\d{10}$/.test(ir)||!a[1])continue;
+    items.push([ir,String(a[1]),a[2]||'',a[3]||'',a[4]==null?null:a[4],a[5]==null?null:a[5],a[6]==null?null:a[6],Array.isArray(a[7])?a[7].filter(x=>/^\d{4}-\d{2}-\d{2}$/.test(x)):[]]);}
+  return{items,uploadLink:(o&&typeof o.uploadLink==='string'&&/^https:\/\//i.test(o.uploadLink))?o.uploadLink:'',
+    photos:(o&&o.photos&&typeof o.photos==='object'&&!Array.isArray(o.photos))?o.photos:null,syncUrl:(o&&typeof o.syncUrl==='string'&&/^https:\/\//i.test(o.syncUrl))?o.syncUrl:'',scanCode:(o&&typeof o.scanCode==='string')?o.scanCode.replace(/[^A-Za-z0-9]/g,'').slice(0,30):''};
+}
+// ---- Code 128 decoder (camera frames) -------------------------------------
+const C128 = "212222 222122 222221 121223 121322 131222 122213 122312 132212 221213 221312 231212 112232 122132 122231 113222 123122 123221 223211 221132 221231 213212 223112 312131 311222 321122 321221 312212 322112 322211 212123 212321 232121 111323 131123 131321 112313 132113 132311 211313 231113 231311 112133 112331 132131 113123 113321 133121 313121 211331 231131 213113 213311 213131 311123 311321 331121 312113 312311 332111 314111 221411 431111 111224 111422 121124 121421 141122 141221 112214 112412 122114 122411 142112 142211 241211 221114 413111 241112 134111 111242 121142 121241 114212 124112 124211 411212 421112 421211 212141 214121 412121 111143 111341 131141 114113 114311 411113 411311 113141 114131 311141 411131 211412 211214 211232 2331112".split(' ').map(s => s.split('').map(Number));
+const C128_STOP = C128[106];
+function c128Sum(L, i, n) { let s = 0; for (let k = 0; k < n; k++) s += L[i + k]; return s; }
+function c128Match(L, i, cands) {
+  const S = c128Sum(L, i, 6), m = S / 11; if (m < 0.9) return null;
+  let best = -1, be = 1e9;
+  for (const v of cands) { const w = C128[v]; let e = 0; for (let k = 0; k < 6; k++) e += Math.abs(L[i + k] / m - w[k]); if (e < be) { be = e; best = v; } }
+  return be <= 2.3 ? best : null;
+}
+const C128_DATA = Array.from({ length: 103 }, (_, i) => i), C128_START = [103, 104, 105];
+function c128Text(vals) {
+  let set = { 103: 'A', 104: 'B', 105: 'C' }[vals[0]], out = '', shift = false;
+  for (let k = 1; k < vals.length - 1; k++) {
+    const v = vals[k];
+    if (set === 'C') { if (v <= 99) { out += (v < 10 ? '0' : '') + v; continue; } if (v === 100) { set = 'B'; continue; } if (v === 101) { set = 'A'; continue; } if (v === 102) continue; return null; }
+    let cur = set; if (shift) { cur = set === 'A' ? 'B' : 'A'; shift = false; }
+    if (v <= 95) { out += cur === 'A' ? (v < 64 ? String.fromCharCode(v + 32) : String.fromCharCode(v - 64)) : String.fromCharCode(v + 32); continue; }
+    if (v === 98) { shift = true; continue; } if (v === 99) { set = 'C'; continue; }
+    if (v === 100) { if (set === 'A') set = 'B'; continue; } if (v === 101) { if (set === 'B') set = 'A'; continue; }
+    if (v === 96 || v === 97 || v === 102) continue; return null;
+  }
+  return out;
+}
+function c128Read(L, i, startVal) {
+  const vals = [startVal]; let p = i + 6;
+  for (;;) {
+    if (p + 7 <= L.length) {
+      const m = c128Sum(L, p, 7) / 13;
+      if (m >= 0.9) { let e = 0; for (let k = 0; k < 7; k++) e += Math.abs(L[p + k] / m - C128_STOP[k]);
+        const quiet = p + 7 >= L.length || L[p + 7] >= m * 4.5;   // a real stop bar is followed by empty space
+        if (e <= 2.8 && quiet && vals.length >= 5) break; }
+    }
+    if (p + 6 > L.length || vals.length > 70) return null;
+    const v = c128Match(L, p, C128_DATA); if (v === null) return null;
+    vals.push(v); p += 6;
+  }
+  let chk = vals[0]; for (let k = 1; k < vals.length - 1; k++) chk += k * vals[k];
+  if (chk % 103 !== vals[vals.length - 1]) return null;
+  const t = c128Text(vals); return t ? t : null;
+}
+function c128Runs(line) {
+  const n = line.length, win = Math.max(16, Math.round(n / 12)), pre = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) pre[i + 1] = pre[i] + line[i];
+  const L = []; let cur = -1, len = 0, firstBlack = false;
+  for (let i = 0; i < n; i++) {
+    const a = Math.max(0, i - win), b = Math.min(n, i + win + 1), mean = (pre[b] - pre[a]) / (b - a);
+    const black = line[i] < mean * 0.88 ? 1 : 0;
+    if (cur === -1) { cur = black; len = 1; firstBlack = black === 1; }
+    else if (black === cur) len++; else { L.push(len); cur = black; len = 1; }
+  }
+  L.push(len); return { L, firstBlack };
+}
+function c128Line(line) {
+  const { L, firstBlack } = c128Runs(line);
+  for (let i = firstBlack ? 0 : 1; i + 6 <= L.length; i += 2) {
+    const m = c128Sum(L, i, 6) / 11; if (m < 0.9) continue;
+    if (i > 0 && L[i - 1] < m * 3) continue;               // quiet zone before the start symbol
+    const sv = c128Match(L, i, C128_START); if (sv === null) continue;
+    const r = c128Read(L, i, sv); if (r) return r;
+  }
+  return null;
+}
+function c128Both(line) { return c128Line(line) || c128Line(Array.prototype.slice.call(line).reverse()); }
+// gray: Uint8Array w*h (row-major). Returns Map(value -> number of scan lines that read it).
+// Every line is the average of 3 neighbouring lines (removes camera noise); if that fails, a lightly smoothed copy is tried.
+function c128Try(line) { let r = c128Both(line); if (r) return r;
+  const n = line.length, sm = new Float32Array(n); for (let i = 0; i < n; i++) sm[i] = (line[Math.max(0, i - 1)] + line[i] + line[Math.min(n - 1, i + 1)]) / 3;
+  return c128Both(sm); }
+function c128Scan(gray, w, h, K) {
+  K = K || 36; const hits = new Map(), add = v => hits.set(v, (hits.get(v) || 0) + 1), top = () => { let b = 0; for (const c of hits.values()) if (c > b) b = c; return b; };
+  const line = new Float32Array(w);
+  for (let k = 0; k < K; k++) {                                   // horizontal lines
+    const y = Math.round(h * (0.05 + 0.9 * (k + 0.5) / K)), y0 = Math.max(0, y - 1), y1 = Math.min(h - 1, y + 1);
+    for (let x = 0; x < w; x++) line[x] = (gray[y0 * w + x] + gray[y * w + x] + gray[y1 * w + x]) / 3;
+    const r = c128Try(line); if (r) { add(r); if (top() >= 2) return hits; }
+  }
+  const col = new Float32Array(h);
+  for (let k = 0; k < K; k++) {                                   // vertical lines (phone held sideways)
+    const x = Math.round(w * (0.05 + 0.9 * (k + 0.5) / K)), x0 = Math.max(0, x - 1), x1 = Math.min(w - 1, x + 1);
+    for (let y = 0; y < h; y++) col[y] = (gray[y * w + x0] + gray[y * w + x] + gray[y * w + x1]) / 3;
+    const r = c128Try(col); if (r) { add(r); if (top() >= 2) return hits; }
+  }
+  return hits;
+}
+
+// ==CORE END==
+
+const TEMPLATE_COLS=[['ir_number','ir','s',14],['item name','name','s',70],['Expiry','expiry','d',13],['Location','loc','s',42],['max_stock','max','n',10],['min_stock','min','n',10],['Unit Price','price','n',11],['Qty_type','unit','s',10],['Qty','qty','n',8]];
+const BUILTIN=[["9100001003","CLOSED SUCTION SYSTEM 24 HOURS, 08FR 35.5CMS LENGTH, WITH ELBOW ENDOTRACHEAL TUBE ADAPTERS 3.0, 3.5, 4.0 MM, STERILE","SET","Rack 01 - Row A - Bin 1",49.7652,null,null,""],["9100000450","TRACHEOSTOMY CARE KIT, STERILE","TRY","Rack 01 - Row B - Bin 1; Rack 01 - Row C - Bin 1; Rack 01 - Row D - Bin 1",2.616,null,null,""],["9100002486","HYDROCELLULAR FOAM NON-ADHESIVE DRESSING, STERILE, SIZE:15X15CM","EAC","Rack 01 - Row E - Bin 1",15.71,null,null,""],["9100002507","DRESSING TRACHEOSTOMY NON-ADHESIVE HYDROCELLULAR FOAM, POLYURETHANE APERTURED, SIZE 10X09X0.5CMS, STERILE","EAC","Rack 01 - Row E - Bin 1",1.27,null,null,""],["9100002509","NON-ADHESIVE HYDROCELLULAR POLYURETHANE TRACHEOSTOMY DRESSING, APERTURED, STERILE, SIZE 6.5X6.5X0.5 CM","EAC","Rack 01 - Row E - Bin 1",0.87,null,null,""],["9100005680","TRACHEOSTOMY TIE BLUE COLOR (NECKTAPE) PEDIATRIC SIZE","EAC","Rack 01 - Row F - Bin 1",3.072,null,null,""],["9100003680","TRACHEOSTOMY TUBE HOLDER (NECKTAPES) 470MM, ADULT/CHILD SIZE WITH VELCRO FASTENER, ADJUSTABLE TO FIT DIFFERENT NECK CIRCUMFERENCE","","Rack 01 - Row F - Bin 2",3.19,null,null,""],["9000001573","COLLAR & CUFF SOFT SLING BAND FOR SUSPENDING THE ARM TO THE NECK, 7.5CM WIDTH, 6 METERS/ROLL","ROL","Rack 01 - Row G - Bin 1",18.163,null,null,""],["9100001772","LOW NOISE CABLES SENSORS (LNCS) ADHESIVE NEONATAL / ADULT DISPOSABLE - 18 INCHES TO USE WITH RADICAL-7 PULSE OXIMETERS","EAC","Rack 01 - Row H - Bin 1",49.0,null,null,""],["9100005430","STETHOSCOPE PLASTIC ADULT, YELLOW COLOR,SINGLE-PATIENT-USE","EAC","Rack 01 - Row H - Bin 1",6.46,null,null,""],["9100005158","BAG VALVE MASK ADULT , WITH PRESSURE LIMITING VALVE, WITH BAG RESERVOIR AND MASK","EAC","Rack 01 - Row I - Bin 1",62.8,null,null,""],["9100005157","BAG VALVE MASK PAEDIATRIC, WITH BAG RESERVOIR AND MASK","EAC","Rack 01 - Row I - Bin 2",32.19,null,null,""],["9100005325","HUMIDIFIER AND RESERVOIR PREFILLED WITH STERILE WATER 650ML FOR INHALATION,  PLUS ADAPTER","SET","Rack 01 - Row J - Bin 1",7.87,null,null,""],["9100005333","NEBULIZER SET ADULT WITH T-ADAPTOR MOUTH PIECE, 7FT(2.1M) TUBING & CORRUGATED TUBE","EAC","Rack 02 - Row A - Bin 1",2.1,null,null,""],["9100005335","NEBULIZER SET W/MASK & 7FT SUPPLY TUBE, PAED. SIZE","EAC","Rack 02 - Row A - Bin 2",1.7,null,null,""],["9100000735","CANNULA NASAL OXYGEN W/TBG, PEDIATRIC, DISPOSABLE","EAC","Rack 02 - Row B - Bin 1",1.47,null,null,""],["9100000730","OXYGEN CANNULA NASAL GREEN TRANSPARENT 200cm LONG TUBE ADULT SIZE","","Rack 02 - Row C - Bin 1",0.72,null,null,""],["9100005115","OXYGEN MASK PEDIATRIC SIZE, NON-REBREATHING WITH RESERVE BAG AND 7 FEET TUBING","EAC","Rack 02 - Row C - Bin 1",2.32,null,null,""],["9100005370","TRACHEOSTOMY FILTER WITH 15MM TERMINATION/OXYGEN PORT FOR SPONTANEOUSLY BREATHING PATIENTS, STERILE","EAC","Rack 02 - Row D - Bin 1",1.01,null,null,""],["9100005331","STANDARD LITTLE SUCKER SINGLE-HANDED SUCTIONING, SOFT FLEXIBLE TIP, LATEX FREE, BPA FREE,DEHP FREE","EAC","Rack 02 - Row E - Bin 1",7.412,null,null,""],["9100001008","CATH SUCTION 10 FG W/CON VALVE","EAC","Rack 02 - Row F - Bin 1",0.512,null,null,""],["9100001005","CATHETER SUCTION 08 FG, WITH FINGER CONTROL VALVE, STERILE","EAC","Rack 02 - Row G - Bin 1",0.3927,null,null,""],["9100001004","CATH SUCTION 06 FG W/CON VALVE","EAC","Rack 02 - Row H - Bin 1",0.547,null,null,""],["9100003967","ZZ-EXTENSION MIC-KEY BOLUS KIT WITH ENFIT","BOX","Rack 03 - Row A - Bin 1",null,null,null,""],["9100003954","GASTROSTOMY LOW PROFILE MIC-KEY FEEDING TUBES,12FR, O.D, 1.5CM LENGTH, 5ML BALLOON","EAC","Rack 03 - Row B - Bin 1",615.0,null,null,""],["9100003956","GASTROSTOMY LOW PROFILE MIC-KEY FEEDING TUBES,12FR, O.D, 2.5CM LENGTH, 5ML BALLOON","EAC","Rack 03 - Row B - Bin 1",615.0,null,null,""],["9100003957","GASTROSTOMY LOW PROFILE MIC-KEY FEEDING TUBES,14FR, O.D, 1.5CM LENGTH, 5ML BALLOON","EAC","Rack 03 - Row B - Bin 1",null,null,null,""],["9100003958","GASTROSTOMY LOW PROFILE MIC-KEY FEEDING TUBES,14FR, O.D, 1.7CM LENGTH, 5ML BALLOON","EAC","Rack 03 - Row B - Bin 1",null,null,null,""],["9100003959","GASTROSTOMY LOW PROFILE MIC-KEY FEEDING TUBES,14FR, O.D, 2.0CM LENGTH, 5ML BALLOON","EAC","Rack 03 - Row B - Bin 1",null,null,null,""],["9100003961","GASTROSTOMY LOW PROFILE MIC-KEY FEEDING TUBES,14FR, O.D, 2.5CM LENGTH, 5ML BALLOON","EAC","Rack 03 - Row B - Bin 1",null,null,null,""],["9100003965","GASTROSTOMY LOW PROFILE MIC-KEY FEEDING TUBES,16FR, O.D, 2.5CM LENGTH, 5ML BALLOON","EAC","Rack 03 - Row B - Bin 1",615.0,null,null,""],["9100003937","FEEDING SET PAED.SIZE 1.3L, FOR FLOCARE TOP FILL RESERVOIR INFINITY PUMP,STERILE # 589790","EAC","Rack 03 - Row C - Bin 1; Rack 03 - Row D - Bin 1",38.0,null,null,""],["9100003935","FEEDING SET ADULTS PACK AND BOTTLE SET ENFIT,STERILE","EAC","Rack 03 - Row E - Bin 1; Rack 03 - Row F - Bin 1",19.4393,null,null,""],["9100003933","FEEDING BAG F/KANGAROO E-PUMP 1000ML","","Rack 03 - Row G - Bin 1; Rack 03 - Row H - Bin 1; Rack 03 - Row I - Bin 1",43.0,null,null,""],["9100003921","TUBE FEEDING 06FR","EAC","Rack 03 - Row J - Bin 1",null,null,null,""],["9100003900","TUBE FEEDING 08FR","EAC","Rack 03 - Row J - Bin 1",null,null,null,""],["9100003922","TUBE FEEDING 10FR, RADIO-OPAQUE,30-50CM LONG, STERILE","EAC","Rack 03 - Row J - Bin 1",null,null,null,""],["9100002454","I.V Securement adhesive border, sterile, size 6.5 x 7 cm.","EAC","Rack 04 - Row A - Bin 1",1.8,null,null,""],["9100002521","IV TRANSPARENT ADHESIVE FILM, WATERPROOF, STERILE, SIZE 4.4 CM x 4.4 CM, WITH LABELING AREA","EAC","Rack 04 - Row A - Bin 1",0.54,null,null,""],["9100002522","IV transparent adhesive film, waterproof, sterile, size 6.5cm x 7cm, with labelling area","EAC","Rack 04 - Row A - Bin 1",0.703,null,null,""],["9100002916","TOURNIQUET DISPOSABLE FOR DRAWING BLOOD, LATEX FREE HIGH ELASTIC AND TEAR RESISTANT 1\"X18\"X0.025\" PERFORATED ROLL, BLUE COLOR(X100)","BOX","Rack 04 - Row A - Bin 1",13.91,null,null,""],["9100000702","I.V.EXTENSION SET 13CM WITH T CONNECTOR, SIDE CLAMP, MALE ADAPTER ON ONE END AND FEMALE ADAPTER ON THE OTHER, STERILE","EAC","Rack 04 - Row B - Bin 1",1.99,null,null,""],["9100003217","STOPCOCK 3WAY W/10CM EXT TUBE","EAC","Rack 04 - Row B - Bin 2",0.63,null,null,""],["9100000910","CANNULA IV 24G x 19mm YELLOW, STERILE","EAC","Rack 04 - Row C - Bin 1",1.06,null,null,""],["9100002622","INFUSION SET NON-CORING WINGED 22GX2.54CMS WITH INJECTION SITE NEEDLE, STERILE","","Rack 04 - Row D - Bin 1",8.62,null,null,""],["9100000912","CANNULA I.V. PERIPHERAL NEONATAL & PAEDIATRIC CATHETER 26G x19MM ,VIOLET COLOR, STERILE","EAC","Rack 04 - Row D - Bin 1",1.9,null,null,""],["8900004473","SOD.CHLORIDE 0.9% FOR INJECTION ,10ML","AMP","Rack 04 - Row E - Bin 1",0.4096,null,null,""],["9100002520","TAPE CLOTH WHITE ADHESIVE SIZE:1 INCH x 10 YARDS","ROL","Rack 04 - Row E - Bin 3",0.99,null,null,""],["9100001728","I.V. SUPPORT BOARD NEONATAL/PAED (PREEMIE) SIZE:1\"X3\" WITH CLOTH COVER OVER A FOAM CUSHION AND SHAPEABLE ALUMINIUM SUPPORT","EAC","Rack 04 - Row E - Bin 2",10.17,null,null,""],["9100007010","GLOVES SURGEON POWDER FREE, LATEX, SIZE 6, STERILE","PAI","Rack 04 - Row F - Bin 1",0.61,null,null,""],["9100000858","GAUZE SWAB (100% COTTON) 12 PLY, PLAIN,WHITE, FOLDED EDGES, 15 THREADS/CM2, STERILE, SIZE:10x10CM, PKT/5","PKT","Rack 04 - Row F - Bin 2",0.39,null,null,""],["9100000691","I.V.FILTER SET 17 INCH EXTENSION WITH Y-INJECTION SITE, LIFESHIELD 0.22 MICRON STERILIZING FILTER & VLV PORT","","Rack 04 - Row G - Bin 1",14.61,null,null,""],["9100000649","GEMINI BURETTE SET 150ML MICRO, STERILE","EAC","Rack 04 - Row H - Bin 1",79.0,null,null,""],["9100000629","INFUSOMAT SPACE LINE STANDARD 250CM,STERILE # 8700036SP TO USE WITH B.BRAUN INFUSION PUMP","EAC","Rack 04 - Row I - Bin 1",8.7,null,null,""],["9100000622","INFUSOMAT SPACE LINE # 8250437SP TO USE WITH B.BRAUN INFUSION PUMP","EAC","Rack 04 - Row J - Bin 1",22.9,null,null,""],["9100000693","Disposable Pediatric Blood Transfusion Set","EAC","Rack 04 - Row J - Bin 2",6.83,null,null,""],["9100000592","Blood Transfusion Set","SET","Rack 04 - Row J - Bin 2",8.09,null,null,""],["9100000646","GEMINI Y-TYPE BLOOD SET/BD ALARIS SYSTEM #2477-0006/2477-0007","EAC","Rack 04 - Row J - Bin 2",null,null,null,""],["9100003395","URINE COLLECTOR BAG FOR PEDIATRIC 100-200ML GRADUATED WITH LABEL AND NON-RETURN VALVE","EAC","Rack 05 - Row A - Bin 1",0.53,null,null,""],["9700001125","CONT.PLASTIC F/STOOL WITH SPOON 25-30ML,STERILE","EAC","Rack 05 - Row B - Bin 1",0.21,null,null,""],["9100002374","SYRINGE ASPIRATOR ONLY WITH VENTED TIPCAP, 1.5ML","EAC","Rack 05 - Row B - Bin 2",6.09,null,null,""],["9100002373","SYRINGE ARTERIAL BLOOD SAMPLER WITH 23GX16MM NEEDLE WITH NSD AND VENTED TIPCAP, 1.5ML","EAC","Rack 05 - Row B - Bin 3",10.924,null,null,""],["9700001139","TUBE, VACUUM K-OXAL. & NA. FLOURIDE, PLASTIC, RUBBER STOPPER RECESSED INSID PLASTIC CLOSUER 2 ML, 13 X 75 MM.","EAC","Rack 05 - Row C - Bin 1",0.46,null,null,""],["9700001004","Tube, Vacuum NA.CIT 3.2 %, Plastic, Hemogard Closuer 3 ML, 13 X 75 MM","EAC","Rack 05 - Row C - Bin 1",0.39,null,null,""],["9700001107","Tube, Vacuum CLOT Activator, Plastic, Hemogard Closuer, 4 ML, 13 X 75 MM.","EAC","Rack 05 - Row C - Bin 2",0.29,null,null,""],["9700001155","Tube, Microtainer K2EDTA, Plastic, Microgard Closuer, 0.5 ML, 13 X 75 MM","EAC","Rack 05 - Row C - Bin 3",0.26,null,null,""],["9700001105","Tube, Vacuum K2EDTA, Plastic, Hemogard Closuer, 4 ML, 13 X 75 MM","EAC","Rack 05 - Row C - Bin 3",0.26,null,null,""],["9700001098","Tube, Vacuum Serum Seperator, Plastic, Hemgard Closuer, 5 ML, 13 X 100 MM","EAC","Rack 05 - Row D - Bin 1",0.4,null,null,""],["9100001400","NEEDLE 18G 1.5 FOR LUER LOCK SYRINGES STERILE","EAC","Rack 05 - Row D - Bin 3",0.06,null,null,""],["9100001413","NEEDLE FOR INSULIN PEN 32Gx4MM","EAC","Rack 05 - Row E - Bin 1",0.09,null,null,""],["9100001433","SYRINGE TUBERCULIN 1CC WITH NEEDLE, 25G/26GX5/8\", STERILE","EAC","Rack 05 - Row F - Bin 1",0.1095,null,null,""],["9100000100","SYRINGE WITH NEEDLE 03CC 21GX1.5 - LUER LOCK,STERILE","EAC","Rack 05 - Row F - Bin 2",0.1218,null,null,""],["9100001430","NEEDLE 25G x 1.5\" LUER LOCK, STERILE","EAC","Rack 05 - Row G - Bin 1",0.097,null,null,""],["9100000120","SYRINGE WITH NEEDLE 10CC 21GX1.5 - LUER LOCK, STERILE","EAC","Rack 05 - Row H - Bin 1",0.1637,null,null,""],["9100000112","SYRINGE WITH NEEDLE 20CC 21GX1.5 TWIST LOCK, STERILE","EAC","Rack 05 - Row I - Bin 1",0.2,null,null,""],["9200002173","LABELS (STICKERS) FOR MULTI-DOSE VIALS. SIZE: 2.5 X 1.5 CM, CORE SIZE: 2.5 CM DIA, 1000 LABELS/ROLL","ROL","Rack 05 - Row G - Bin 2",4.64,null,null,""],["9100003378","LUBRICATING JELLY 5GM SINGLE USE SACHETS,STERILE","SAC","Rack 06 - Row C - Bin 1",0.145,null,null,""],["9100003825","FOLEY CATHETER 2 WAY SILICONE, SIZE 12FR 10CC LONG TERM","EAC","Rack 06 - Row D - Bin 2",3.9,null,null,""],["9100003815","CATH 2-WAY FOLEY COATED 12FR SHORT TERM","EAC","Rack 06 - Row D - Bin 3",4.7,null,null,""],["9100000350","URINARY DRAINAGE BAG 2000ML (GRADUATED), WITH APPROX. ONE METER LONG TUBE, CLEAR & FIXED NUMERICAL GRADUATION SAMPLE PORT ROLLER DRAINAGE VALVE, STERILE","EAC","Rack 06 - Row D - Bin 3",1.186,null,null,""],["9100003816","CATH 2-WAY FOLEY COATED 14FR SHORT TERM","EAC","Rack 06 - Row D - Bin 4",6.21,null,null,""],["9100003822","Indwelling urethral balloon catheter, non-antimicrobial, 20-40cm, CH06. 2-way Foley, Luer lock, Silicone, 3-5ml balloon, funnel valve for Luer syringe, Lateral eyes, Stylet included, Single-use, Sterile","EAC","Rack 06 - Row D - Bin 1",48.95,null,null,""],["9100002790","TONGUE DEPRESSOR SIZE:150x18x1.6MM, NON STERILE,WOODEN, DISPOSABLE","EAC","Rack 06 - Row F - Bin 3",null,null,null,""],["9100000959","TAPE MEASURE","BOX","Rack 06 - Row F - Bin 1",327.12,null,null,""],["9100000663","RAZOR DOUBLE SIDED BLADES FOR SHAVING, DISPOSABLE","EAC","Rack 06 - Row F - Bin 2",0.74,null,null,""],["9100000040","BLANKET BABYWRAP,SIZE:80X80CMS, ABSORBENT THERMAL,WIND AND WATER PROOF","EAC","Rack 06 - Row H - Bin 1",23.26,null,null,""],["9100000540","BAG PATIENT BEDSIDE FOR WASTE DISPOSAL, WITH SELF-ADHESIVE TWO SIDED STICKER, SIZE: 152MM x 75MM x 273MM (WITH HMC LOGO)","EAC","Rack 06 - Row H - Bin 2",0.29,null,null,""],["9200003006","BABY OIL 200ML","BOT","Rack 06 - Row J - Bin 1",8.0,null,null,""],["9100001031","CATH NELATON 08 FR STERILE","EAC","Rack 06 - Row B - Bin 1",0.9089,null,null,""],["9100003826","CATH 2-WAY FOLEY ALL SIL.14FR LONG TERM","EAC","Rack 06 - Row 4 - Bin 3",3.9,null,null,""],["9100003827","CATH 2-WAY FOLEY ALL SIL.16FR LONG TERM","EAC","Rack 06 - Row 4 - Bin 4",3.9,null,null,""],["9100003824","CATH 2-WAY FOLEY ALL SILICONE 10FR LONG TERM","EAC","Rack 06 - Row 4 - Bin 5",4.63,null,null,""],["9000000748","PARAFFIN GAUZE DRESSING STERILE,10X40CM INDIVIDUALLY WRAPPED","EAC","Rack 06 - Row A - Bin 1",5.41,null,null,""],["9100000377","BANDAGE CREPE 3\"","ROL","Rack 06 - Row A - Bin 2",0.89,null,null,""],["9100002972","BANDAGE TUBULAR ELASTIC NET SZ.2, 25 MTRS ROLL","ROL","Rack 06 - Row A - Bin 3",17.43,null,null,""],["9100001032","CATHETER NELATON PVC 45-50CM LONG, STERILE, SIZE:10 FR","EAC","Rack 06 - Row B - Bin 2",0.8,null,null,""],["9100000380","URINARY DRAINAGE SYSTEM 300-400ML GRADUATED PER MILLIMETER FROM 0, WITH RESERVOIR BAG 2000-3000ML, STERILE","EAC","Rack 06 - Row B - Bin 2",12.4,null,null,""],["9000001824","FACE MASK SURGICAL DISPOSABLE 3 PLY HYPOALLERGENIC, NON WOVEN FABRIC WITH EAR LOOP (X50)","EAC","Rack 06 - Row E - Bin 1",0.8995,null,null,""],["9100001397","EAR SPECULUM - PEDIATRIC SIZE 2.5MM","BAG","Rack 06 - Row G - Bin 3",15.5,null,null,""],["9100009966","PROBE COVER FOR WELCH ALLYN/BRAUN TYMPHANIC THERMOMETER PRO 4000&6000 SERIES","EAC","Rack 06 - Row G - Bin 1",0.27,null,null,""],["9100000212","PROBE COVER FOR WELCH ALLYN ELECTRONIC THERMOMETER, DISPOSABLE","EAC","Rack 06 - Row G - Bin 2",0.123,null,null,""],["9100003966","GASTROSTOMY LOW PROFILE MIC-KEY FEEDING TUBES,16FR, O.D, 3.0CM LENGTH, 5ML BALLOON","EAC","",577.892,null,null,""],["9700005060","AEROBIC BACT/ ALERT FA CAT#41 0851","BOT","Rack 09 - Row E - Bin 4",27.0,null,null,""],["9100002724","AIRWAY GUEDEL SIZE # 2","EAC","",1.055,null,null,""],["9100002722","AIRWAY GUEDEL SIZE #0","EAC","",1.159,null,null,""],["9100002723","AIRWAY GUEDEL SIZE: 1, SIZE EMBOSSED, WITH COLOR CODED BITE BLOCKS, ANATOMICALLY SHAPED, STERILE","EAC","",1.25,null,null,""],["9100002721","AIRWAY GUEDEL SIZE:00, SIZE EMBOSSED, WITH COLOR CODED BITE BLOCKS, ANATOMICALLY SHAPED, STERILE","EAC","",2.439,null,null,""],["9100002221","AIRWAY NASOPHARYNGEAL SZ 7MM","EAC","",23.05,null,null,""],["9700005061","ANAEROBIC BACT/ ALERT FN, CAT#41 0852","BOT","Rack 09 - Row E - Bin 4",27.0,null,null,""],["9100002495","ANTIMICROBIAL NON-ADHERENT DRESSING WITH 10% POVIDONE-IODINE, CUTTABLE, STERILE, SIZE 10x10 CM (+/-1 CM)","EAC","Rack 06 - Row G - Bin 1",1.35,null,null,""],["9100009972","ANTISEPTIC SKIN CLEANSING SPONGE (4% CHLORHEXIDINE GLUCONATE W/V IMPREGNATED SPONGE WITH CLEANSING SOLUTION), STERILE","KIT","",null,null,null,""],["9200003008","BABY CREAM 100ML","TUB","",9.01,null,null,""],["9200003002","BABY SHAMPOO 200ML","EAC","",8.14,null,null,""],["9100000354","BAG UROSTOMY 30CMS LENGTH, STOMA SIZE 35MM, POUCH SIZE 44MM","EAC","",null,null,null,""],["9200003272","BATTERY TRANSISTOR SZ AA","EAC","",1.25,null,null,""],["9200003274","BATTERY TRANSISTOR SZ AAA","EAC","",1.21,null,null,""],["9100002168","BED PADS INCONTINENCE SUPER ABSORBENT,POLYPROPYLENE,CELLULOSE,WATERPROOF,STRONG AND CLEAR IMPOSING, SIZE: 60x80/90 CM","EAC","Rack 13 - Row A",0.8013,null,null,""],["9000005177","BILE DRAINAGE BAG DURABLE WITH AN ADAPTER FOR A T-TUBE AND LOCK COVER FOR DRAINING SYSTEM, 500ML - STERILE","EAC","Rack 05 - Row J - Bin 1",7.49,null,null,""],["9100009974","BODY CLEANSING WASH CLOTH ALCOHOL-FREE WITH 2% CHLORHEXIDINE, SIZE:20cm X 30cm,  ANTISEPTIC,RINSE-FREE (PACK 8/10)","PAC","",2.13,null,null,""],["9000005650","CAP FOR NURSE, SINGLE USE, NON-STERILE, FLUID RESISTANT MATERIAL, ADJUSTABLE AND SHOULD STAY SECURELY IN PLACE ONCE ADJUSTED, FITS ALL SIZES, BLUE COLOR, 25GSM","EAC","Rack 05 - Row C",0.136,null,null,""],["9100003823","CATH 2-WAY FOLEY ALL SIL.08FR LONG TERM","EAC","Rack 05 - Row I - Bin 1",5.199,null,null,""],["9100003381","CHLORHEXIDINE CLEAR APPLICATOR 3ML WITH CHG 2% W/V AND 70% V/V ISOPROPYL ALCOHOL, STERILE","EAC","",4.77,null,null,""],["9800000187","COFFEE BULK","KG","",84.21,null,null,""],["9700001256","CONT.PLAST.120ML STERILE","EAC","Rack 05 - Row G",0.494,null,null,""],["9100001793","COTTON WOOL ABSORBENT MEDICAL WITH INTERLEAF, 500GM","ROL","Rack 07 - Row E",5.3392,null,null,""],["9100000345","CREAM DURABLE SKIN BARRIER 92 GMS TUBE, TO PREVENT SKIN BREAKDOWN ON INTACT SKIN","TUB","",16.0,null,null,""],["9100001029","CUP MEDICATION UNBREAKABLE, POLYPROPYLENE, SIZE:30ML,GRADUATED FROM 2.5ML TO 30ML","EAC","Rack 02 - Row I - Bin 2",0.016,null,null,""],["9100005373","DEFIBRILLATOR ONESTEP PEDIATRIC RESUSCITATION ELECTRODE FOR ZOLL MONITOR","EAC","Rack 10 - Row B - Bin 2",356.1,null,null,""],["9300008451","DETERGENT - MULTI ENZYMATIC (5 ENZYMES), NON FOAMING HIGH PERFORMANCE, NON ABRASIVE, CONCENTRATED LOW DOSE 1-4ML/LITRE, NEUTRAL PH, COMPATIBLE WITH MEDICAL DEVICE AND MATERIALS LIKE S/S,PLASTIC & METAL & METAL -5 LITRES/CAN","CAN","",244.73,null,null,""],["8900003316","DEXTROSE 10%,500ML","BAG","",3.61,null,null,""],["8900003330","DEXTROSE 5% + NACL 0.45%,500ML","BAG","",3.21,null,null,""],["8900003326","DEXTROSE 5% IN NACL 0.9%,500ML","BAG","",3.31,null,null,""],["9100002176","DIAPER ADULT SIZE 32\"x 44\" MEDIUM","EAC","Rack 12 - Row A",1.7718,null,null,""],["9100002175","DIAPER ADULT SIZE 44\"x 60\" LARGE","EAC","Rack 15 - Row A; Rack 16 - Row A",0.778,null,null,""],["9100002178","DIAPER ADULT, WAIST SIZE: 56\" x 64\", X-LARGE","EAC","Rack 11 - Row A",0.9106,null,null,""],["9100002173","DIAPER FOR CHILD WEIGHT MORE THAN 25 KG AND LESS THAN 32KG /WAIST SIZE 40-70cm, WITH HIGH ABSORBENCY","EAC","",1.1064,null,null,""],["9100002160","DIAPER MEDIUM 5-8KGS (X13/14)","PKT","Rack 14 - Row A - Bin 2",29.895,null,null,""],["9100002172","DIAPER XX - LARGE FOR CHILD WEIGHT MORE THAN 25KG, WITH HIGH ABSORBENCY","EAC","",1.1173,null,null,""],["9000005509","DISPOSABLE NONSTERILE GOWN SZ: LARGE -Length 120 x width 140-145 cm","EAC","",1.205,null,null,""],["9000005508","DISPOSABLE NONSTERILE GOWN SZ: X-LARGE -Length 125-130x width 150-155 cm","EAC","",1.205,null,null,""],["9100000039","DISPOSIPLE ADULT (FULL BODY WARMING BLANKET)","EAC","Rack 04 - Row J - Bin 2",33.9,null,null,""],["9100002452","DRESSING I.V.SECUREMENT WITH CHLORHEXIDINE GLUCONATE/CHG GEL PAD FOR CVC LINE, SIZE: 10X12CM, STERILE","EAC","",40.09,null,null,""],["9100000742","DRESSING PACK BASIC MEDIUM, STERILE","EAC","",1.32,null,null,""],["9100005385","ECG MONITORING ELECTRODE INFANT(NEONATAL/PED)SIZE SMALL SUITABLE FOR PREMATURE&NEONATAL WITH LEAD WIRE 60CMS COLOR CODED,RADIOLUCENT,SAFETY CONNECTOR,2.5CM PIN, SILICONE ADHESIVE FOR SENSITIVE SKIN USED IN HUMIDITY ENVIRONMENTS,WATERPROOF","EAC","",2.67,null,null,""],["9100005380","ECG MONITORING ELECTRODE, 40MM FOAM DIAMETER FOR CHILDREN, PRE-GELLED, SOLID ADHESIVE GEL FOAM","EAC","",0.12,null,null,""],["9100005384","ECG/EEG MONITORING ELECTRODE, 50 TO 60 MM FOAM DIAMETER FOR ADULTS,PRE-GELLED,SOLID ADHESIVE GEL FOAM,SUPERIOR ADHESION IN ALL SITUATIONS.DIAPHORETIC,HYPOALLERGENIC,RESIDUE-FREE,SINGLE-USE, USE FOR 4-5 DAYS OF EXTENDED WEAR PACKING:50/PACK.","EAC","",0.1,null,null,""],["9100000670","EMESIS BASIN PLASTIC 500CC WITH GRADUATED MARKINGS, NON-STERILE","EAC","",0.18,null,null,""],["9100003540","ENDOTRACHAEL TUBE SIZE # 6.5 MM (CUFFED)","EAC","",null,null,null,""],["9100003464","ENDOTRACHAEL TUBE SIZE # 7.0 MM (CUFFED)","EAC","",2.32,null,null,""],["9100003466","ENDOTRACHAEL TUBE SIZE # 7.5 MM (CUFFED)","EAC","",null,null,null,""],["9100003530","ENDOTRACHEAL TUBE INTRODUCER","EAC","",269.0,null,null,""],["9100003437","ENDOTRACHEAL TUBE SIZE # 3.0 (CUFFED)","EAC","",null,null,null,""],["9100003671","ENDOTRACHEAL TUBE SIZE# 8 MM ( CUFFED )","EAC","",null,null,null,""],["9100003610","ENDOTRACHEAL TUBE, ORAL/NASAL SIZE: 5.0MM","EAC","",6.24,null,null,""],["9100003984","ENFIT ECCENTRIC SYRINGE 60ML , STERILE","EAC","",0.81,null,null,""],["9100003983","ENFIT ENTERNAL SYRINGE 10ML , STERILE","EAC","",0.3054,null,null,""],["9800006070","EVAPORATED MILK 170 GMS, LOW FAT","PTN","",null,null,null,""],["9100000865","GAUZE SWAB (100% COTTON) 12 PLY, PLAIN ,WHITE, FOLDED EDGES, 15 THREADS/CM2, NON STERILE, SIZE: 10CMx10CM, PKT/100","PKT","",4.4708,null,null,""],["9200007035","GLOSS WHITE SYNTHETIC LABELS, Size: 50.8x31.75mm(2x1.25 inches), 2000 L/R + RESIN LABEL SZ: 64mmX74M","ROL","",null,null,null,""],["9100000254","GLOVES EXAMINATION, NITRILE,POWDER FREE,NON STERILE-SIZE: MEDIUM","EAC","",0.1172,null,null,""],["9100000253","GLOVES EXAMINATION, NITRILE,POWDER FREE,NON STERILE-SIZE: SMALL","EAC","",0.1182,null,null,""],["9100000255","GLOVES EXAMINATION, NITRILE,POWDER FREE,NON STERILE-SIZE:LARGE","EAC","",0.1172,null,null,""],["9100000267","GLOVES NITRILE NON-STERILE POWDER-FREE SIZE MEDIUM WITH 9.5 INCHES BEADED CUFF, BLUE COLOR","EAC","",0.1793,null,null,""],["9100000266","GLOVES NITRILE NON-STERILE POWDER-FREE SIZE SMALL WITH 9.5 INCHES BEADED CUFF, BLUE COLOR","EAC","",0.1593,null,null,""],["9100007012","GLOVES SURGEON POWDER FREE, LATEX, SIZE 6.5, STERILE","PAI","",null,null,null,""],["9100007014","GLOVES SURGEON POWDER FREE, LATEX, SIZE 7, STERILE","PAI","",null,null,null,""],["9100007015","GLOVES SURGEON STERILE LATEX POWDER FREE, SIZE 7.5","PAI","",null,null,null,""],["9700002062","GLUCOSE METER STRIPS WITH CONNECTIVITY","STR","",null,null,null,""],["9300009049","HAND SANITIZER REFRESHING GEL 500 ml TABLE TOP","EAC","",null,null,null,""],["9300009059","Handrub Gel Wall Mounted capacity between 1000ML-1200 ML","EAC","",null,null,null,""],["9100000308","Hard surface Alcohol wipes disinfectant with 70% Solution of Isopropyl alcohol, BP size 130 mm x 185 mm","CAN","",null,null,null,""],["9100000313","HARD SURFACE DISINFECTANT ALCOHOL FREE WIPES STANDARD WHITE, CANISTER WITH LID, TEAR DROP OPENING FABRIC SIZE: MORE THAN 16X19CM (100 SHEETS)","CAN","",null,null,null,""],["9100003668","HOLDER ENDOTRACHEAL TUBE, PEDIATRIC","PKT","",236.02,null,null,""],["9100003681","HOLDER ET TUBE PURPLE MINI N709 (X5)","PKT","",218.63,null,null,""],["9100002701","LARYNGEAL MASK AIRWAY SZ.1.0","EAC","",25.266,null,null,""],["9100002702","LARYNGEAL MASK AIRWAY SZ.1.5","EAC","",25.25,null,null,""],["9100002703","LARYNGEAL MASK AIRWAY SZ.2.0","EAC","",28.068,null,null,""],["9100002704","LARYNGEAL MASK AIRWAY SZ.2.5","EAC","",18.94,null,null,""],["9100000835","LUER ACCESS WITH SPLIT SEPTUM FLOW RATE 32HRS WITH SMOOTH SILICON SURFACE, LUER-LOCK & LUER-SLIP COMPATIBILITY, LIPID COMPATIBILITY, LATEX FREE,STERILE","EAC","",null,null,null,""],["9100005160","MASK OXYGEN LOW/MEDIUM CONCENTRATION W/TUBING, ADULT SIZE","EAC","",2.69,null,null,""],["9100005165","MASK OXYGEN LOW/MEDIUM CONCENTRATION W/TUBING, PEDIATRIC SIZE","EAC","",1.449,null,null,""],["9100005110","MASK OXYGEN NON-REBREATHING ADULT SIZE, W/VENT, BAG, EXT.TUBE, STERILE","EAC","",25.2,null,null,""],["9800008301","MINERAL WATER 330ML","BOT","",0.1875,null,null,""],["9100001377","MUCUS EXTR.DET.CONT.22ML 12FG","EAC","",5.81,null,null,""],["9100001378","MUCUS EXTR.FIX CONT.33ML 10FG","EAC","",5.28,null,null,""],["9100009977","MULTIFUNCTION ADULT  ELECTRODE FOR CPR ANTERIOR/ANTERIOR PLACEMENT TO USE WITH ZOLL DEFIBRILLATOR MACHINE","EAC","",439.8,null,null,""],["9600005000","NARCOTIC SHIFT INVENTORY LOG BOOK","EAC","",5.89,null,null,""],["9100003513","NASAL RAE CUFFED TRACHEAL TUBE SIZE # 5.0 MM","EAC","",null,null,null,""],["9100001420","NEEDLE 23G 1.5\"/1.25\"","EAC","",0.064,null,null,""],["9100007073","CAP SELF RIGHTING LUER SLIP TIP FOR SYRINGE TIP, YELLOW COLOR","EAC","",1.48,null,null,""],["9100001039","NEEDLE I.V.BUTTERFLY 25GX3/8\" 30CM LONG TUBE AND PLUG, STERILE","","",null,null,null,""],["9100002459","NON-ADHERING, CELLULOSE ACETATE WITH PETROLATUM DRESSING, STERILE, CUTTABLE, PLUS OR MINUS 2 CM OF SIZE 10X10CM","EAC","",2.85,null,null,""],["9100002488","NON-ADHESIVE HYDROCELLULAR FOAM HEEL DRESSING, HIGHLY ABSORBENT POLYURETHANE, STERILE, SIZE 10.5X13.5 CM","EAC","",21.0,null,null,""],["9600001492","NOTIFICATION SHEET (PHARMACY) (*SIZE:NCR PAPER 60 GM A4(1+1, WHITE/GREEN) *COLOR:1C/0C)","PKT","",6.92,null,null,""],["9300009074","NOURISHING SKIN/HAND CREAM MOISTURISER, 1000 ML, WALL MOUNTED","EAC","",75.0,null,null,""],["9100005562","ORAL CARE MODERATE KIT,WITH PREP PACK, SUCTION PACK,TOOTH BRUSH PACK,SOLUTION CHLORHEXIDINE","EAC","",55.78,null,null,""],["9400003203","PAPER CUP DISPOSABLE , WHITE COLOUR , 7 OZ, WITHOUT HAMAD LOGO, 100/SLEEVE","EAC","",4.84,null,null,""],["9600002690","PAPER ECG Z-FOLD F/HP/PHILIPS M1709A 210X300X200 A4 SHEETS","PKT","",35.19,null,null,""],["9200002311","PAPER P/COPY  8.27 X 11.69 (A4 SIZE) - 210 MM X 297 MM - MULTIPURPOSE , 80 GSM, PRCISELY CUT, BRIGHTNESS :  90+ (CERTIFICATE IS MANDATORY FROM MFR FOR OPACITY RATINGS MINIMUM 80%)WHITENESS RATING MINIMUM 160, HEAT & TEMP. RESIST, STIFFNESS","REM","",12.79,null,null,""],["9600002385","PAPER ZOLL DEFIB. RECORDING Z-FOLD #8000-030, 90MMx90MM","EAC","",2.1,null,null,""],["9700005062","PEDIATRIC BACT/ ALERT PF, CAT#41 0853","BOT","",26.27,null,null,""],["9100001738","PEDI-CAP CO2 DETECTORS","EAC","",33.3,null,null,""],["9200002060","PEN BALL POINT BLACK MINIMUM 12 PER PACKET","EAC","",0.29,null,null,""],["9200002080","PEN BALL POINT RED","EAC","",0.53,null,null,""],["9200002120","PENCIL LEAD `HB' W/ERASER","EAC","",0.2,null,null,""],["9300009039","PHARMACY MEDICATION BAGS - SIZE: 40cmx50cm, LDPE BIO-DEGRADABLE, 3 COLOR PRINT ON BOTH SIDES, THICK: 50 MICRONS, 100PCS/PKT","PKT","",35.54,null,null,""],["9300009037","PHARMACY MEDICATION BAGS, SZ: 30cmx40cm, LDPE BIO-DEGRADABLE, 3 COLOR PRINT ON BOTH SIDES, THICK: 50 MICRONS, 100PCS/PKT","PKT","",13.9,null,null,""],["9600001781","PHYSICIAN INPATIENT PRESCRIPTION SHT (DOUBLE FORM)","PKT","",6.46,null,null,""],["9300008410","PLASBAG GREEN,LENGTH:100CM,WIDTH:70CM,THICKNESS:60-70MICRONS,PRINTED WITH HMC LOGO,USED FOR SAFE COLLECTION&TRANSORTATION OF CONTAMINATED LINEN/GARMENTS PRIOR TO PROCESSING IN HOSPITAL LAUNDRY 70 x100CMS,60/70 MICRON, WITH HMC LOGO","EAC","",0.679,null,null,""],["9300008403","PLASBAG ORANGE 35X55 40 MIC CSSD WITH HMC LOGO WRITING CONTAMINATED - RETURN TO CSSD","EAC","",0.12,null,null,""],["9300008402","PLASBAG ORANGE,LENGTH:100CM,WIDTH:70CM,THICKNESS:80-120MICRONS,PRINTED WITH HMC LOGO,USED FOR SAFE COLLECTION&TRANSPORTATION OF CONTAMINATED SURGICAL INSTRUMENTS TO CSSD FOR STERILIZATION","EAC","",0.458,null,null,""],["9300009053","PLASBAG SPECIMEN TRANSPORTATION -SIZE 9\"X6\"(ORANGE INFORMATION ON THE BAG) 100/PKT","EAC","",18.151,null,null,""],["9300008418","PLASBAG WATERSOL COMPOSED OF POLYVINYL ALCHOHOL (PVA) & ORGANIC PLASTIC (WATER -SOLUBLE SYNTHETIC POLYMER) 26 X 36 - LAUNDRY","EAC","",2.532,null,null,""],["9300008427","PLASTIC APRON DISPOSABLE WITH BACK TIE, WHITE,SLEVELESS, LENGTH: 130CM, WIDTH: 80-90CM, THICKNESS: 30-40 MICRON, NON-STERILE, SINGLE USE","EAC","",0.696,null,null,""],["9300008407","PLASTIC BAG TRANSPARENT LDPE L 35 CM, W 22 CM + SIDE FOLDING 6 CM + 6 CM WITH HMC LOGO, WRITING WITH DUST COVER SIZE - A","EAC","",0.06,null,null,""],["9300008406","PLASTIC BAG TRANSPARENT LDPE, SIZE \"C\", L 85cm, W 34.5cm + SIDE FOLDING 6.5cm + 6.5cm, THICKNESS 30 MICRON, WT: 55 Gms, 50 PCS/PKT WITH HMC LOGO","EAC","",0.43,null,null,""],["9300008411","PLASTIC BAG WHITE 100CM X 70CM, 40 MICRON, WITH HMC LOGO","EAC","",0.43,null,null,""],["9300009030","PLASTIC BAG WITH ZIP SIZE 4\" X 4\", TRANSPARENT","PKT","",6.34,null,null,""],["9300009032","PLASTIC BAG WITH ZIPLOCK SIZE 13\"x8\" - TRANSPARENT ,MATERIAL LDPE (LOW DENSITY POLYETHYLENE - HEAVY DUTY) 100 PCS/PKT","PKT","",27.18,null,null,""],["9300009033","PLASTIC BAG WITH ZIPLOG (WIDTH-10- inch, LENGTH-13-inch(LOW DENSITY POLYETHYLENE-HEAVY DUTY, TRANSPARENT, EASY TO OPEN)","PKT","",21.42,null,null,""],["9300009031","PLASTIC BAG WITH ZIPLOG . SIZE 9x7- TRANSPARENT","PKT","",11.94,null,null,""],["9300008405","PLASTIC BAGS TRANSPARENT length 17.5-inch x width 13.5-inch, folding area 2.5 Inch from both sides , 30 Micron WITH HMC LOGO and Writing Dust cover size B","","",null,null,null,""],["9700002027","POCT GLUCOSE CONTROL : LEVEL 1","KIT","",0.0,null,null,""],["9700002028","POCT GLUCOSE CONTROL : LEVEL 3","KIT","",0.0,null,null,""],["9700002021","POCT URINE & BETA HCG CONTROL SET","KIT","",null,null,null,""],["9700002022","POCT URINE ANALYZER PRINTER PAPER","ROL","",40.0,null,null,""],["9100001815","PORT PROTECTOR CAP, INFECTION CONTROL PRODUCT FOR USE ON DISINFECTING SWABABLE LUER ACCESS/PORTS","EAC","",0.75,null,null,""],["9100001716","RD rainbow Lite SET-1 Pdt, Pediatric Disposable Sensor, SpO2, ORi?, 10/Box","EAC","",43.58,null,null,""],["9600001981","REQUEST ORDER TO CSSD A4 S/3 (100/PKT)","EAC","",8.0333,null,null,""],["9200002171","RUBBER BAND SIZE SMALL","PKT","",0.61,null,null,""],["9000000044","SALINE PREFILLED SYRINGE, 10ML OF 0.9% SODIUM CHLORIDE IN A 10ML SYRINGE, STERILE","EAC","",0.83,null,null,""],["9100005216","SHARP CONTAINER WALL MOUNT YELLOW, 5qt","EAC","",11.0,null,null,""],["9100005207","SHARPAK CONTAINER PLASTIC 1.8LTR YELLOW COLOR","EAC","",10.0,null,null,""],["9100005203","SHARPAK CONTAINER PLASTIC YELLOW COLOR 22L CAPACITY WITH LID AND STRONG HANDLE","EAC","",17.95,null,null,""],["9100002492","SILICON GEL ADHESIVE SHEET FOR TREATMENT AND PREVENTION OF KELOIDS AND HYPERTROPHIC SCARS, SIZE:12CMX15CM, STERILE","EAC","",54.5,null,null,""],["9100000303","Skin Antiseptic (Swabstick) with 2% Chlorhexidine Gluconate and 70% Isopropyl Alcohol, Small size","BOX","",146.08,null,null,""],["8900003337","SOD,CHLORIDE 0.9% (200-250ML) MINI BAG","BAG","",3.239,null,null,""],["8900004471","SOD.CHLORIDE 0.9% FOR INJECTION ,5 ML","AMP","",0.4606,null,null,""],["8900003314","SOD.CHLORIDE 0.9%, 500ML","BAG","",3.28,null,null,""],["8900003336","SOD.CHLORIDE 0.9%,100ML MINIBAG","BAG","",2.92,null,null,""],["9000000052","SOLUTION 500ML, 0.9% SODIUM CHLORIDE STERILE, EYE WASH, IRRIGATION","BOT","",16.14,null,null,""],["9200002220","STAPLES 6MM(X1000)","PKT","",0.42,null,null,""],["9300009041","STAT SPECIMEN ZIPLOCK BAG WIDTH 9\" X LENGTH 13\" (100/PAC) WITH FRONT SIDE RED COLOR WITH SIGN OF BIOHAZARD.WRITTEN OVER IT IN BOLD TEXT FROZEN, REFRIGERATE AND ROOM TEMP, BACK SIDE TRANSPARENT WITH STAT WORD IN ALL CORNER SIDE.","EAC","",null,null,null,""],["9000006001","STERILE BOTTLE WATER FOR IRRIGATION , BOTTLE IS DESIGNED FOR EASY NON- DRIP POURING , WITH CLOSURE IS STERILE WITH RECESSED SET PORT , LABEL CONTAINED STORAGE TEAMPREATURE AND WARMING TEMPREATURE","BOT","",6.26,null,null,""],["9000000792","STERILE DISPOSABLE LARYNGOSCOPE SET, HANDLE WITH MAC BLADE SIZE: 2","EAC","",40.11,null,null,""],["9000000793","Sterile Disposable Laryngoscope Set, Handle With Mac Blade Sz: 3","EAC","",null,null,null,""],["9000000791","STERILE DISPOSABLE LARYNGOSCOPE SET, MINI HANDLE WITH MAC BLADE SIZE: 1","EAC","",41.78,null,null,""],["9700006616","STERILE TRANSPORT SWAB (RED)","EAC","",1.77,null,null,""],["9700002064","STRIPS MULTISTIX 10SG (X100)","BOT","",null,null,null,""],["9100000757","SUCTION CANNISTER FOR 2 LTR SUCTION LINER","EAC","",39.17,null,null,""],["9100000618","SUCTION CONNECTING TUBE SIZE: 1.D. 7MM x 180CMS LENGTH WITH INTEGRAL CONNECTORS, NON CONDUCTIVE, STERILE","EAC","",1.95,null,null,""],["9100000619","SUCTION CONNECTING TUBING, TUBE LENGTH 270CM, ID 7.0mm, O.D. 10.0mm - STERILE KINK RESISTANCE TUBING","EAC","",3.85,null,null,""],["9100000785","SUCTION LINER 1000ML WITH BACTERIAL FILTER FOR LSU","EAC","",13.8,null,null,""],["9100000755","SUCTION LINER 2000ML FOR 2000ML CANISTER, SINGLE USE","EAC","",5.95,null,null,""],["9800008056","SUGAR SACHET PORTION","PTN","",0.03,null,null,""],["9100000914","SURGICAL GLOVES, STERILE,LATEX FREE,POWDER FREE, SIZE - 7","PAI","",3.0329,null,null,""],["9100000740","SUTURE REMOVAL KIT WITH BLADE/FORCEPS/GAUZE 5X5CM,STERILE","KIT","",3.34,null,null,""],["9100000307","SWAB ANTISEPTIC WITH 2% W/V CHG, & 70% V/V ISOPROPYL ALCOHOL, LARGE SIZE","BOX","",null,null,null,""],["9100000309","SWAB IMPREGNATED IN 70% ISOPROPYL ALCOHOL, SIZE: 4X4CM, STERILE (PKT/100)","PKT","",2.21,null,null,""],["9100003377","SWABSTICKS IODINE (X50)","BOX","",18.4,null,null,""],["9100001450","SYRINGE 03CC LUER LOCK TIP W/OUT NEEDLE, STERILE","EAC","",0.06,null,null,""],["9100000150","SYRINGE 10CC LUER LOCK TIP W/OUT NEEDLE, STERILE","EAC","",null,null,null,""],["9100000172","SYRINGE 50 ML LUER LOK CONCENTRIC WITH 1.0 ML SCALE","EAC","",null,null,null,""],["9100001455","SYRINGE 5CC LUER LOCK TIP WITHOUT NEEDLE, STERILE","EAC","",null,null,null,""],["9100000170","SYRINGE 60CC LUER LOCK TIP WITHOUT NEEDLE, STERILE","EAC","",null,null,null,""],["9100000171","SYRINGE CATHETER TIP 60CC WITHOUT NEEDLE, STERILE","EAC","",0.82,null,null,""],["9100004069","SYRINGE ORAL 10ML W/ TIP CAP LUER LOCK WITHOUT NEEDLE, STERILE","EAC","",0.3126,null,null,""],["9100004068","SYRINGE ORAL 5ML W/CAP LUER LOCK WITHOUT NEEDLE, STERILE","EAC","",0.2648,null,null,""],["9100000110","SYRINGE WITH NEEDLE 05CC 21GX1.5 - LUER LOCK,STERILE","","",null,null,null,""],["9100000103","SYRINGE WITH NEEDLE 22G 1-1/2\" (40mm) 3ml LUER LOCK","","",null,null,null,""],["9100000108","SYRINGE WITH NEEDLE LUER SLIP 5CC 23GX1.25\", STERILE","EAC","",0.28,null,null,""],["9200002282","TAPE CELLOPHANE 18MMX33M (3/4\"X36YDS)","ROL","",0.42,null,null,""],["9800000387","TEA BAGS 2 GMS X 100","PKT","",10.5,null,null,""],["9100003678","Tracheal Intubation Stylets Size 4.0mm /12FR","EAC","",16.28,null,null,""],["9100003701","TRACHEOSTOMY TUBE PED. CUFFED BIVONA SIZE: 4.0MM","EAC","",940.8,null,null,""],["9100003702","TRACHEOSTOMY TUBE PED. CUFFED BIVONA SIZE: 4.5MM","EAC","",519.526,null,null,""],["9100003703","TRACHEOSTOMY TUBE PED. CUFFED BIVONA SIZE: 5.0MM","EAC","",892.4,null,null,""],["9100003704","TRACHEOSTOMY TUBE PED. CUFFED BIVONA SIZE: 5.5MM (FOR PED.HGH)","EAC","",null,null,null,""],["9100003712","TRACHEOSTOMY TUBE, BIVONA 5.0 CUFFLESS","EAC","",145.444,null,null,""],["9700001220","TRANSPORT SWAB WITH AMIES GEL,NO CHARCOAL","EAC","",null,null,null,""],["9100003514","Tube E/T Preformed L/P Nasal Cuffed Size 5.5 mm","EAC","",null,null,null,""],["9100003463","TUBE E/T PROF. CUFF W/MURPHY EYE- SIZE 6.0MM","EAC","",null,null,null,""],["9100003620","TUBE ENDOTRACHEAL 2.5MM","EAC","",null,null,null,""],["9100003570","TUBE ENDOTRACHEAL 3.0MM","EAC","",null,null,null,""],["9100003580","TUBE ENDOTRACHEAL 3.5MM 100/111/035","EAC","",null,null,null,""],["9100003590","TUBE ENDOTRACHEAL 4.0MM 100/141/040","EAC","",null,null,null,""],["9100003600","TUBE ENDOTRACHEAL 4.5 MM 100/141/045","EAC","",null,null,null,""],["9100003560","TUBE ENDOTRACHEAL 5.5MM","EAC","",null,null,null,""],["9100003436","TUBE ET PED. WL CUFFED MURPHY EYE SIZE: 2.5","EAC","",null,null,null,""],["9100003438","TUBE ET PED. WL CUFFED MURPHY EYE SIZE: 3.5","EAC","",21.619,null,null,""],["9100003439","TUBE ET PED. WL CUFFED MURPHY EYE SIZE: 4.0","EAC","",14.25,null,null,""],["9100003440","TUBE ET PED. WL CUFFED MURPHY EYE SIZE: 4.5","EAC","",13.69,null,null,""],["9700004059","UNIVERSAL INDICATOR PAPER","PKT","",24.0,null,null,""],["9000000642","UNTREATED SUCTION TOOTHBRUSH SINGLE-USE","EAC","",4.65,null,null,""],["9700001257","Vacutainer Sterile-Screw-Cap Collection Cup with Integrated Transfer Device, Plastic 120 ML.","EAC","",1.1005,null,null,""],["9300009001","Wall Mounted Manual dispenser","EAC","",null,null,null,""],["8900005280","WATER FOR INJ. 5ML-10ML","AMP","",0.463,null,null,""],["9200007043","WRISTBAND LABELS : ADULT Z-Band Ultra Soft Adhesive 1\"x11\" (25.4mm x 279.4mm) 175 LABELS/ROLL","EAC","",0.77,null,null,""],["9200007044","WRISTBAND LABELS : INFANT Z-Band Ultra Soft Adhesive 1\"x6\" (25.4mm x 152.4mm) 300 LABELS/ROLL","EAC","",0.67,null,null,""],["9100001030","ZZ-CATHETER NELATON PVC 45-50CM LONG, STERILE, SIZE: 06 FR","EAC","Rack 05 - Row E - Bin 2",1.991,null,null,""],["9100007016","ZZ-GLOVES SURGEON POWDERED STERILE SZ 8(DNR/MCEC 08/2017)","PAI","",null,null,null,""],["9100001475","ZZ-LANCET SAFETY ADULT FOR CAPILLARY BLOOD SAMPLING (INPATIENT/ OUTPATIENT USE)","BOX","",22.7,null,null,""],["9100002705","ZZ-LARYNGEAL MASK AIRWAY SZ.3.0","EAC","",null,null,null,""],["9100002706","ZZ-LARYNGEAL MASK AIRWAY SZ.4.0 (DNR BY HGH ANESTHESIA)","EAC","",null,null,null,""],["9100003711","ZZ-TUBE TRACH. PED. UNCUFFED BIVONA SIZE: 4.5MM","EAC","",null,null,null,""],["9200002519","A4 TRANSPARENT PERFORATED FILE STORAGE DOCUMNT SIZE 12 X 9 \", 100 PER PKT","","",null,null,null,""],["9100003300","ADHESIVE DRESSING STRIP, WATERPROOF, STERILE, SIZE 2.5X7.5 CM","","Rack 09 - Row A - Bin 1",null,null,null,""],["9100002402","ADHESIVE SILICONE FOAM DRESSING WITH BORDER SIZE 7.5x7.5CM, STERILE, PLUS OR MINUS 1 CM","","",null,null,null,""],["9000000201","ADHESIVE SKIN CLOSURE STRIP MADE OF POROUS,NON-WOVEN BACKING WITH POLYESTER FILAMENTS ,SIZE 3MMX75MM, BREATHABLE, STERILE, SINGLE USE, LESS TRAUMA TO TISSUE, GOOD ADHESIVE","","Rack 06 - Row H - Bin 2",null,null,null,""],["9100002725","AIRWAY GUEDEL SIZE # 3","","",null,null,null,""],["9100002726","AIRWAY GUEDEL SIZE:4, SIZE EMBOSSED, WITH COLOR CODED BITE BLOCKS, ANATOMICALLY SHAPED, STERILE","","",null,null,null,""],["9100000637","ALARIS Pump Set-Light Sensitive","","",null,null,null,""],["9100005156","Ambubag Infant with bag reservoir and mask, single patient resuscitator","","Rack 10 - Row G - Bin 1",null,null,null,""],["9100002406","ANTIMICROBIAL, SILVER, SOFT SILICONE FOAM, STERILE, SIZE: 13 x 20 CM","","",null,null,null,""],["9200003014","APPLICATOR COTTON 6\"","","",null,null,null,""],["9200003001","BABY LIQUID SOAP 250ML","","",null,null,null,""],["9100000376","BANDAGE CREPE 2\"","","",null,null,null,""],["9100000379","BANDAGE CREPE 4\"","","",null,null,null,""],["9000005192","ZZ-BARRIER SCRUB DRAWSTRING PANTS, EXTRA COMFORT, PURPLE LARGE, DISPOSABLE","","",null,null,null,""],["9000005193","ZZ-BARRIER SCRUB DRAWSTRING PANTS, EXTRA COMFORT, PURPLE X-LARGE, DISPOSABLE","","",null,null,null,""],["9000005162","ZZ-BARRIER SCRUB SHIRT, EXTRA COMFORT, PURPLE LARGE, DISPOSABLE","","",null,null,null,""],["9000005163","ZZ-BARRIER SCRUB SHIRT, EXTRA COMFORT, PURPLE X-LARGE, DISPOSABLE","","",null,null,null,""],["9100002162","BED PADS INCONTINENCE SUPER ABSORBENT,POLYPROPYLENE,CELLULOSE,WATERPROOF,STRONG AND CLEAR IMPOSING, SIZE: 40x60 CM","","Rack 13 - Row A",null,null,null,""],["9800009822","BELDICO BOTTLES WITH CAP 50ML","","",null,null,null,""],["9000000835","BLADE SURGICAL DISPOSABLE SCALPELS NO. 11 WITH POLYSTYRENE HANDLE - STERILE","","",null,null,null,""],["9100001083","BLOOD COLLECTION SET PUSH BUTTON WITH PRE-ATTACHED HOLDER 23GX0.75 inch(19MM) NEEDLE, TUBING LENGTH 12 inch, LIGHT BLUE COLOR, STERILE","","",null,null,null,""],["9100002385","BLOOD PRESSURE CUFF FLEXIPORT SOFT DISPOSABLE, SZ - ADULT","","",null,null,null,""],["9100002389","BLOOD PRESSURE CUFF FLEXIPORT SOFT DISPOSABLE, SZ - CHILD","","",null,null,null,""],["9100002388","BLOOD PRESSURE CUFF FLEXIPORT SOFT DISPOSABLE, SZ - INFANT","","",null,null,null,""],["9100002386","BLOOD PRESSURE CUFF FLEXIPORT SOFT DISPOSABLE, SZ - SMALL ADULT","","",null,null,null,""],["9100002380","BLOOD SAMPLING DEVICE SIZE 21G","","",null,null,null,""],["9100007071","BLUNT FILL & BLUNT FILTER NEEDLE( 5 MICRON) 18Gx1.50 INCH, THIN WALL, STERILE","","",null,null,null,""],["9200002185","BOOK REGISTER A4","","",null,null,null,""],["9000000051","BOTTLE1000ML NORMAL SALINE 0.9%SODIUM CHLORIDE STERILE FOR CONTINUOUS BLADDER IRRIGATION &WOUND WASHOUT.BOTTLE IS DESIGNED FOR EASY NON-DRIP POURING,WITH CLOSURE IS STERILE WITH RECESSED SET PORT,LABEL CONTAINED STORAGE TEMPERATURE &WARMING","","",null,null,null,""],["9100003828","CATH 2-WAY FOLEY ALL SIL.18FR LONG TERM","","",null,null,null,""],["9100001019","CATH SUCTION 12 FG W/CON VALVE","","Rack 03 - Row F - Bin 1",null,null,null,""],["9100001510","CATHETER MOUNT-ELASTOMERIC CAP ELBOW15CM, 15MM F /22MM M CONNECTOR, NON- COLLAPSIBLE CORRUGATED TUBING, CRASH RESISTANCE LATEX FREE, PHT FREE, SINGLE USE, NON-STERILE","","",null,null,null,""],["9100002140","CHILD DIAPER, 11-17 kg","","",null,null,null,""],["8900003327","DEXTROSE 5% IN NACL 0.9%,1L","","",null,null,null,""],["9100002145","DIAPER PREMATURE LARGE 1200gm-2kg FOR NEW BORN BABIES (PKT/12)","","",null,null,null,""],["9100002174","DIAPER SIZE:18 TO 25 KGS (X10)","","",null,null,null,""],["9100002150","DIAPER SMALL UPTO 5KGS (X20)","","Rack 14 - Row A - Bin 1",null,null,null,""],["9100005392","DISPOASBLE GOWN FOR NEONATES, WHITE COLOR, WIDTH: 25 CM - 30 CM, LENGTH: 35 CM - 40 CM","","",null,null,null,""],["9100000035","DISPOSIPLE ADULT (UPPER BODY WARMING BLANKET)","","",null,null,null,""],["9100002483","ZZ-DRESSING HIGHLY ABSORBENT HYDROCELLULAR POLYURETHANE FOAM,SIZE:5CMSx5CMS,NON-ADHESIVE, STERILE","","",null,null,null,""],["9100002485","DRESSING HYDROCELLULAR FOAM , HAP NON-ADHESIVE SIZE 10X20CMS, STERILE","","",null,null,null,""],["9100002451","DRESSING I.V.SECUREMENT PERIPHERAL LINE WITH CHG PAD, SIZE: 7X8.5CM, STERILE","","",null,null,null,""],["9100001739","EASY CAP II CO2 DETECTORS","","",null,null,null,""],["9100001695","Elastic Adhesive bandage","","",null,null,null,""],["9100002508","Elasto Derm Pad-100pcs/box","","",null,null,null,""],["9100003865","Enteral Feeding Catheter Fr. 12","","",null,null,null,""],["9100003601","ETT Size 4.5 (UnCuffed)","","",null,null,null,""],["9100003462","ETT Size 5 (Cuffed)","","",null,null,null,""],["9100003457","ETT Size 5.5 (Cuffed)","","",null,null,null,""],["9100000209","EXPIRATORY VALVE SINGLE USE.FOR HAMILTON T1 VENTILATOR","","",null,null,null,""],["9100000687","Extension Line with 3 Way Stop Cock(Long)","","",null,null,null,""],["9100003215","Extension Line with 3 Way Stop Cock(Short)","","",null,null,null,""],["9100003978","EXTENSION TUBE MICKEY R-ANGLE 2 PORT, 24 INCH, CODE: 0121-24","","",null,null,null,""],["9100001382","EYE SHIELD 30-35CM REGULAR, W/STRAP","","",null,null,null,""],["9000001825","FACE MASK SURGICAL, DISPOSABLE WITH BACTERIAL FILTER, MULTIPLE PLEATS, HYPOALLERGENIC, NON-WOVEN INNER FACING, SOFT ALUMINUM NOSE PIECE AND RESILIENT COTTON TIES (X50)","","",null,null,null,""],["9400001000","FACIAL TISSUES - 2 PLY WITH HMC BRADING & LOGO","","",null,null,null,""],["9100003930","FEEDING BAG 1000CC W/19\"TUBE, ENTERAL NUTRITIONAL BAG WITH PRE-ATTACHED GRAVITY FEEDING SET 1000CC","","",null,null,null,""],["9100001507","FILTER BREATHING BACTERIAL/VIRAL W/LL PORT ADULT","","",null,null,null,""],["9100003934","ZZ-FLOCARE CONTAINER 500ML, CODE #NUT035746","","",null,null,null,""],["9100000208","FLOW SENSOR, ADULT / PED. SINGLE USE FOR HAMILTON T1 VENTILATOR","","",null,null,null,""],["9100002411","FOAM DRESSING, SILVER ANTIMICROBIAL WITH SOFT SILICONE SELF-ADHERENT LAYER, FOR LOW EXUDING WOUNDS, 10 X 10 CM, STERILE","","",null,null,null,""],["9100003906","Gastro-Duedenal Tube Fr. 10","","",null,null,null,""],["9100000880","GAUZE SWAB N/STERILE 3\"X3\" 12PLY (X100)","","",null,null,null,""],["9100000866","GAUZE SWAB NON STERILE SIZE: 2\"X2\" 12PLY, PLAIN WHITE (X100)","","",null,null,null,""],["9100000857","GAUZE SWAB STERILE 2\"X2\" 12PLY (X5)","","",null,null,null,""],["9100000856","GAUZE SWAB WHITE, ABSORBENT, SIZE 3\"X3\" 12PLY, STERILE (PKT/5)","","",null,null,null,""],["9100000268","GLOVES NITRILE NON-STERILE POWDER-FREE SIZE LARGE WITH 9.5 INCHES BEADED CUFF, BLUE COLOR","","",null,null,null,""],["9100007007","GLOVES SURGEON POWDER FREE, LATEX, SIZE 7, STERILE","","",null,null,null,""],["9100006006","GLOVES SURGEON POWDER FREE, LATEX, STERILE, SIZE 7, SEMPERMED (ONLY FOR IVF UNIT)","","",null,null,null,""],["9100007008","GLOVES SURGEON STERILE LATEX POWDER FREE, SIZE 7.5","","",null,null,null,""],["9100007084","GLOVES SURGICAL GREEN WITH ALOE VERA, STERILE, LATEX FREE, POWDER FREE, SIZE 7.5","","",null,null,null,""],["9100007094","GLOVES SURGICAL TRIUMPH STERILE LATEX, POWDER FREE SIZE 6.5, MSG 2265 (FOR WH OT)","","",null,null,null,""],["9100007088","GLOVES SURGICAL WITH ALOE VERA, STERILE, LATEX FREE, POWDER FREE, SIZE 6.5","","",null,null,null,""],["9100007089","GLOVES SURGICAL WITH ALOE VERA, STERILE, LATEX FREE, POWDER FREE, SIZE 7","","",null,null,null,""],["9100007090","GLOVES SURGICAL WITH ALOE VERA, STERILE, LATEX FREE, POWDER FREE, SIZE 7.5","","",null,null,null,""],["9000000163","HAEMOSTAT ABSORB 2\"X1/2\" (24 PCS/BOX)","","",null,null,null,""],["9100001675","Heel Blood Lancet (Blue)","","",null,null,null,""],["9100002487","HIGHLY ABSORBENT POLYURETHANE DRESSING STERILE, NON-ADHESIVE, HYDROCELLULAR FOAM, SIZE: 20CM X 20CM","","",null,null,null,""],["9100002484","HYDROCELLULAR FOAM DRESSING, NON - ADHESIVE, HIGH ABSORBENT, AND BREATHABLE, STERILE, SIZE 10 X 10 CM (+/- 1CM)","","",null,null,null,""],["9100002570","Hydrocolloid Dressing 5x10cm","","",null,null,null,""],["9100000342","HYDROPHILIC WOUND HEALING GEL 30G, FOR ACCELARATED / ACUTE AND CHRONIC WOUNDS","","",null,null,null,""],["9100002369","Hypodermic needle-26G","","",null,null,null,""],["9100001727","I.V.SUPPORT BOARD NEONATAL/PAED (LARGE) SIZE 2 x 5 INCH WITH CLOTH COVER OVER A FOAM CUSHION AND SHAPEABLE ALUMINIUM SUPPORT","","",null,null,null,""],["9100001726","I.V.SUPPORT BOARD NEONATAL/PAED (SMALL) SIZE 1 1/2 x 4 INCH WITH CLOTH COVER OVER A FOAM CUSHION AND SHAPEABLE ALUMINIUM SUPPORT","","",null,null,null,""],["9100000665","ICE BAG PLASTIC DISPOSABLE 16\"X5\" WITH OPEN NECK (TO FILL ICE AND CLOSE WITH TABS) RESEALABLE, LEAK PROOF,SINGLE USE","","",null,null,null,""],["9100000028","INFANT HEEL WARMER GEL PACK BEAR-SHAPED, SIZE: SMALL, 11cm x 7cm","","",null,null,null,""],["9100004078","Infant Spacer","","",null,null,null,""],["9100000627","INFUSOMAT SPACE LINE # 8270074SP","","",null,null,null,""],["9100000625","INFUSOMAT SPACE LINE DOSIFIX , LENGTH 270 CMS,STERILE FOR B.BRAUN INFUSION PUMP","","",null,null,null,""],["9100000626","INFUSOMAT SPACE LINE WITH INJECTION PORT 270CM,STERILE # 8700130SP TO USE WITH B.BRAUN INFUSION PUMP","","",null,null,null,""],["9100004079","Inhaler spacer with medium mask ( for children 1-5 years )","","",null,null,null,""],["9100000186","Insulin Syringe","","",null,null,null,""],["9100003699","INTUBATION STYLET TRACHEAL, SIZE: 2MM x 225MM, STERILE #100/120/100","","",null,null,null,""],["9000005510","ISOLATION GOWN MADE OF POLYPROPYLENE (17G) & POLYETHYLENE (23G), SINGLE USE, NON-STERILE, FLUID RESISTANT, FULLY COVER THE ARMS & BODY, WITH WAIST TIES, NECK TIES & ELASTIC CUFF, MEDIUM SIZE 110CMx150CM, BLUE COLOR, LATEX FREE, 10PCS/PKT","","",null,null,null,""],["9100000884","IV CANNULA 20G WITH INJECTION PORT & WINGS","","",null,null,null,""],["9100000883","IV Cannula G18-50pcs/box","","",null,null,null,""],["9100000885","IV Cannula G22-50pcs/box","","",null,null,null,""],["9100000824","IV CATHETER CLOSED SYSTEM 24G,YELLOW COLOR","","",null,null,null,""],["9100002523","IV Transparent film adhesive dressing with slit, for children, sterile, size 5 cm x 5.7 cm","","",null,null,null,""],["9200002175","LABEL ADHESIVE","","",null,null,null,""],["9000000785","Laryngoscope Curved Size 3","","",null,null,null,""],["9000000794","Laryngoscope Curved Size 4","","",null,null,null,""],["9000000796","LARYNGOSCOPE SET, HANDLE WITH MILLER BLADE SIZE: 0, DISPOSABLE, STERILE","","",null,null,null,""],["9100000585","LUER LOCK CAP - DUAL FUNCTION FOR MALE/FEMALE","","",null,null,null,""],["9100000651","LUER LOCK NEEDLE-FREE VALVE","","",null,null,null,""],["9100003250","Lumbar Puncture Set","","",null,null,null,""],["9100003664","Malleable and Rigid Intubation Guide Size# 15 FR for Difficult Airway Management","","",null,null,null,""],["9100000936","Medela Personal Fit Plus Double Pump 24mm for Symphony Breast Pump","","",null,null,null,""],["9100000576","MEDICAL ADHESIVE REMOVER SPRAY 50ML NON IRRITATING,SUITABLE FOR PED&ADUALT,SUITABLE FOR SENSITIVE SKIN, SUITABLE FOR HEAIRY SKIN,NOT CUSEING SKIN DAMAGE, HAVE FRESH SMELL, DRY QUICKLY, DOSE NOT CAUSE STAIN TO CLOTHING","","",null,null,null,""],["9100001034","Medicine Cup 60ML-100pcs/plastic","","",null,null,null,""],["9100002515","Mepiform 10*18","","",null,null,null,""],["9100002370","MICRO-SAMPLER KIT FOR PH/BLOOD GAS ANALYSIS, 220 UL, STERILE","","",null,null,null,""],["9800009824","MILK ADVANCE LOW IRON 20CAL (60-120ML) (S26 GOLD PRO RTF 32X70ML)","","",null,null,null,""],["9800008004","MILK EVAPORATED 170 GMS","","",null,null,null,""],["9100002532","MULTI-PURPOSE MEDICAL PAPER TAPE - 1\" X 10 YDS","","",null,null,null,""],["9100006010","N95 Mask - 50pcs/box","","",null,null,null,""],["9100000734","Nasal Cannula-Infant","","",null,null,null,""],["9100000733","Nasal Cannula-Neonate","","",null,null,null,""],["9100005330","Nasal Suction Tip","","",null,null,null,""],["9100005334","NEBULIZER SET W/O T-PIECE WITH MASK & 7FT SUPPLY TUBE, ADULT SIZE","","",null,null,null,""],["9100001410","NEEDLE 21G x 1.5\"- LUER LOCK, STERILE","","",null,null,null,""],["9100001412","NEEDLE 23G x 1\" - LUER LOCK, STERILE","","",null,null,null,""],["9100001411","NEEDLE 25G 5/8\" LUER LOCK, STERILE","","",null,null,null,""],["9100001414","NEEDLE FOR INSULIN PEN 31Gx6MM","","",null,null,null,""],["9100000125","NEEDLE I.V.BUTTERFLY 22GX3/4\"","","",null,null,null,""],["9100003910","NGT Fr. 5 (Grey)-50 pcs/box","","",null,null,null,""],["9100003905","NGT/Nasointestinal Feeding Tube with Stylet Fr. 8","","",null,null,null,""],["9100000343","No-sting alcohol free liquid skin barrier film, with 1mL foam applicator, non-cytotoxic, sterile","","",null,null,null,""],["9100002496","NON-ADHERENT ANTIMICROBIAL DRESSING WITH 10% POVIDONE IODINE, STERILE, PLUS OR MINUS 1 CM OF SIZE: 5 X 5CM, CUTTABLE","","",null,null,null,""],["9100002597","Non-adhesive foam dressing, sterile, breathable, with fluid resistant outer layer, highly absorbent; designed for wounds with low to high levels of exudate. Rectangular, 10x10 cm (+/- cm size tolerance)","","",null,null,null,""],["9100002414","Non-adhesive silicone foam, heel-shaped dressing, sterile, size 13 x 21 cm (+/- 2cm)","","",null,null,null,""],["9100002720","Oral Airways Size 000","","",null,null,null,""],["9100002222","Oral Airways Size 8","","",null,null,null,""],["9100005375","PAD DEFIBRILLATOR 11.4X11.4CMS #2345N (SET/2)","","",null,null,null,""],["9200002190","PAD WRITING 11.5X8.5 RULED W/MARG. 65/80","","",null,null,null,""],["9100005377","PADS STAT ADULT PACING/DEFIBR ZOLL #8900-4003 (STOCK# 915379)","","",null,null,null,""],["9100005383","PADS STAT PEDIATRIC PACING/DEFIBR # 8900-2065 FOR ZOLL MACHINE","","",null,null,null,""],["9700004057","Parafilm","","",null,null,null,""],["9100008101","PERFUSOR INFUSION TUBING","","",null,null,null,""],["9300009038","PHARMACY MEDICATION BAGS-SIZE: 20cmx30cm, LDPE BIO-DEGRADABLE, 3 COLOR PRINT ON BOTH SIDES, THICK: 50 MICRONS, 100PCS/PKT","","",null,null,null,""],["9100005391","PILLOW ADULT, WHITE COLOR, BREATHABLE, LATEX FOAM WITH COTTON COVER, PILLOW MUST BE SEALED WITH EASY TO WIPE & WATERPROOF COVER SIZE 47x68CM","","",null,null,null,""],["9300008420","PLASBAG GREY 100X70+15+15, WITH HMC LOGO (937194)","","",null,null,null,""],["9700002125","POCT GEM5000 BG CARTRIDE","","",null,null,null,""],["9712030036","POCT Ketones Strip-50 strips/box","","",null,null,null,""],["9100009979","PROTECTIVE UNDERWEAR(INCONTINENCE PANTS) SIZE: LARGE,WAIST/HIP MEASUREMENTS 100-150CM,FOR USE IN CASES OF SEVERE URINARY INCONTINENCE, PKT/14","","",null,null,null,""],["9100009980","PROTECTIVE UNDERWEAR(INCONTINENCE PANTS) SIZE: X-LARGE, WAIST/HIP MEASUREMENTS 130-170CM, FOR USE IN CASES OF SEVERE URINARY INCONTINENCE, PKT/14","","",null,null,null,""],["9000001456","PROTECTOR HEEL & ELBOW","","",null,null,null,""],["9700001115","Red Top Tube","","",null,null,null,""],["9100005120","RESUSCITATION SET ADULT RE-USABLE","","",null,null,null,""],["9000000043","SALINE PREFILLED SYRINGE, 5ML OF 0.9% SODIUM CHLORIDE IN A 10ML SYRINGE, STERILE","","",null,null,null,""],["9100001038","SCALP VEIN SET SIZE: G23 x 3/4\" WITH 30CM LONG TUBE AND PLUG, STERILE","","",null,null,null,""],["9200002200","SCISSORS OFFICE KALLCUT 180MM","","",null,null,null,""],["9000005156","Scrub Suit -Shirt-Medium","","",null,null,null,""],["9000005186","Scrub Suit Pants-Medium","","",null,null,null,""],["9000005185","Scrub Suit Pants-Small","","",null,null,null,""],["9000005188","Scrub Suit Pants-XL-Size","","",null,null,null,""],["9000005155","Scrub Suit Shirt-Small","","",null,null,null,""],["9000005189","Scrub Suit XXL Pants","","",null,null,null,""],["9000005159","Scrub Suit XXL Shirt","","",null,null,null,""],["9100002455","SELF-ADHERENT SOFT SILICONE BORDERED FOAM DRESSING, STERILE, SIZE:7.5 X 7.5CM","","",null,null,null,""],["9100002409","Silicon Foam Dressing(7.5X7.5)","","",null,null,null,""],["9100002514","Silicone adherent soft dressing for scar management, sterile, size 4 cm x 30 cm","","",null,null,null,""],["9100002546","Silicone tape-Big(6 rolls/box)","","",null,null,null,""],["9000000203","SKIN CLOSURE ADHESIVE STRIPS 6MM X 75MM (X150)-STERILE","","",null,null,null,""],["9100002841","Soft Silicone gel sheet, size 10cm x 18cm","","",null,null,null,""],["9000000045","SOLUTION - SINGLE DOSE SALINE PINK 15ML VIAL STERILE, 0.9% SODIUM CHLORIDE SOLUTION FOR AIRWAY LAVAGE AND CLOSED SUCTION CATHETER CLEANING","","",null,null,null,""],["9100005327","SPIROMETER AIRINCENTIVE WITH MOUTH PIECE, ADJUSTABLE FLOW SETTING CLEARLY MARKED RANGE FROM 200 ML TO 1200 ML","","",null,null,null,""],["9100000304","SPRAY DISINFECTANT 70% ISOPROPYL ALCOHOL, 500ML","","",null,null,null,""],["9100007006","Sterile Gloves (Size 6.5)-25/pair","","",null,null,null,""],["9100007005","Sterile Gloves (Size 8.5)","","",null,null,null,""],["9000000818","Sterile micro scalpels 30-degree angle style, with ultra sharp points, disposable, with plastic or aluminum sure-grip handle","","",null,null,null,""],["9000005110","Sterile Surgical Gown (Large)","","",null,null,null,""],["9000005108","Sterile Surgical Gown (Medium)","","",null,null,null,""],["9000005114","Sterile Surgical Gown (XL)","","",null,null,null,""],["9100000177","Sterile Syringe Leur-Lock 3 mL","","",null,null,null,""],["9000000673","Stomahesive 70mm","","",null,null,null,""],["9100000635","Suction Connecting Tube","","",null,null,null,""],["9100000753","SUCTION LINER WITH VALVE 1000ML FOR RE-USABLE 1LTR CANNISTER","","",null,null,null,""],["9100003388","SURGICAL SKIN PREPARATION SOLUTION WITH 6ML APPLICATOR, IODINE POVACRYLEX [0.7% IODINE] AND ISOPROPYL ALCOHOL 74% W/W,STERILE","","",null,null,null,""],["9100003375","SWABSTICK LEMON&GLYCERINE, PRE-MOISTENED, FOR POST OPERATIVE ORAL CARE (X3)","","",null,null,null,""],["9100000390","SYRINGE BULB FOR ASPIRATION AND IRRIGATION (EAR AND ULCER) SIZE: 02 OUNCE, LATEX FREE, STERILE","","",null,null,null,""],["9100001446","SYRINGE LUER LOCK TIP 20ML W/O NEEDLE, STERILE FOR HEMODIALYSIS MACHINES","","",null,null,null,""],["9100000133","SYRINGE NUTRISAFE 10ML","","",null,null,null,""],["9100000135","SYRINGE NUTRISAFE 50ML","","",null,null,null,""],["9100000639","SYRINGE SET/ALARIS EXTENSION SET,LIGHT SENSITIVE, LOW SORBING,","","",null,null,null,""],["9100000638","SYRINGE SET/ALARIS EXTENSION SET,LOW SORBING WITH LOW PRIMING VOLUME","","",null,null,null,""],["9100002540","Tape Cloth White , soft adhesive , breathable , size 7.5 cm * 9.1 m","","",null,null,null,""],["9100000960","Tape Measure","","",null,null,null,""],["9100002545","TAPE MEDICAL SILICONE KIND REMOVAL SIZE 1 in x 5.5 yd, (2.5CM X5M) ADHESIVE, HYPOALLERGENIC","","",null,null,null,""],["9100003391","TAPE TRANSPARENT 1\"X9MTR","","",null,null,null,""],["9800009161","Teat","","",null,null,null,""],["9100001063","TRACHEAL SUCTION CATHETER WITH COUDE TIP 08FR","","",null,null,null,""],["9100003648","TRACHEOSTOMY INSERTION KIT SIZE 8","","",null,null,null,""],["9000000803","TRANSPARENT FILM DRESSING FRAME STYLE 10CM X 12CM, STERILE","","",null,null,null,""],["9100002519","TRANSPARENT POLYURETHANE ADHESIVE FILM DRESSING, THIN, BREATHABLE, AND WATR PROOF, STERILE, TOTAL SIZE 6 X 7 CM (+/- 1CM), ADHESIVE BORDER 1 CM","","",null,null,null,""],["9100003645","TUBE TC CUFFED W/SPIRAL REINF.8MM","","",null,null,null,""],["9700001156","TUBE, MICROTAINER SEPERATOR LITHIUM HEPARIN,PLASTIC, TWIST CLOSUER, LIGHT-GREEN CAP, 0.8 ML, 13 X 75 MM.","","",null,null,null,""],["9700001140","Tube, Vacuum Sodium Heparin, Plastic, Hemogard Closuer 6 ML, 13 X 100 MM.","","",null,null,null,""],["9100000610","ULTRASOUND TRANSMISSION GEL, 250ML TUBE WATER-SOLUBLE NON-IRRITATING, WON?T STAIN CLOTHING, QUICK TO CLEAN UP AFTER USE NO FORMALDEHYDE","","",null,null,null,""],["9100000405","Urinal (FeMale)","","",null,null,null,""],["9100000400","Urinal (Male)","","",null,null,null,""],["9100000360","Urinary Catheter Insertion Pack","","",null,null,null,""],["9100007037","Urinary Catheter Strap","","",null,null,null,""],["9700001126","Urine Container with Boric Acid","","",null,null,null,""],["9700001110","VACUTAINER PLASTIC K2EDTA TUBE,6 ML,13X100 MM","","",null,null,null,""],["9100003333","Vibrating Mesh Nebulisers","","",null,null,null,""],["8900003331","WATER FOR INJECTION 1000ML BAG","","",null,null,null,""],["9100000495","Yankeur","","",null,null,null,""]];
+(function(){
+'use strict';
+const DATA='ccs_desk_data.json',BKDIR='backups';
+const $=id=>document.getElementById(id);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const today=()=>nowStamp().slice(0,10);
+const disp=t=>{t=String(t||'');return /^\d{4}-\d{2}-\d{2}/.test(t)?dmy(t.slice(0,10))+(t.length>=16?' '+t.slice(11,16):''):t;};
+let DIR=null,FILEH=null,DB=null,ME=null,lastMod=0,page='dash',saving=Promise.resolve(),idleT=null;
+
+// ---------------------------------------------------------------- tiny key/value store (remembers the data folder)
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('ccsdesk',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+async function kvGet(k){try{const d=await idb();return await new Promise(res=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined);});}catch(e){return undefined;}}
+async function kvSet(k,v){try{const d=await idb();await new Promise(res=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=res;});}catch(e){}}
+
+// ---------------------------------------------------------------- passwords (PBKDF2, kept only as hashes)
+const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
+async function pwHash(pw,salt){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
+  return b64(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:Uint8Array.from(atob(salt),c=>c.charCodeAt(0)),iterations:120000},k,256));}
+const newSalt=()=>b64(crypto.getRandomValues(new Uint8Array(16)));
+function pwRule(p){return p.length>=6?'':'The password must have at least 6 characters.';}
+
+// ---------------------------------------------------------------- start screens
+function screen(html){$('app').classList.add('hidden');$('scr').classList.remove('hidden');$('scrBox').innerHTML='<div class="logo">CCS <span>Desk</span></div>'+html;}
+function smsg(k,t){const m=$('smsg');if(m){m.className='msg '+k;m.textContent=t;}}
+function fsOk(){return !!window.__CCSD_TEST_DIR_PROMISE||'showDirectoryPicker' in window;}
+async function boot(){
+  if(!fsOk()){screen('<h1>This browser cannot use a data folder</h1><p class="sub">Open this file with <b>Microsoft Edge</b> or <b>Google Chrome</b> on a computer.</p><p class="note">If you already use Edge, the hospital may have switched this feature off: ask IT about “File System Access” for this file.</p>');return;}
+  const h=await kvGet('dir');
+  if(!h){welcome();return;}
+  if(h==='test'&&window.__CCSD_TEST_DIR_PROMISE){DIR=await window.__CCSD_TEST_DIR_PROMISE;return openFolder();}   // automated tests only
+  DIR=h;let p='prompt';try{p=await h.queryPermission({mode:'readwrite'});}catch(e){}
+  if(p==='granted')return openFolder();
+  screen('<h1>Welcome back</h1><p class="sub">Data folder: <b>'+esc(h.name)+'</b></p><button class="btn big" id="reBtn">Open the data folder</button><button class="btn alt big" id="otherBtn" style="margin-top:8px">Use another folder…</button><div class="msg" id="smsg"></div><p class="note">The browser asks once per session for permission to read and save in this folder.</p>');
+  $('reBtn').onclick=async()=>{try{const r=await h.requestPermission({mode:'readwrite'});if(r!=='granted'){smsg('err','Permission was not given.');return;}openFolder();}catch(e){smsg('err','Could not open the folder: '+e.message);}};
+  $('otherBtn').onclick=chooseFolder;
+}
+function welcome(){
+  screen('<h1>Choose the data folder</h1><p class="sub">CCS Desk keeps all its data in one file inside a folder you choose. Choose a folder in the hospital <b>OneDrive</b>, so the data is also kept outside this computer.</p><button class="btn big" id="pickBtn">Choose folder…</button><div class="msg" id="smsg"></div><p class="note">An existing CCS Desk folder is opened; an empty folder starts a new data file. A daily backup is made in the sub-folder “backups”.</p>');
+  $('pickBtn').onclick=chooseFolder;
+}
+async function chooseFolder(){
+  try{const h=window.__CCSD_TEST_DIR_PROMISE?await window.__CCSD_TEST_DIR_PROMISE:await window.showDirectoryPicker({id:'ccsdesk',mode:'readwrite'});
+    DIR=h;await kvSet('dir',window.__CCSD_TEST_DIR_PROMISE?'test':h);openFolder();}
+  catch(e){if(e&&e.name==='AbortError')return;smsg('err','Could not use this folder: '+(e.message||e.name));}
+}
+async function openFolder(){
+  try{FILEH=await DIR.getFileHandle(DATA);}catch(e){FILEH=null;}
+  if(!FILEH){setupScreen();return;}
+  try{const f=await FILEH.getFile(),o=JSON.parse(await f.text());if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users))throw new Error('this is not a CCS Desk data file');DB=o;lastMod=f.lastModified;loginScreen();}
+  catch(e){screen('<h1>The data file cannot be read</h1><p class="sub">'+esc(e.message)+'</p><p class="note">Do not delete anything. Restore the newest file from the “backups” folder (rename it to '+DATA+') or ask for help.</p><button class="btn alt big" id="otherBtn">Use another folder…</button>');$('otherBtn').onclick=chooseFolder;}
+}
+function setupScreen(){
+  screen('<h1>New data file</h1><p class="sub">Folder <b>'+esc(DIR.name)+'</b> has no CCS Desk data yet. Set it up once.</p>'
+    +'<label>Unit</label><input type="text" id="sUnit" value="PLTCU-1">'
+    +'<div class="grid2"><div><label>Your user name (admin)</label><input type="text" id="sUser" autocomplete="off" placeholder="e.g. ahmadreza"></div><div><label>Your full name</label><input type="text" id="sName" autocomplete="off"></div></div>'
+    +'<div class="grid2"><div><label>Password</label><input type="password" id="sPw"></div><div><label>Password again</label><input type="password" id="sPw2"></div></div>'
+    +'<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="sItems" checked> Start with the built-in PLTCU-1 master list ('+BUILTIN.length+' items)</label>'
+    +'<button class="btn big" id="sGo">Create the data file</button><div class="msg" id="smsg"></div>');
+  $('sGo').onclick=async()=>{
+    const unit=$('sUnit').value.trim(),u=$('sUser').value.trim().toLowerCase(),name=$('sName').value.trim(),pw=$('sPw').value;
+    if(!unit||!u||!name){smsg('err','Fill in the unit, user name and full name.');return;}
+    if(!/^[a-z0-9._-]{3,30}$/.test(u)){smsg('err','User name: 3-30 letters or digits, no spaces.');return;}
+    const r=pwRule(pw);if(r){smsg('err',r);return;}if(pw!==$('sPw2').value){smsg('err','The two passwords are not the same.');return;}
+    const salt=newSalt(),now=nowStamp();
+    DB={app:'CCS Desk',fmt:1,unit,created:now,seq:0,
+      users:[{u,name,role:'admin',salt,hash:await pwHash(pw,salt),active:true,created:now,last:''}],
+      items:$('sItems').checked?BUILTIN.map(a=>({ir:a[0],name:a[1],unit:a[2]||'',loc:a[3]||'',price:a[4],max:a[5],min:a[6],alias:a[7]||''})):[],
+      stock:{},flags:{},pins:[],ledger:[],audit:[],settings:{idleMin:15,backupDays:30}};
+    try{FILEH=await DIR.getFileHandle(DATA,{create:true});lastMod=0;ME=DB.users[0];audit('SETUP','Data file created ('+DB.items.length+' items)');await save(true);startApp();}
+    catch(e){smsg('err','Could not create the data file: '+(e.message||e.name));}
+  };
+}
+function loginScreen(){
+  screen('<h1>Sign in</h1><p class="sub">'+esc(DB.unit)+' · data folder <b>'+esc(DIR.name)+'</b></p><label>User name</label><input type="text" id="lUser" autocomplete="off" autocapitalize="none"><label>Password</label><input type="password" id="lPw"><button class="btn big" id="lGo">Sign in</button><div class="msg" id="smsg"></div>');
+  const go=async()=>{const u=$('lUser').value.trim().toLowerCase(),pw=$('lPw').value,us=DB.users.find(x=>x.u===u);
+    if(!us||!us.active||await pwHash(pw,us.salt)!==us.hash){smsg('err','Wrong user name or password.');$('lPw').value='';return;}
+    ME=us;
+    if(us.mustChange){changePwScreen(true);return;}
+    us.last=nowStamp();audit('LOGIN','');save();startApp();};
+  $('lGo').onclick=go;$('lPw').addEventListener('keydown',e=>{if(e.key==='Enter')go();});$('lUser').addEventListener('keydown',e=>{if(e.key==='Enter')$('lPw').focus();});setTimeout(()=>$('lUser').focus(),50);
+}
+function changePwScreen(first){
+  screen('<h1>'+(first?'Choose your own password':'Change password')+'</h1><p class="sub">'+esc(ME.name)+'</p>'+(first?'':'<label>Current password</label><input type="password" id="cOld">')+'<label>New password</label><input type="password" id="cNew"><label>New password again</label><input type="password" id="cNew2"><button class="btn big" id="cGo">Save password</button>'+(first?'':'<button class="btn alt big" id="cBack" style="margin-top:8px">Cancel</button>')+'<div class="msg" id="smsg"></div>');
+  if(!first)$('cBack').onclick=startApp;
+  $('cGo').onclick=async()=>{
+    if(!first&&await pwHash($('cOld').value,ME.salt)!==ME.hash){smsg('err','The current password is wrong.');return;}
+    const p=$('cNew').value,r=pwRule(p);if(r){smsg('err',r);return;}if(p!==$('cNew2').value){smsg('err','The two passwords are not the same.');return;}
+    ME.salt=newSalt();ME.hash=await pwHash(p,ME.salt);delete ME.mustChange;ME.last=nowStamp();audit('PASSWORD','Own password changed');await save();startApp();};
+}
+
+// ---------------------------------------------------------------- saving (one file + daily backup)
+function audit(a,d){DB.audit.push({t:nowStamp(),u:ME?ME.u:'',a,d:String(d||'').slice(0,300)});if(DB.audit.length>20000)DB.audit.splice(0,DB.audit.length-20000);}
+function saveState(k,t){const d=$('saveDot');if(d){d.className=k;$('saveTxt').textContent=t;}}
+function save(first){
+  saving=saving.then(async()=>{
+    saveState('busy','Saving…');
+    try{
+      if(!first&&lastMod){const f=await FILEH.getFile();if(f.lastModified!==lastMod){conflict();throw new Error('changed elsewhere');}}
+      DB.savedAt=nowStamp();DB.savedBy=ME?ME.u:'';
+      const w=await FILEH.createWritable();await w.write(JSON.stringify(DB));await w.close();
+      lastMod=(await FILEH.getFile()).lastModified;
+      await dailyBackup();
+      saveState('','Saved '+DB.savedAt.slice(11,16));
+    }catch(e){saveState('err','NOT saved');if(e.message!=='changed elsewhere')alert('The data could NOT be saved: '+(e.message||e.name)+'\n\nCheck that the OneDrive folder is available, then try again.');throw e;}
+  }).catch(()=>{});
+  return saving;
+}
+function conflict(){
+  $('modalBox').innerHTML='<h1>The data file was changed somewhere else</h1><p class="sub">Another computer or window saved the data file after you opened it. Your last change was <b>not</b> saved, so nothing is overwritten.</p><p class="note">Use CCS Desk on one computer at a time. Press “Reload” to load the newest data, then do your last change again.</p><button class="btn big" id="cfReload">Reload</button>';
+  $('modal').classList.remove('hidden');$('cfReload').onclick=()=>location.reload();
+}
+async function bkDir(){return DIR.getDirectoryHandle(BKDIR,{create:true});}
+async function writeBackup(name){const d=await bkDir(),h=await d.getFileHandle(name,{create:true}),w=await h.createWritable();await w.write(JSON.stringify(DB));await w.close();}
+async function listBackups(){const d=await bkDir(),out=[];for await(const [n,h] of d.entries()){if(h.kind==='file'&&/^ccs_desk_data_.*\.json$/.test(n)){const f=await h.getFile();out.push({name:n,size:f.size,t:f.lastModified});}}return out.sort((a,b)=>b.name.localeCompare(a.name));}
+async function dailyBackup(){
+  const name='ccs_desk_data_'+today()+'.json',d=await bkDir();
+  try{await d.getFileHandle(name);return;}catch(e){}
+  await writeBackup(name);
+  const keep=(DB.settings&&DB.settings.backupDays)||30,daily=(await listBackups()).filter(b=>/^ccs_desk_data_\d{4}-\d{2}-\d{2}\.json$/.test(b.name));
+  for(const b of daily.slice(keep)){try{await d.removeEntry(b.name);}catch(e){}}
+}
+
+// ---------------------------------------------------------------- application shell
+const NAV=[['grp','Overview'],['dash','Dashboard','--dash'],['inv','Inventory','--inv'],
+  ['grp','Stock movements'],['in','Stock In','--in'],['out','Stock Out','--out'],['wo','Write Off','--wo'],['cnt','Inventory Count','--cnt'],
+  ['grp','Records'],['log','Transaction Log','--log'],['rep','Reports','--rep'],
+  ['grp','Setup'],['items','Items (master list)','--items'],['users','Users','--users',0,'admin'],['set','Settings','--set']];
+function startApp(){
+  $('scr').classList.add('hidden');$('app').classList.remove('hidden');$('modal').classList.add('hidden');
+  $('sideUnit').textContent=DB.unit;$('sideVer').textContent='version '+VERSION;
+  $('sideWho').innerHTML='Signed in as <b>'+esc(ME.name)+'</b><br>'+esc(ME.u)+' · '+(ME.role==='admin'?'admin':'charge nurse');
+  $('nav').innerHTML=NAV.filter(n=>!(n[4]==='admin'&&ME.role!=='admin')).map(n=>n[0]==='grp'?'<div class="grp">'+esc(n[1])+'</div>':'<button type="button" data-p="'+n[0]+'" class="'+(n[3]?'soon':'')+'"><span class="dot" style="background:var('+n[2]+')"></span>'+esc(n[1])+'</button>').join('');
+  saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();
+}
+$('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(b)go(b.dataset.p);});
+$('logoutBtn').onclick=()=>{audit('LOGOUT','');save();ME=null;page='dash';loginScreen();};
+function idle(){clearTimeout(idleT);const m=(DB.settings&&DB.settings.idleMin)||15;idleT=setTimeout(()=>{if(ME){audit('LOGOUT','Signed out after '+m+' minutes without use');save();ME=null;page='dash';loginScreen();smsg('warn','You were signed out after '+m+' minutes without use.');}},m*60000);}
+['mousemove','keydown','click','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{if(ME)idle();},{passive:true}));
+function go(p){
+  const n=NAV.find(x=>x[0]===p)||NAV[1];if(n[4]==='admin'&&ME.role!=='admin')p='dash';page=p;
+  document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  document.documentElement.style.setProperty('--accent','var('+n[2]+')');
+  $('title').textContent=n[1];$('crumb').textContent=DB.unit+' · CCS Desk';
+  (PAGES[p]||soon)(n);
+}
+function soon(n){$('main').innerHTML='<div class="card soonbox"><b>'+esc(n[1])+'</b>Coming in step '+n[3]+' of the trial version.</div>';}
+function modal(html){$('modalBox').innerHTML=html;$('modal').classList.remove('hidden');}
+function closeModal(){$('modal').classList.add('hidden');}
+function mmsg(k,t){const m=$('mmsg');if(m){m.className='msg '+k;m.textContent=t;}}
+const canEdit=()=>ME&&(ME.role==='admin'||ME.role==='charge');
+const PAGES={};
+
+// ---------------------------------------------------------------- dashboard
+PAGES.dash=async()=>{
+  const lines=Object.keys(DB.stock).length,units=Object.values(DB.stock).reduce((a,b)=>a+b,0),nf=Object.keys(DB.flags).length;
+  $('main').innerHTML='<div class="tiles">'
+    +'<div class="tile" style="--c:var(--items)"><div class="k">Items in the master list</div><div class="v">'+DB.items.length+'</div></div>'
+    +'<div class="tile" style="--c:var(--inv)"><div class="k">Stock</div><div class="v">'+units+'</div><div class="s">'+lines+' item / expiry lines'+(lines?' · value '+money(stockValue()):' · load the starting stock in Inventory')+'</div></div>'
+    +'<div class="tile" style="--c:var(--out)"><div class="k">Below minimum</div><div class="v">'+invRows().filter(r=>r.low).length+'</div></div>'
+    +'<div class="tile" style="--c:var(--cnt)"><div class="k">Expired / expiring in 90 days</div><div class="v">'+invRows().filter(r=>r.expd).length+' / '+invRows().filter(r=>r.soon).length+'</div></div>'
+    +'<div class="tile" style="--c:var(--cnt)"><div class="k">Needs a real count</div><div class="v">'+nf+'</div></div>'
+    +'<div class="tile" style="--c:var(--users)"><div class="k">Users</div><div class="v">'+DB.users.filter(u=>u.active).length+'</div></div></div>'
+    +'<div class="card"><h3>Data</h3><table class="t"><tr><td style="width:220px">Data folder</td><td><b>'+esc(DIR.name)+'</b> · file '+DATA+'</td></tr><tr><td>Last saved</td><td>'+esc(disp(DB.savedAt))+' by '+esc(DB.savedBy||'')+'</td></tr><tr><td>Newest backup</td><td id="dBk">…</td></tr><tr><td>Data file created</td><td>'+esc(disp(DB.created))+'</td></tr></table></div>'
+    +'<div class="card"><h3>CCS Desk '+VERSION+'</h3><p class="note" style="margin:0">Inventory (stock per item and expiry date) · Stock In, Stock Out, Write Off (by hand or from Excel) · Inventory Count (by hand or from the count Excel of the CCS Scan Helper app) · Transaction Log · Reports: stock and value, expiring soon, monthly use, order list, write offs, movements · daily backups in the data folder.</p></div>';
+  try{const b=await listBackups();$('dBk').textContent=b.length?b[0].name+' ('+b.length+' backup'+(b.length===1?'':'s')+')':'none yet';}catch(e){$('dBk').textContent='-';}
+};
+
+// ---------------------------------------------------------------- inventory (stock per item + expiry date)
+const money=v=>Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' QAR';
+function addDays(n){const d=new Date(Date.now()+n*86400000);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+function lotsOf(ir){return Object.keys(DB.stock).filter(k=>k.startsWith(ir+'|')&&DB.stock[k]).map(k=>({exp:k.slice(ir.length+1),qty:DB.stock[k]})).sort((a,b)=>(a.exp||'9999').localeCompare(b.exp||'9999'));}
+function stockValue(){const pr=new Map(DB.items.map(i=>[i.ir,+i.price||0]));return Object.keys(DB.stock).reduce((a,k)=>a+DB.stock[k]*(pr.get(k.split('|')[0])||0),0);}
+// frequently used = most taken (STOCK OUT) in the last 30 days + pinned by a charge nurse
+function frequent(){const since=addDays(-30),by=new Map();DB.ledger.forEach(x=>{if(x.type==='OUT'&&x.t>=since)by.set(x.ir,(by.get(x.ir)||0)-x.qty);});
+  const top=[...by.entries()].sort((a,b)=>b[1]-a[1]).slice(0,30).map(e=>e[0]);return new Set([...DB.pins,...top]);}
+function invRows(){
+  const t=today(),soon=addDays(90),by=new Map();Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])return;const ir=k.split('|')[0];if(!by.has(ir))by.set(ir,[]);by.get(ir).push({exp:k.slice(ir.length+1),qty:DB.stock[k]});});
+  const freq=frequent();
+  return DB.items.map((it,i)=>{const lots=(by.get(it.ir)||[]).sort((a,b)=>(a.exp||'9999').localeCompare(b.exp||'9999')),total=lots.reduce((a,l)=>a+l.qty,0),dated=lots.filter(l=>l.exp);
+    return {it,i,lots,total,expd:dated.some(l=>l.exp<t),soon:dated.some(l=>l.exp>=t&&l.exp<=soon),low:it.min!=null&&it.min!==''&&total<+it.min,flag:DB.flags[it.ir],freq:freq.has(it.ir),pin:DB.pins.includes(it.ir),key:(it.name+' '+(it.alias||'')).toLowerCase()};});
+}
+let invQ='',invF='stock';
+const INVF=[['stock','In stock'],['freq','Frequently used'],['flag','Needs a real count'],['low','Below minimum'],['soon','Expiring in 90 days'],['expd','Expired'],['zero','No stock'],['all','All items']];
+PAGES.inv=()=>{
+  const has=Object.keys(DB.stock).length>0||DB.ledger.length>0;
+  $('main').innerHTML='<div class="card"><div class="row"><div class="search"><input type="text" id="vQ" placeholder="Search: last digits of the IR, or part of the name / other name" value="'+esc(invQ)+'"></div>'
+    +(ME.role==='admin'?'<button class="btn'+(has?' alt':'')+'" id="vLoad">Load starting stock (Excel)…</button>':'')+'<button class="btn alt" id="vXlsx">⬇ Excel</button></div>'
+    +'<input type="file" id="vFile" accept=".xlsx" class="hidden"><div class="msg" id="pmsg"></div>'
+    +(has?'':'<div class="msg warn">No stock yet. '+(ME.role==='admin'?'Press <b>Load starting stock (Excel)</b> and choose the CCS inventory list of today.':'The admin loads the starting stock.')+'</div>')
+    +'<div class="chips" id="vF"></div><div class="note" id="vInfo"></div><div style="max-height:68vh;overflow:auto"><table class="t" id="vTab"></table></div></div>';
+  if(!has)$('pmsg').style.display='none';
+  const draw=()=>{invQ=$('vQ').value;const q=invQ.trim().toLowerCase(),R=invRows(),cnt={};
+    const fit={stock:r=>r.total>0,freq:r=>r.freq,flag:r=>!!r.flag,low:r=>r.low,soon:r=>r.soon,expd:r=>r.expd,zero:r=>r.total===0,all:()=>true};
+    INVF.forEach(f=>cnt[f[0]]=R.filter(fit[f[0]]).length);
+    $('vF').innerHTML=INVF.map(f=>'<button type="button" class="chip'+(f[0]===invF?' on':'')+'" data-f="'+f[0]+'">'+esc(f[1])+'<b>'+cnt[f[0]]+'</b></button>').join('');
+    let L=R.filter(fit[invF]);if(q)L=L.filter(r=>q.split(/\s+/).every(w=>r.key.includes(w)||r.it.ir.endsWith(w)||r.it.ir.startsWith(w)));
+    if(invF==='freq')L.sort((a,b)=>(b.pin-a.pin)||a.i-b.i);
+    const units=L.reduce((a,r)=>a+r.total,0),val=L.reduce((a,r)=>a+r.total*(+r.it.price||0),0);
+    $('vInfo').textContent=L.length+' item'+(L.length===1?'':'s')+' · '+units+' units · value '+money(val)+(L.length>300?' · showing the first 300, type more to narrow':'');
+    const t=today(),soon=addDays(90);
+    $('vTab').innerHTML='<tr><th style="width:34px"></th><th>Item</th><th>Location</th><th>Expiry dates</th><th style="text-align:right">Stock</th><th style="text-align:right">Min / Max</th></tr>'
+      +L.slice(0,300).map(r=>'<tr class="click" data-ir="'+esc(r.it.ir)+'"><td><button type="button" class="star'+(r.pin?' on':'')+'" data-pin="'+esc(r.it.ir)+'" title="'+(r.pin?'Unpin from':'Pin to')+' frequently used">★</button></td>'
+        +'<td><b>'+esc(r.it.name)+'</b>'+(r.it.alias?'<span class="alt2">'+esc(r.it.alias)+'</span>':'')+'<div class="lots"><span class="mono">'+esc(r.it.ir)+'</span>'+(r.flag?'<span class="flag">needs a real count</span>':'')+(r.low?'<span class="low">below minimum</span>':'')+'</div></td>'
+        +'<td>'+esc(r.it.loc)+'</td><td>'+(r.lots.length?r.lots.map(l=>'<span class="lot'+(l.exp&&l.exp<t?' exp':l.exp&&l.exp<=soon?' soon':'')+'">'+l.qty+' × '+(l.exp?dmy(l.exp):'no expiry')+'</span>').join(''):'<span class="note">-</span>')+'</td>'
+        +'<td class="qty">'+r.total+' <span class="note" style="font-weight:400">'+esc(r.it.unit)+'</span></td><td class="num">'+(r.it.min==null?'-':r.it.min)+' / '+(r.it.max==null?'-':r.it.max)+'</td></tr>').join('');};
+  draw();$('vQ').addEventListener('input',draw);$('vQ').focus();
+  $('vF').addEventListener('click',e=>{const b=e.target.closest('button[data-f]');if(b){invF=b.dataset.f;draw();}});
+  $('vTab').addEventListener('click',e=>{const pb=e.target.closest('button[data-pin]');
+    if(pb){e.stopPropagation();if(!canEdit())return;const ir=pb.dataset.pin,on=DB.pins.includes(ir);DB.pins=on?DB.pins.filter(x=>x!==ir):DB.pins.concat(ir);audit(on?'UNPIN':'PIN',ir);save();draw();return;}
+    const tr=e.target.closest('tr[data-ir]');if(tr)invDialog(tr.dataset.ir);});
+  if($('vLoad'))$('vLoad').onclick=()=>{$('vFile').value='';$('vFile').click();};
+  $('vFile').onchange=loadStartStock;
+  $('vXlsx').onclick=()=>{const rows=[];invRows().filter(r=>r.total>0).forEach(r=>r.lots.forEach(l=>buildRows([{ir:r.it.ir,name:r.it.name,expiry:l.exp,qty:l.qty}],DB.items,false).forEach(x=>{x.flag=r.flag?'yes':'';rows.push(x);})));
+    if(!rows.length){alert('There is no stock yet.');return;}
+    download('CCS_Desk_stock_'+today()+'.xlsx',buildXlsx('inventory list',TEMPLATE_COLS.concat([['Needs count','flag','s',12]]),rows,{who:ME.name,created:new Date(),title:'Stock',infoName:'Info',info:[['Report','Stock of '+DB.unit+' (CCS Desk)'],['Saved on',nowStamp().slice(0,16)],['Lines',rows.length],['Total units',rows.reduce((a,x)=>a+x.qty,0)],['Value',money(stockValue())],['Prepared by',ME.name]]}));};
+};
+function invDialog(ir){
+  const it=DB.items.find(i=>i.ir===ir);if(!it)return;const lots=lotsOf(ir),t=today(),total=lots.reduce((a,l)=>a+l.qty,0),f=DB.flags[ir],mv=DB.ledger.filter(x=>x.ir===ir).slice(-12).reverse();
+  modal('<h1>'+esc(it.name)+'</h1><p class="sub"><span class="mono">'+esc(ir)+'</span> · '+esc(it.unit)+' · '+esc(it.loc||'no location')+(it.alias?'<span class="alt2">'+esc(it.alias)+'</span>':'')+'</p>'
+    +(f?'<div class="msg warn" style="display:block">Needs a real count: '+esc(f.reason)+' ('+esc(disp(f.at))+', '+esc(f.by)+')</div>':'')
+    +'<h3 style="margin:14px 0 6px">Stock: '+total+' '+esc(it.unit)+'</h3><table class="t"><tr><th>Expiry date</th><th style="text-align:right">Qty</th></tr>'+(lots.length?lots.map(l=>'<tr><td>'+(l.exp?dmy(l.exp)+(l.exp<t?' <span class="low">expired</span>':''):'no expiry')+'</td><td class="num"><b>'+l.qty+'</b></td></tr>').join(''):'<tr><td colspan="2" class="note">No stock</td></tr>')+'</table>'
+    +'<h3 style="margin:16px 0 6px">Last movements</h3><table class="t"><tr><th>When</th><th>Type</th><th>Expiry</th><th style="text-align:right">Qty</th><th>By</th></tr>'+(mv.length?mv.map(x=>'<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(typeName(x.type))+'</td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+'</td></tr>').join(''):'<tr><td colspan="5" class="note">None yet</td></tr>')+'</table>'
+    +'<div class="row" style="margin-top:16px"><button class="btn alt" id="dClose">Close</button></div>');
+  $('dClose').onclick=closeModal;
+}
+// ---- starting stock: the CCS inventory list (IR number + Qty + Expiry), header row found automatically
+async function xlsxSheets(buf){
+  const u8=new Uint8Array(buf),ents=zipEntries(u8),wb=await zipText(u8,ents,'xl/workbook.xml'),rels=await zipText(u8,ents,'xl/_rels/workbook.xml.rels');
+  if(!wb||!rels)throw new Error('this is not an Excel (.xlsx) file');
+  const ss=await zipText(u8,ents,'xl/sharedStrings.xml'),shared=ss?[...ss.matchAll(/<si\b[^>]*>([\s\S]*?)<\/si>/g)].map(m=>[...m[1].matchAll(/<t\b[^>]*>([\s\S]*?)<\/t>/g)].map(x=>unxml(x[1])).join('')):[];
+  const out=[];for(const m of wb.matchAll(/<sheet\b[^>]*>/g)){const name=unxml((/\bname="([^"]*)"/.exec(m[0])||[])[1]||''),rid=(/\br:id="([^"]*)"/.exec(m[0])||[])[1];
+    const rm=new RegExp('<Relationship\\b[^>]*\\bId="'+rid+'"[^>]*>').exec(rels);if(!rm)continue;const tg=/\bTarget="([^"]*)"/.exec(rm[0]);if(!tg)continue;
+    const xml=await zipText(u8,ents,tg[1].startsWith('/')?tg[1].slice(1):'xl/'+tg[1]);if(xml)out.push({name,rows:sheetRows(xml,shared)});}
+  return out;
+}
+function stockRowsFrom(rows){
+  const norm=v=>String(v==null?'':v).trim().toLowerCase().replace(/[\s_.]+/g,' ');
+  for(let i=0;i<rows.length&&i<40;i++){const r=(rows[i]||[]).map(norm);
+    const irC=r.findIndex(v=>/^(ir|ir number|ir no|irnumber|ir code)$/.test(v)),qC=(()=>{let k=r.findIndex(v=>/^(qty|quantity|balance|stock|on hand|current stock|qty on hand|available)$/.test(v));if(k<0)k=r.findIndex(v=>/(quantity|balance|on hand)/.test(v)&&!/(type|max|min|price)/.test(v));return k;})();
+    if(irC<0||qC<0)continue;
+    const eC=r.findIndex(v=>/^(expiry|expiry date|exp|exp date|expiration|expiration date)$/.test(v)),nC=r.findIndex(v=>/^(item name|name|item|description)$/.test(v)),out=[];
+    for(let j=i+1;j<rows.length;j++){const x=rows[j];if(!x)continue;let ir=x[irC];if(typeof ir==='number')ir=String(Math.round(ir));ir=String(ir==null?'':ir).trim();if(!/^\d{10}$/.test(ir))continue;
+      const q=Math.floor(+x[qC]);if(!(q>=0))continue;let e='';const ev=eC>=0?x[eC]:'';if(typeof ev==='number'&&ev>20000&&ev<80000)e=serialToIso(ev);else if(typeof ev==='string'&&ev.trim())e=parseExpiry(ev.trim())||'';
+      out.push({ir,exp:/^\d{4}-\d{2}-\d{2}$/.test(e)?e:'',qty:q,name:nC>=0?String(x[nC]||'').slice(0,150):''});}
+    return out;}
+  return null;
+}
+async function loadStartStock(){
+  const f=$('vFile').files&&$('vFile').files[0];if(!f)return;const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;$('pmsg').style.display='';};
+  try{const sheets=await xlsxSheets(await f.arrayBuffer());let rows=null,sn='';for(const s0 of sheets){const r=stockRowsFrom(s0.rows);if(r&&r.length){rows=r;sn=s0.name;break;}}
+    if(!rows){pm('err','No sheet with the columns “IR number” and “Qty” (or Quantity / Balance) was found in '+f.name+'.');return;}
+    const known=new Set(DB.items.map(i=>i.ir)),unknown=[...new Set(rows.filter(r=>!known.has(r.ir)).map(r=>r.ir))],items=new Set(rows.map(r=>r.ir)).size,units=rows.reduce((a,r)=>a+r.qty,0),noExp=rows.filter(r=>!r.exp).length;
+    if(!confirm('LOAD STARTING STOCK\n\n'+f.name+' (sheet “'+sn+'”)\n'+rows.length+' lines · '+items+' items · '+units+' units'+(noExp?'\n'+noExp+' lines without an expiry date':'')+(unknown.length?'\n'+unknown.length+' IR numbers are not in the master list: they are added as new items (rename them later)':'')+'\n\nThis REPLACES the whole stock of CCS Desk.\nUse the CCS inventory list of TODAY.\n\nContinue?'))return;
+    const now=nowStamp(),ref='OPEN-'+now.replace(/\D/g,'').slice(0,12);
+    unknown.forEach(ir=>{const r=rows.find(x=>x.ir===ir);DB.items.push({ir,name:(r&&r.name)||ir,unit:'',loc:'',price:null,max:null,min:null,alias:''});});
+    DB.stock={};rows.forEach(r=>{const k=r.ir+'|'+r.exp;DB.stock[k]=(DB.stock[k]||0)+r.qty;});Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])delete DB.stock[k];});
+    DB.flags={};Object.keys(DB.stock).forEach(k=>{const ir=k.split('|')[0];DB.seq++;DB.ledger.push({id:DB.seq,t:now,type:'OPEN',ir,exp:k.slice(ir.length+1),qty:DB.stock[k],bal:DB.stock[k],by:ME.u,ref,note:'Starting stock ('+f.name+')'});});
+    DB.stockSince=now;audit('STOCK_START',f.name+': '+Object.keys(DB.stock).length+' lines, '+units+' units');await save();invF='stock';go('inv');
+    pm('ok','Starting stock loaded: '+items+' items, '+Object.keys(DB.stock).length+' item / expiry lines, '+units+' units.');}
+  catch(e){pm('err','Could not read '+f.name+': '+(e.message||e.name));}
+}
+
+// ---------------------------------------------------------------- STOCK IN / STOCK OUT / WRITE OFF
+const WO_REASONS=['Expired without use','Near expiry distributed','Distributed to other unit','Damaged','Lost'];
+const MOV={in:{type:'IN',name:'Stock In'},out:{type:'OUT',name:'Stock Out'},wo:{type:'WO',name:'Write Off'}};
+const DRAFT={in:[],out:[],wo:[]};let woDefault=1;
+const typeName=t=>t==='IN'?'Stock In':t==='OUT'?'Stock Out':/^WO[1-5]$/.test(t)?'Write Off - '+WO_REASONS[+t.slice(2)-1]:t==='ADJ'?'Correction':t==='OPEN'?'Starting stock':t==='COUNT'?'Inventory count':t;
+// availability of the list lines against the stock (preview only)
+function draftStatus(kind,list){
+  if(kind==='in')return list.map(l=>l.err?{c:'st-err',t:l.err}:{c:'st-ok',t:'ok'});
+  const need=new Map(),own=new Map();list.forEach(l=>{if(l.err)return;need.set(l.ir,(need.get(l.ir)||0)+l.qty);const k=l.ir+'|'+l.exp;own.set(k,(own.get(k)||0)+l.qty);});
+  return list.map(l=>{if(l.err)return{c:'st-err',t:l.err};const tot=lotsOf(l.ir).reduce((a,x)=>a+x.qty,0),k=l.ir+'|'+l.exp;
+    if(need.get(l.ir)>tot)return{c:'st-short',t:'not enough stock ('+tot+') - you will be asked'};
+    if(own.get(k)>(DB.stock[k]||0))return{c:'st-mv',t:'part from another expiry date'};return{c:'st-ok',t:'ok'};});
+}
+PAGES.in=()=>movPage('in');PAGES.out=()=>movPage('out');PAGES.wo=()=>movPage('wo');
+function movPage(kind){
+  const M=MOV[kind];
+  $('main').innerHTML='<div class="card"><div class="row"><div class="search" style="position:relative"><input type="text" id="mQ" autocomplete="off" placeholder="Add an item: last digits of the IR, or part of the name"><div class="sugg hidden" id="mSug"></div></div>'
+    +(kind==='wo'?'<label style="margin:0">Reason</label><select id="mWo" style="width:auto">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===woDefault?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select>':'')
+    +'<button class="btn alt" id="mImp">Import from Excel…</button></div><input type="file" id="mFile" accept=".xlsx" class="hidden"><div class="msg" id="pmsg"></div></div>'
+    +'<div class="card"><div class="drafthead"><h3 id="mHead"></h3><button class="btn alt" id="mClear" style="margin-left:auto">Clear list</button></div><div style="max-height:52vh;overflow:auto"><table class="t" id="mTab"></table></div>'
+    +'<div class="sumbar"><input type="text" id="mNote" placeholder="Reference / note (optional), e.g. store issue number" style="flex:1;min-width:240px"><span id="mSum" class="note"></span><button class="btn" id="mPost">Post</button></div></div>'
+    +'<div class="card"><h3>Last '+esc(M.name)+' postings</h3><table class="t" id="mLast"></table></div>';
+  if(kind==='wo')$('mWo').onchange=()=>{woDefault=+$('mWo').value;};
+  let hl=0,res=[];
+  const sug=()=>{const q=$('mQ').value.trim().toLowerCase();if(!q){$('mSug').classList.add('hidden');return;}
+    const fr=frequent(),all=DB.items.map((it,i)=>({it,i,key:(it.name+' '+(it.alias||'')).toLowerCase()}));
+    res=all.filter(r=>q.split(/\s+/).every(w=>r.key.includes(w)||r.it.ir.endsWith(w)||r.it.ir.startsWith(w))).sort((a,b)=>(fr.has(b.it.ir)-fr.has(a.it.ir))||a.i-b.i).slice(0,12);hl=0;
+    $('mSug').innerHTML=res.length?res.map((r,j)=>{const tot=lotsOf(r.it.ir).reduce((a,x)=>a+x.qty,0);return '<div data-j="'+j+'"'+(j===0?' class="hl"':'')+'>'+(fr.has(r.it.ir)?'★ ':'')+esc(r.it.name)+'<small>'+esc(r.it.ir)+' · stock '+tot+' '+esc(r.it.unit)+(r.it.alias?' · '+esc(r.it.alias):'')+'</small></div>';}).join(''):'<div class="note">No item found</div>';
+    $('mSug').classList.remove('hidden');};
+  const add=it=>{const lots=lotsOf(it.ir),exp=kind==='in'?'':(lots.length?lots[0].exp:'');
+    DRAFT[kind].push({ir:it.ir,exp,qty:1,wo:kind==='wo'?woDefault:0,by:'',src:'hand'});$('mQ').value='';$('mSug').classList.add('hidden');draw();
+    const q=$('mTab').querySelector('tr:last-child input.mq');if(q){q.focus();q.select();}};
+  $('mQ').addEventListener('input',sug);
+  $('mQ').addEventListener('keydown',e=>{const n=res.length;if(e.key==='ArrowDown'){hl=Math.min(n-1,hl+1);}else if(e.key==='ArrowUp'){hl=Math.max(0,hl-1);}else if(e.key==='Enter'){e.preventDefault();if(res[hl])add(res[hl].it);return;}else if(e.key==='Escape'){$('mSug').classList.add('hidden');return;}else return;
+    e.preventDefault();$('mSug').querySelectorAll('div[data-j]').forEach((d,j)=>d.classList.toggle('hl',j===hl));});
+  $('mSug').addEventListener('click',e=>{const d=e.target.closest('div[data-j]');if(d)add(res[+d.dataset.j].it);});
+  const draw=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L),ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0);
+    $('mHead').textContent=M.name+' list: '+L.length+' line'+(L.length===1?'':'s');
+    $('mTab').innerHTML='<tr><th>Item</th><th>Expiry date</th><th style="width:110px">Qty</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th>Check</th><th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
+      let ex;if(l.err&&!it)ex=esc(l.exp?dmy(l.exp):'');else if(kind==='in')ex='<input type="text" class="me" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="DD/MM/YYYY or empty" style="width:150px">';
+      else ex='<select class="ms" data-j="'+j+'">'+lots.map(x=>'<option value="'+x.exp+'"'+(x.exp===l.exp?' selected':'')+'>'+(x.exp?dmy(x.exp):'no expiry')+' (stock '+x.qty+')</option>').join('')+(lots.some(x=>x.exp===l.exp)?'':'<option value="'+esc(l.exp)+'" selected>'+(l.exp?dmy(l.exp):'no expiry')+' (stock 0)</option>')+'</select>';
+      return '<tr'+(l.err?' class="errrow"':'')+'><td><b>'+esc(it?it.name:(l.name||l.ir))+'</b><div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.src==='file'?' · from file (row '+l.line+')':'')+'</div></td><td>'+ex+'</td>'
+        +'<td>'+(l.err&&!it?esc(l.qty):'<input type="number" min="1" class="mq" data-j="'+j+'" value="'+esc(l.qty)+'">')+'</td>'
+        +(kind==='wo'?'<td><select class="mw" data-j="'+j+'">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===l.wo?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select></td>':'')
+        +'<td class="stc '+stt[j].c+'" data-j="'+j+'">'+esc(stt[j].t)+'</td><td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>';}).join(''):'<tr><td colspan="6" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
+    sumUp(L,stt);};
+  // after a change in a box: update the checks and totals only (the table is not rebuilt, so the cursor stays where the user clicked)
+  const sumUp=(L,stt)=>{const ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0),nErr=L.filter(l=>l.err).length,nShort=stt.filter(x=>x.c==='st-short').length;
+    $('mSum').innerHTML=ok.length+' line'+(ok.length===1?'':'s')+' · '+units+' units'+(nErr?' · <span class="st-err">'+nErr+' with errors (not posted)</span>':'')+(nShort?' · <span class="st-short">'+nShort+' not enough stock</span>':'');
+    $('mPost').disabled=!ok.length;$('mPost').textContent='Post '+ok.length+' line'+(ok.length===1?'':'s');};
+  const refresh=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L);$('mTab').querySelectorAll('td.stc').forEach(td=>{const j=+td.dataset.j;if(!stt[j])return;td.className='stc '+stt[j].c;td.textContent=stt[j].t;const tr=td.parentElement;tr.classList.toggle('errrow',!!L[j].err);});sumUp(L,stt);};
+  $('mTab').addEventListener('change',e=>{const t=e.target,j=+t.dataset.j,l=DRAFT[kind][j];if(!l)return;
+    if(t.classList.contains('mq')){const q=Math.floor(+t.value);if(q>0){l.qty=q;if(/quantity/.test(l.err||''))delete l.err;}else{t.value=l.qty;}}
+    if(t.classList.contains('me')){const v=t.value.trim();if(!v){l.exp='';if(/expiry/.test(l.err||''))delete l.err;}else{const e2=parseExpiry(v);if(e2){l.exp=e2;if(/expiry/.test(l.err||''))delete l.err;}else{alert('Expiry date not understood: '+v+'\nUse 31/12/2030 or 12/2030, or leave it empty (no expiry).');t.value=l.exp?dmy(l.exp):'';}}}
+    if(t.classList.contains('ms'))l.exp=t.value;if(t.classList.contains('mw'))l.wo=+t.value;refresh();});
+  $('mTab').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('input')){e.preventDefault();$('mQ').focus();}});   // leaving the box saves the change (one change event)
+  $('mTab').addEventListener('click',e=>{const b=e.target.closest('button[data-x]');if(b){DRAFT[kind].splice(+b.dataset.x,1);draw();}});
+  $('mClear').onclick=()=>{if(DRAFT[kind].length&&confirm('Clear the whole list? Nothing is posted.')){DRAFT[kind]=[];draw();}};
+  $('mImp').onclick=()=>{$('mFile').value='';$('mFile').click();};
+  $('mFile').onchange=()=>importMov(kind,draw);
+  $('mPost').onclick=()=>postMov(kind,draw);
+  const last=()=>{const L=DB.ledger.filter(x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type).slice(-15).reverse();
+    $('mLast').innerHTML='<tr><th>When</th><th>Item</th><th>Expiry</th><th style="text-align:right">Qty</th><th>Scanned / entered by</th><th>Posted by</th><th>Note</th></tr>'+(L.length?L.map(x=>{const it=DB.items.find(i=>i.ir===x.ir);return '<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(it?it.name:x.ir)+(kind==='wo'?'<div class="lots">'+esc(typeName(x.type))+'</div>':'')+'</td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.posted||'')+'</td><td>'+esc(x.note||'')+'</td></tr>';}).join(''):'<tr><td colspan="7" class="note">Nothing yet</td></tr>');};
+  movPage.last=last;draw();last();$('mQ').focus();
+}
+// ---- Excel import into the list (nothing changes until "Post")
+function movRowsFrom(rows,kind){
+  const norm=v=>String(v==null?'':v).trim().toLowerCase().replace(/[\s_.&]+/g,' ');
+  for(let i=0;i<rows.length&&i<40;i++){const r=(rows[i]||[]).map(norm);
+    const irC=r.findIndex(v=>/^(ir|ir number|ir no|irnumber|ir code)$/.test(v)),qC=(()=>{let k=r.findIndex(v=>/^(qty|quantity|issued qty|received qty|qty issued|qty received)$/.test(v));if(k<0)k=r.findIndex(v=>/(quantity|qty)/.test(v)&&!/(type|max|min|price|balance)/.test(v));return k;})();
+    if(irC<0||qC<0)continue;
+    const eC=r.findIndex(v=>/^(expiry|expiry date|exp|exp date|expiration|expiration date)$/.test(v)),nC=r.findIndex(v=>/^(item name|name|item|description)$/.test(v)),bC=r.findIndex(v=>/^(scanned by|by|user|staff)$/.test(v)),rC=r.findIndex(v=>/^(reason|write off reason)$/.test(v)),out=[];
+    for(let j=i+1;j<rows.length;j++){const x=rows[j];if(!x||!x.some(v=>v!==undefined&&v!==null&&String(v).trim()!==''))continue;
+      let ir=x[irC];if(typeof ir==='number')ir=String(Math.round(ir));ir=String(ir==null?'':ir).trim();const nm=nC>=0?String(x[nC]||'').slice(0,150):'';
+      const row={ir,exp:'',qty:0,name:nm,by:bC>=0?String(x[bC]||'').trim().slice(0,40):'',wo:0,src:'file',line:j+1};
+      if(!/^\d{10}$/.test(ir)){row.qty=x[qC]==null?'':x[qC];row.err='IR number is not 10 digits';out.push(row);continue;}
+      const q=+x[qC];if(!(q>0)||Math.floor(q)!==q){row.qty=x[qC]==null?'':x[qC];row.err='quantity is not a whole number above 0';out.push(row);continue;}row.qty=q;
+      const ev=eC>=0?x[eC]:'';if(typeof ev==='number'&&ev>20000&&ev<80000)row.exp=serialToIso(ev);else if(typeof ev==='string'&&ev.trim()){const e2=parseExpiry(ev.trim());if(e2)row.exp=e2;else row.err='expiry date not understood: '+ev;}
+      if(kind==='wo'&&rC>=0){const rv=norm(x[rC]);let k=/^[1-5]$/.test(rv)?+rv:0;if(!k&&rv)k=WO_REASONS.findIndex(w=>w.toLowerCase()===rv||w.toLowerCase().startsWith(rv)||rv.startsWith(w.toLowerCase().split(' ')[0]))+1;row.wo=k||0;}
+      if(!DB.items.some(it=>it.ir===ir))row.err=row.err||'not in the master list (add it in Items first)';
+      out.push(row);}
+    return out;}
+  return null;
+}
+async function fileHash(buf){const h=await crypto.subtle.digest('SHA-256',buf);return b64(h).slice(0,24);}
+async function importMov(kind,draw){
+  const f=$('mFile').files&&$('mFile').files[0];if(!f)return;const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};
+  try{const buf=await f.arrayBuffer(),hash=await fileHash(buf),sheets=await xlsxSheets(buf);let rows=null,sn='';
+    for(const s0 of sheets){const r=movRowsFrom(s0.rows,kind);if(r&&r.length){rows=r;sn=s0.name;break;}}
+    if(!rows){pm('err','No sheet with the columns “IR number” and “Qty” was found in '+f.name+'.');return;}
+    const prev=(DB.imports||[]).find(x=>x.hash===hash);
+    if(prev&&!confirm('THIS FILE WAS ALREADY POSTED\n\n'+f.name+'\nPosted on '+disp(prev.t)+' by '+prev.u+' as '+MOV[prev.kind].name+'.\n\nImporting it again would count it twice.\nAdd it to the list anyway?'))return;
+    if(DRAFT[kind].some(l=>l.hash===hash)){pm('warn','This file is already in the list below.');return;}
+    rows.forEach(r=>{if(kind==='wo'&&!r.wo)r.wo=woDefault;r.file=f.name;r.hash=hash;});
+    DRAFT[kind]=DRAFT[kind].concat(rows);draw();
+    const nErr=rows.filter(r=>r.err).length;pm(nErr?'warn':'ok','Added '+rows.length+' line'+(rows.length===1?'':'s')+' from '+f.name+' (sheet “'+sn+'”)'+(nErr?': '+nErr+' with errors - shown in red, they are NOT posted':'')+'. Check the list, then press Post.');}
+  catch(e){pm('err','Could not read '+f.name+': '+(e.message||e.name));}
+}
+// ---- posting (the agreed rules)
+// 1) Stock Out / Write Off take first from the expiry date of the line, then from the other expiry dates (earliest first)
+// 2) not enough stock at all: ask "how many are on the shelf NOW?" (empty = cannot count -> 0). The stock never goes below 0.
+//    -> correction in the log + the item is marked "needs a real count"
+function askShelf(short){return new Promise(res=>{
+  modal('<h1>Not enough stock</h1><p class="sub">Nothing is posted yet. For each item, type how many are on the shelf <b>now</b> (after this posting). A rough count is OK. Leave it empty if you cannot count now: the stock becomes 0.</p>'
+    +'<table class="t"><tr><th>Item</th><th style="text-align:right">Stock in CCS Desk</th><th style="text-align:right">This posting</th><th style="width:150px">On the shelf now</th></tr>'
+    +short.map((s,j)=>'<tr><td><b>'+esc(s.name)+'</b><div class="lots mono">'+esc(s.ir)+'</div></td><td class="num">'+s.have+'</td><td class="num">'+s.take+'</td><td><input type="number" min="0" id="sh'+j+'" placeholder="empty = 0"></td></tr>').join('')+'</table>'
+    +'<p class="note">These items will be marked “needs a real count”.</p><div class="row" style="margin-top:14px"><button class="btn" id="shOk">Post</button><button class="btn alt" id="shNo">Cancel - post nothing</button></div><div class="msg" id="mmsg"></div>');
+  $('shNo').onclick=()=>{closeModal();res(null);};
+  $('shOk').onclick=()=>{const out={};for(let j=0;j<short.length;j++){const v=$('sh'+j).value.trim();if(v===''){out[short[j].ir]=-1;continue;}const n=+v;if(!(n>=0)||Math.floor(n)!==n){mmsg('err','“'+v+'” is not a whole number.');return;}out[short[j].ir]=n;}closeModal();res(out);};
+  setTimeout(()=>$('sh0')&&$('sh0').focus(),50);});}
+function planPost(entries,resolve){
+  const st=Object.assign({},DB.stock),per=new Map(),order=[];
+  entries.forEach(e=>{if(!per.has(e.ir)){per.set(e.ir,{ins:0,outs:0,firstExp:null});order.push(e.ir);}const p=per.get(e.ir);if(e.type==='IN')p.ins+=e.qty;else{p.outs+=e.qty;if(p.firstExp===null)p.firstExp=e.exp;}});
+  const tot=ir=>Object.keys(st).filter(k=>k.startsWith(ir+'|')).reduce((a,k)=>a+st[k],0);
+  const short=[];order.forEach(ir=>{const p=per.get(ir),have=tot(ir);p.after=have+p.ins-p.outs;if(p.after<0&&!(resolve&&ir in resolve)){const it=DB.items.find(i=>i.ir===ir);short.push({ir,name:it?it.name:ir,have,take:p.outs-p.ins});}});
+  if(short.length)return{short};
+  const led=[],flags=[],now=nowStamp();let moved=0;
+  const lot=(ir,e)=>{const k=ir+'|'+(e||'');if(!(k in st))st[k]=0;return k;};
+  order.forEach(ir=>{const p=per.get(ir);if(p.after>=0)return;const v=resolve[ir],shelf=v>=0?v:0,adj=shelf-p.after,k=lot(ir,p.firstExp);
+    st[k]+=adj;led.push({type:'ADJ',ir,exp:p.firstExp||'',qty:adj,bal:st[k],note:v>=0?'Approximate count when posting: '+shelf+' left on the shelf':'Could not count when posting: stock set to 0'});
+    flags.push({ir,reason:v>=0?'Approximate count ('+shelf+' on the shelf) when a list was posted':'Stock was not enough and set to 0 when a list was posted'});});
+  entries.forEach(e=>{
+    if(e.type==='IN'){const k=lot(e.ir,e.exp);st[k]+=e.qty;led.push({type:'IN',ir:e.ir,exp:e.exp,qty:e.qty,bal:st[k],by:e.by,note:e.note});return;}
+    let rem=e.qty;const k0=lot(e.ir,e.exp),t0=Math.min(rem,Math.max(st[k0],0));
+    if(t0>0){st[k0]-=t0;rem-=t0;led.push({type:e.type,ir:e.ir,exp:e.exp,qty:-t0,bal:st[k0],by:e.by,note:e.note});}
+    Object.keys(st).filter(k=>k.startsWith(e.ir+'|')&&k!==k0&&st[k]>0).sort((a,b)=>(a.split('|')[1]||'9999').localeCompare(b.split('|')[1]||'9999')).forEach(k=>{
+      if(rem<=0)return;const u=Math.min(rem,st[k]);st[k]-=u;rem-=u;moved++;
+      led.push({type:e.type,ir:e.ir,exp:k.split('|')[1],qty:-u,bal:st[k],by:e.by,note:((e.note?e.note+' · ':'')+'taken from this expiry date (the line said '+(e.exp?dmy(e.exp):'no expiry')+')')});});
+    if(rem>0)throw new Error('stock calculation error for '+e.ir);
+  });
+  Object.keys(st).forEach(k=>{if(!st[k])delete st[k];});
+  return{stock:st,led,flags,moved,now};
+}
+async function postMov(kind,draw){
+  const L=DRAFT[kind].filter(l=>!l.err);if(!L.length)return;const note=$('mNote').value.trim().slice(0,120);
+  const entries=L.map(l=>({type:kind==='in'?'IN':kind==='out'?'OUT':'WO'+(l.wo||1),ir:l.ir,exp:l.exp||'',qty:l.qty,by:l.by||ME.name,note}));
+  const nErr=DRAFT[kind].length-L.length;
+  if(!confirm('POST '+MOV[kind].name.toUpperCase()+'\n\n'+L.length+' line'+(L.length===1?'':'s')+' · '+L.reduce((a,l)=>a+l.qty,0)+' units'+(nErr?'\n'+nErr+' line'+(nErr===1?'':'s')+' with errors stay in the list (not posted)':'')+'\n\nThe stock changes now. Continue?'))return;
+  let plan=planPost(entries,{});
+  if(plan.short){const r=await askShelf(plan.short);if(!r){$('pmsg').className='msg warn';$('pmsg').textContent='Cancelled - nothing was posted.';return;}plan=planPost(entries,r);}
+  const ref=MOV[kind].type+'-'+plan.now.replace(/\D/g,'').slice(0,14);
+  plan.led.forEach(x=>{DB.seq++;x.id=DB.seq;x.t=plan.now;x.by=x.by||ME.name;x.posted=ME.u;x.ref=ref;x.note=x.note||'';DB.ledger.push(x);});
+  plan.flags.forEach(f=>{DB.flags[f.ir]={reason:f.reason,by:ME.u,at:plan.now};});
+  DB.stock=plan.stock;
+  if(!DB.imports)DB.imports=[];const seen=new Set();L.forEach(l=>{if(l.hash&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind,t:plan.now,u:ME.u,ref});}});
+  audit('POST_'+kind.toUpperCase(),ref+': '+L.length+' lines'+(plan.moved?', '+plan.moved+' from another expiry date':'')+(plan.flags.length?', '+plan.flags.length+' corrected':''));
+  await save();DRAFT[kind]=DRAFT[kind].filter(l=>l.err);$('mNote').value='';draw();movPage.last();
+  $('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+').'+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
+}
+
+// ---------------------------------------------------------------- shared: item search box (last digits of the IR, or part of the name / other name)
+function itemSearch(qId,sId,onPick){
+  let hl=0,res=[];
+  const sug=()=>{const q=$(qId).value.trim().toLowerCase();if(!q){$(sId).classList.add('hidden');return;}
+    const fr=frequent(),all=DB.items.map((it,i)=>({it,i,key:(it.name+' '+(it.alias||'')).toLowerCase()}));
+    res=all.filter(r=>q.split(/\s+/).every(w=>r.key.includes(w)||r.it.ir.endsWith(w)||r.it.ir.startsWith(w))).sort((a,b)=>(fr.has(b.it.ir)-fr.has(a.it.ir))||a.i-b.i).slice(0,12);hl=0;
+    $(sId).innerHTML=res.length?res.map((r,j)=>{const tot=lotsOf(r.it.ir).reduce((a,x)=>a+x.qty,0);return '<div data-j="'+j+'"'+(j===0?' class="hl"':'')+'>'+(fr.has(r.it.ir)?'★ ':'')+esc(r.it.name)+'<small>'+esc(r.it.ir)+' · stock '+tot+' '+esc(r.it.unit)+(r.it.alias?' · '+esc(r.it.alias):'')+'</small></div>';}).join(''):'<div class="note">No item found</div>';
+    $(sId).classList.remove('hidden');};
+  const pick=it=>{$(qId).value='';$(sId).classList.add('hidden');onPick(it);};
+  $(qId).addEventListener('input',sug);
+  $(qId).addEventListener('keydown',e=>{const n=res.length;if(e.key==='ArrowDown'){hl=Math.min(n-1,hl+1);}else if(e.key==='ArrowUp'){hl=Math.max(0,hl-1);}else if(e.key==='Enter'){e.preventDefault();if(res[hl])pick(res[hl].it);return;}else if(e.key==='Escape'){$(sId).classList.add('hidden');return;}else return;
+    e.preventDefault();$(sId).querySelectorAll('div[data-j]').forEach((d,j)=>d.classList.toggle('hl',j===hl));});
+  $(sId).addEventListener('click',e=>{const d=e.target.closest('div[data-j]');if(d)pick(res[+d.dataset.j].it);});
+}
+const itemOf=ir=>DB.items.find(i=>i.ir===ir);
+const totalOf=ir=>lotsOf(ir).reduce((a,x)=>a+x.qty,0);
+const bigDiff=(sys,cnt)=>{const d=Math.abs(cnt-sys);return d>=3&&d>0.2*Math.max(sys,1);};
+function xlsxOut(name,sheet,cols,rows,title){download(name,buildXlsx(sheet,cols,rows,{who:ME?ME.name:'',created:new Date(),title:title||sheet,infoName:'Info',info:[['Unit',DB.unit],['Prepared by',ME?ME.name:''],['Saved on',nowStamp().slice(0,16)],['Report',title||sheet],['Lines',rows.length],['Tool','CCS Desk '+VERSION]]}));}
+
+// ---------------------------------------------------------------- STEP 4: INVENTORY COUNT
+// The count REPLACES the stock of every counted item (all its expiry dates). Items that are not in the count do not change,
+// unless "Full count" is chosen: then every item with stock that is not in the count becomes 0.
+const CDRAFT={lines:[],full:false};
+PAGES.cnt=()=>{
+  $('main').innerHTML='<div class="card"><div class="row"><div class="search" style="position:relative"><input type="text" id="cQ" autocomplete="off" placeholder="Add a counted item: last digits of the IR, or part of the name"><div class="sugg hidden" id="cSug"></div></div>'
+    +'<button class="btn alt" id="cImp">Import count from Excel…</button></div><input type="file" id="cFile" accept=".xlsx" class="hidden">'
+    +'<p class="note" style="margin:8px 0 0">Excel: the count file of the CCS Scan Helper app (INVENTORY COUNT > Save Excel) or any file with the columns IR number, Qty and Expiry. Qty 0 is allowed.</p><div class="msg" id="pmsg"></div></div>'
+    +'<div class="card"><div class="drafthead"><h3 id="cHead"></h3><label style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center;font-weight:600"><input type="checkbox" id="cFull"'+(CDRAFT.full?' checked':'')+'> Full count (items NOT in this list become 0)</label><button class="btn alt" id="cClear">Clear list</button></div>'
+    +'<div style="max-height:56vh;overflow:auto"><table class="t" id="cTab"></table></div>'
+    +'<div class="sumbar"><input type="text" id="cNote" placeholder="Note (optional), e.g. monthly count November" style="flex:1;min-width:240px"><span id="cSum" class="note"></span><button class="btn" id="cPost">Post count</button></div></div>'
+    +'<div class="card"><h3>Last counts</h3><table class="t" id="cLast"></table></div>';
+  itemSearch('cQ','cSug',it=>{const lots=lotsOf(it.ir);
+    if(CDRAFT.lines.some(l=>l.ir===it.ir)){const q=[...$('cTab').querySelectorAll('input.cq')].find(x=>CDRAFT.lines[+x.dataset.j].ir===it.ir);if(q){q.focus();q.select();}return;}
+    (lots.length?lots:[{exp:'',qty:0}]).forEach(x=>CDRAFT.lines.push({ir:it.ir,exp:x.exp,qty:'',src:'hand'}));draw();
+    const q=[...$('cTab').querySelectorAll('input.cq')].find(x=>CDRAFT.lines[+x.dataset.j].ir===it.ir);if(q)q.focus();});
+  const groups=()=>{const g=new Map();CDRAFT.lines.forEach((l,j)=>{if(!g.has(l.ir))g.set(l.ir,[]);g.get(l.ir).push(j);});return g;};
+  const itemCheck=ir=>{const L=CDRAFT.lines.filter(l=>l.ir===ir);if(L.some(l=>l.err))return{c:'st-err',t:L.find(l=>l.err).err};
+    if(L.some(l=>l.qty===''))return{c:'st-short',t:'type the counted qty'};
+    const sys=totalOf(ir),cnt=L.reduce((a,l)=>a+(+l.qty||0),0),d=cnt-sys;
+    return bigDiff(sys,cnt)?{c:'st-err',t:'BIG difference: system '+sys+' → counted '+cnt+' ('+(d>0?'+':'')+d+')',big:1}:{c:d?'st-mv':'st-ok',t:'system '+sys+' → counted '+cnt+(d?' ('+(d>0?'+':'')+d+')':' (same)')};};
+  const draw=()=>{
+    const g=groups();$('cHead').textContent='Count list: '+g.size+' item'+(g.size===1?'':'s');
+    let h='<tr><th>Item</th><th>Expiry date</th><th style="width:110px">Counted</th><th>Check (whole item)</th><th></th></tr>';
+    if(!CDRAFT.lines.length)h+='<tr><td colspan="5" class="note">Empty. Add items with the search box, or import the count Excel.</td></tr>';
+    g.forEach((js,ir)=>{const it=itemOf(ir),ck=itemCheck(ir);js.forEach((j,k)=>{const l=CDRAFT.lines[j],lot=DB.stock[ir+'|'+l.exp]||0;
+      h+='<tr'+(l.err?' class="errrow"':'')+'>'+(k===0?'<td rowspan="'+(js.length+1)+'"><b>'+esc(it?it.name:(l.name||ir))+'</b><div class="lots"><span class="mono">'+esc(ir)+'</span>'+(it&&it.loc?' · '+esc(it.loc):'')+(l.by?' · counted by '+esc(l.by):'')+(l.src==='file'?' · from file':'')+'</div></td>':'')
+        +'<td>'+(l.err&&!it?esc(l.exp?dmy(l.exp):''):'<input type="text" class="ce" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="no expiry" style="width:130px">')+'<div class="lots">system: '+lot+'</div></td>'
+        +'<td><input type="number" min="0" class="cq" data-j="'+j+'" value="'+esc(l.qty)+'" placeholder="qty"></td>'
+        +(k===0?'<td rowspan="'+(js.length+1)+'" class="stc '+ck.c+'" data-ir="'+esc(ir)+'">'+esc(ck.t)+'</td>':'')+'<td><button class="btn alt" data-x="'+j+'" title="Remove this line">✕</button></td></tr>';});
+      h+='<tr><td colspan="2"><button class="btn alt" data-add="'+esc(ir)+'" style="padding:4px 10px">＋ another expiry date</button></td><td></td></tr>';});
+    $('cTab').innerHTML=h;sum();};
+  const sum=()=>{const g=groups();let big=0,miss=0,err=0;g.forEach((js,ir)=>{const c=itemCheck(ir);if(c.big)big++;if(c.c==='st-short')miss++;if(c.c==='st-err'&&!c.big)err++;});
+    const zero=CDRAFT.full?DB.items.filter(i=>!g.has(i.ir)&&totalOf(i.ir)>0).length:0;
+    $('cSum').innerHTML=g.size+' item'+(g.size===1?'':'s')+(big?' · <span class="st-err">'+big+' big difference'+(big===1?'':'s')+'</span>':'')+(miss?' · <span class="st-short">'+miss+' without qty</span>':'')+(err?' · <span class="st-err">'+err+' with errors (not posted)</span>':'')+(zero?' · <span class="st-err">'+zero+' other items become 0</span>':'');
+    $('cPost').disabled=!g.size||!canEdit();};
+  const refresh=()=>{$('cTab').querySelectorAll('td.stc').forEach(td=>{const c=itemCheck(td.dataset.ir);td.className='stc '+c.c;td.textContent=c.t;});sum();};
+  $('cTab').addEventListener('change',e=>{const t=e.target,l=CDRAFT.lines[+t.dataset.j];if(!l)return;
+    if(t.classList.contains('cq')){const v=t.value.trim();if(v===''){l.qty='';}else{const q=+v;if(q>=0&&Math.floor(q)===q){l.qty=q;if(/quantity/.test(l.err||''))delete l.err;}else{alert('The counted qty must be a whole number (0 or more).');t.value=l.qty;}}}
+    if(t.classList.contains('ce')){const v=t.value.trim();if(!v)l.exp='';else{const e2=parseExpiry(v);if(e2)l.exp=e2;else{alert('Expiry date not understood: '+v+'\nUse 31/12/2030 or 12/2030, or leave it empty (no expiry).');t.value=l.exp?dmy(l.exp):'';}}draw();return;}
+    refresh();});
+  $('cTab').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('input')){e.preventDefault();const all=[...$('cTab').querySelectorAll('input.cq')],i=all.indexOf(e.target);if(i>=0&&all[i+1]){all[i+1].focus();all[i+1].select();}else $('cQ').focus();}});
+  $('cTab').addEventListener('click',e=>{const x=e.target.closest('button[data-x]'),a=e.target.closest('button[data-add]');
+    if(x){CDRAFT.lines.splice(+x.dataset.x,1);draw();}
+    if(a){const ir=a.dataset.add,last=CDRAFT.lines.map((l,j)=>l.ir===ir?j:-1).filter(j=>j>=0).pop();CDRAFT.lines.splice(last+1,0,{ir,exp:'',qty:'',src:'hand'});draw();const q=$('cTab').querySelector('input.ce[data-j="'+(last+1)+'"]');if(q)q.focus();}});
+  $('cFull').onchange=()=>{CDRAFT.full=$('cFull').checked;sum();};
+  $('cClear').onclick=()=>{if(CDRAFT.lines.length&&confirm('Clear the whole count list? Nothing is posted.')){CDRAFT.lines=[];draw();}};
+  $('cImp').onclick=()=>{$('cFile').value='';$('cFile').click();};
+  $('cFile').onchange=()=>importCount(draw);
+  $('cPost').onclick=()=>postCount(draw);
+  const last=()=>{const refs=[],seen=new Set();for(let i=DB.ledger.length-1;i>=0&&refs.length<12;i--){const x=DB.ledger[i];if(x.type==='COUNT'&&!seen.has(x.ref)){seen.add(x.ref);refs.push(x.ref);}}
+    $('cLast').innerHTML='<tr><th>When</th><th>Reference</th><th style="text-align:right">Items</th><th style="text-align:right">Difference (units)</th><th>Posted by</th><th>Note</th></tr>'+(refs.length?refs.map(r=>{const L=DB.ledger.filter(x=>x.ref===r);return '<tr><td>'+esc(disp(L[0].t))+'</td><td class="mono">'+esc(r)+'</td><td class="num">'+new Set(L.map(x=>x.ir)).size+'</td><td class="num">'+(L.reduce((a,x)=>a+x.qty,0)>0?'+':'')+L.reduce((a,x)=>a+x.qty,0)+'</td><td>'+esc(L[0].posted||'')+'</td><td>'+esc(L[0].note||'')+'</td></tr>';}).join(''):'<tr><td colspan="6" class="note">None yet</td></tr>');};
+  PAGES.cnt.last=last;draw();last();$('cQ').focus();
+};
+async function importCount(draw){
+  const f=$('cFile').files&&$('cFile').files[0];if(!f)return;const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};
+  try{const buf=await f.arrayBuffer(),hash=await fileHash(buf),sheets=await xlsxSheets(buf);let rows=null,sn='',byC=null;
+    for(const s0 of sheets){const r=stockRowsFrom(s0.rows);if(r&&r.length){rows=r;sn=s0.name;
+      const hi=s0.rows.findIndex(x=>(x||[]).some(v=>/^ir[ _.]?(number|no)?$/i.test(String(v||'').trim())));const hr=(s0.rows[hi]||[]).map(v=>String(v||'').trim().toLowerCase());byC=hr.findIndex(v=>/^(counted by|scanned by|by)$/.test(v));
+      if(byC>=0){let k=0;for(let j=hi+1;j<s0.rows.length&&k<r.length;j++){const x=s0.rows[j];if(!x)continue;let ir=x[hr.findIndex(v=>/^ir[ _.]?(number|no)?$/.test(v))];if(typeof ir==='number')ir=String(Math.round(ir));if(String(ir||'').trim()===r[k].ir){r[k].by=String(x[byC]||'').slice(0,40);k++;}}}
+      break;}}
+    if(!rows){pm('err','No sheet with the columns “IR number” and “Qty” was found in '+f.name+'.');return;}
+    const prev=(DB.imports||[]).find(x=>x.hash===hash);
+    if(prev&&!confirm('THIS FILE WAS ALREADY POSTED\n\n'+f.name+'\nPosted on '+disp(prev.t)+' by '+prev.u+'.\n\nAdd it to the count list anyway?'))return;
+    if(CDRAFT.lines.some(l=>l.hash===hash)){pm('warn','This file is already in the count list.');return;}
+    const known=new Set(DB.items.map(i=>i.ir));let added=0,repl=0,unk=0;
+    const merged=new Map();rows.forEach(r=>{const k=r.ir+'|'+r.exp;if(merged.has(k))merged.get(k).qty+=r.qty;else merged.set(k,Object.assign({},r));});
+    const irs=new Set([...merged.values()].map(r=>r.ir));
+    irs.forEach(ir=>{if(CDRAFT.lines.some(l=>l.ir===ir)){CDRAFT.lines=CDRAFT.lines.filter(l=>l.ir!==ir);repl++;}});
+    merged.forEach(r=>{const l={ir:r.ir,exp:r.exp,qty:r.qty,name:r.name,by:r.by||'',src:'file',file:f.name,hash};if(!known.has(r.ir)){l.err='not in the master list (add it in Items first)';unk++;}CDRAFT.lines.push(l);added++;});
+    draw();pm(unk?'warn':'ok','Added '+irs.size+' item'+(irs.size===1?'':'s')+' ('+added+' expiry lines) from '+f.name+' (sheet “'+sn+'”)'+(repl?', '+repl+' item'+(repl===1?'':'s')+' replaced the lines already in the list':'')+(unk?'. '+unk+' line'+(unk===1?'':'s')+' not in the master list (red, not posted)':'')+'. Check the differences, then press Post count.');}
+  catch(e){pm('err','Could not read '+f.name+': '+(e.message||e.name));}
+}
+async function postCount(draw){
+  if(!canEdit())return;const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};
+  const byIr=new Map();CDRAFT.lines.forEach(l=>{if(!byIr.has(l.ir))byIr.set(l.ir,[]);byIr.get(l.ir).push(l);});
+  const bad=[...byIr.keys()].filter(ir=>byIr.get(ir).some(l=>l.err)),miss=[...byIr.keys()].filter(ir=>!bad.includes(ir)&&byIr.get(ir).some(l=>l.qty===''));
+  if(miss.length){pm('err',miss.length+' item'+(miss.length===1?' has':'s have')+' a line without a counted qty (type 0 if there is none).');return;}
+  const ok=[...byIr.keys()].filter(ir=>!bad.includes(ir));if(!ok.length){pm('err','Nothing to post.');return;}
+  const zero=CDRAFT.full?DB.items.filter(i=>!byIr.has(i.ir)&&totalOf(i.ir)>0).map(i=>i.ir):[];
+  const big=ok.filter(ir=>bigDiff(totalOf(ir),byIr.get(ir).reduce((a,l)=>a+l.qty,0)));
+  if(big.length){const go=await new Promise(res=>{modal('<h1>Big differences</h1><p class="sub">These items differ by more than 20% (and at least 3 units) from the stock in CCS Desk. Please check them on the shelf before posting.</p><table class="t"><tr><th>Item</th><th style="text-align:right">System</th><th style="text-align:right">Counted</th><th style="text-align:right">Difference</th></tr>'
+      +big.map(ir=>{const s=totalOf(ir),c=byIr.get(ir).reduce((a,l)=>a+l.qty,0),it=itemOf(ir);return '<tr><td><b>'+esc(it?it.name:ir)+'</b><div class="lots mono">'+esc(ir)+'</div></td><td class="num">'+s+'</td><td class="num">'+c+'</td><td class="num st-err">'+(c-s>0?'+':'')+(c-s)+'</td></tr>';}).join('')+'</table>'
+      +'<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="bgOk"> I checked these items</label><div class="row" style="margin-top:12px"><button class="btn" id="bgGo">Post the count</button><button class="btn alt" id="bgNo">Back - check again</button></div><div class="msg" id="mmsg"></div>');
+    $('bgNo').onclick=()=>{closeModal();res(false);};$('bgGo').onclick=()=>{if(!$('bgOk').checked){mmsg('err','Tick “I checked these items” first.');return;}closeModal();res(true);};});
+    if(!go){pm('warn','Not posted. Check the items with a big difference.');return;}}
+  const units=ok.reduce((a,ir)=>a+byIr.get(ir).reduce((b,l)=>b+l.qty,0),0);
+  if(!confirm('POST INVENTORY COUNT\n\n'+ok.length+' counted item'+(ok.length===1?'':'s')+' · '+units+' units counted'+(bad.length?'\n'+bad.length+' item'+(bad.length===1?'':'s')+' with errors stay in the list (not posted)':'')+(zero.length?'\n\nFULL COUNT: '+zero.length+' other item'+(zero.length===1?'':'s')+' with stock become 0!':'')+'\n\nThe stock of these items is REPLACED by the count. Continue?'))return;
+  const now=nowStamp(),ref='CNT-'+now.replace(/\D/g,'').slice(0,14),note=$('cNote').value.trim().slice(0,120),st=Object.assign({},DB.stock),led=[];
+  const apply=(ir,lots,by)=>{const nw=new Map();lots.forEach(l=>nw.set(l.exp||'',(nw.get(l.exp||'')||0)+l.qty));
+    const old=new Map(Object.keys(st).filter(k=>k.startsWith(ir+'|')).map(k=>[k.slice(ir.length+1),st[k]]));let any=false;
+    new Set([...old.keys(),...nw.keys()]).forEach(e=>{const o=old.get(e)||0,n=nw.get(e)||0,k=ir+'|'+e;if(n)st[k]=n;else delete st[k];if(n!==o){any=true;led.push({type:'COUNT',ir,exp:e,qty:n-o,bal:n,by,note:(note?note+' · ':'')+'counted '+n+(o?' (was '+o+')':'')});}});
+    if(!any)led.push({type:'COUNT',ir,exp:'',qty:0,bal:[...nw.values()].reduce((a,b)=>a+b,0),by,note:(note?note+' · ':'')+'counted - same as the stock'});};
+  ok.forEach(ir=>{const L=byIr.get(ir);apply(ir,L,(L.find(l=>l.by)||{}).by||ME.name);});
+  zero.forEach(ir=>apply(ir,[],ME.name));
+  led.forEach(x=>{DB.seq++;x.id=DB.seq;x.t=now;x.posted=ME.u;x.ref=ref;DB.ledger.push(x);});
+  [...ok,...zero].forEach(ir=>{delete DB.flags[ir];});DB.stock=st;
+  if(!DB.imports)DB.imports=[];const seen=new Set();CDRAFT.lines.forEach(l=>{if(l.hash&&!l.err&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind:'cnt',t:now,u:ME.u,ref});}});
+  const diff=led.reduce((a,x)=>a+x.qty,0);
+  audit('POST_COUNT',ref+': '+ok.length+' items'+(zero.length?', '+zero.length+' set to 0 (full count)':'')+', difference '+(diff>0?'+':'')+diff);
+  await save();CDRAFT.lines=CDRAFT.lines.filter(l=>bad.includes(l.ir));CDRAFT.full=false;$('cFull').checked=false;$('cNote').value='';draw();PAGES.cnt.last();
+  pm('ok','Count posted ('+ref+'): '+ok.length+' item'+(ok.length===1?'':'s')+(zero.length?', '+zero.length+' other items set to 0':'')+'. Difference: '+(diff>0?'+':'')+diff+' units. “Needs a real count” cleared for these items.');
+}
+
+// ---------------------------------------------------------------- STEP 5: TRANSACTION LOG
+const LOGF={from:'',to:'',type:'',user:'',q:''};
+PAGES.log=()=>{
+  if(!LOGF.from){LOGF.from=addDays(-30);LOGF.to=today();}
+  const users=[...new Set(DB.ledger.map(x=>x.posted).concat(DB.ledger.map(x=>x.by)).filter(Boolean))].sort();
+  $('main').innerHTML='<div class="card"><div class="row filt"><div><label>From</label><input type="date" id="lFrom" value="'+LOGF.from+'"></div><div><label>To</label><input type="date" id="lTo" value="'+LOGF.to+'"></div>'
+    +'<div><label>Type</label><select id="lType"><option value="">All</option><option value="IN">Stock In</option><option value="OUT">Stock Out</option><option value="WO">Write Off (all)</option>'+WO_REASONS.map((r,i)=>'<option value="WO'+(i+1)+'">Write Off - '+esc(r)+'</option>').join('')+'<option value="COUNT">Inventory count</option><option value="ADJ">Correction</option><option value="OPEN">Starting stock</option></select></div>'
+    +'<div><label>User</label><select id="lUser"><option value="">All</option>'+users.map(u=>'<option>'+esc(u)+'</option>').join('')+'</select></div>'
+    +'<div style="flex:1;min-width:200px"><label>Item</label><input type="text" id="lQ" placeholder="last digits of the IR or part of the name" value="'+esc(LOGF.q)+'"></div>'
+    +'<div><label>&nbsp;</label><button class="btn alt" id="lX">⬇ Excel</button></div></div><div id="lInfo" class="note"></div></div>'
+    +'<div class="card"><div style="max-height:66vh;overflow:auto"><table class="t" id="lTab"></table></div></div>';
+  $('lType').value=LOGF.type;$('lUser').value=LOGF.user;
+  const rows=()=>{const q=LOGF.q.trim().toLowerCase(),to=LOGF.to||'9999',names=new Map(DB.items.map(i=>[i.ir,(i.name+' '+(i.alias||'')).toLowerCase()]));
+    return DB.ledger.filter(x=>{const d=x.t.slice(0,10);if(LOGF.from&&d<LOGF.from)return false;if(d>to)return false;
+      if(LOGF.type&&!(LOGF.type==='WO'?/^WO/.test(x.type):x.type===LOGF.type))return false;if(LOGF.user&&x.posted!==LOGF.user&&x.by!==LOGF.user)return false;
+      if(q){const n=names.get(x.ir)||'';if(!q.split(/\s+/).every(w=>n.includes(w)||x.ir.endsWith(w)||x.ir.startsWith(w)||(x.ref||'').toLowerCase().includes(w)))return false;}return true;}).reverse();};
+  const draw=()=>{const L=rows(),inU=L.filter(x=>x.qty>0).reduce((a,x)=>a+x.qty,0),outU=L.filter(x=>x.qty<0).reduce((a,x)=>a-x.qty,0);
+    $('lInfo').textContent=L.length+' movement'+(L.length===1?'':'s')+' · +'+inU+' / −'+outU+' units'+(L.length>500?' · showing the newest 500 (the Excel has all)':'');
+    $('lTab').innerHTML='<tr><th>When</th><th>Type</th><th>Item</th><th>Expiry</th><th style="text-align:right">Qty</th><th style="text-align:right">Balance</th><th>Scanned / counted by</th><th>Posted by</th><th>Reference / note</th></tr>'
+      +(L.length?L.slice(0,500).map(x=>{const it=itemOf(x.ir);return '<tr class="click" data-ir="'+esc(x.ir)+'"><td>'+esc(disp(x.t))+'</td><td>'+esc(typeName(x.type))+'</td><td>'+esc(it?it.name:x.ir)+'<div class="lots mono">'+esc(x.ir)+'</div></td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num '+(x.qty<0?'st-err':x.qty>0?'st-ok':'')+'"><b>'+(x.qty>0?'+':'')+x.qty+'</b></td><td class="num">'+(x.bal==null?'':x.bal)+'</td><td>'+esc(x.by||'')+'</td><td>'+esc(x.posted||'')+'</td><td><span class="mono">'+esc(x.ref||'')+'</span>'+(x.note?'<div class="lots">'+esc(x.note)+'</div>':'')+'</td></tr>';}).join(''):'<tr><td colspan="9" class="note">No movement with these filters.</td></tr>');};
+  ['lFrom','lTo','lType','lUser'].forEach(id=>$(id).onchange=()=>{LOGF.from=$('lFrom').value;LOGF.to=$('lTo').value;LOGF.type=$('lType').value;LOGF.user=$('lUser').value;draw();});
+  $('lQ').oninput=()=>{LOGF.q=$('lQ').value;draw();};
+  $('lTab').addEventListener('click',e=>{const tr=e.target.closest('tr[data-ir]');if(tr&&itemOf(tr.dataset.ir))invDialog(tr.dataset.ir);});
+  $('lX').onclick=()=>{const L=rows(),out=L.map(x=>{const it=itemOf(x.ir);return{t:disp(x.t),type:typeName(x.type),ir:x.ir,name:it?it.name:'',exp:x.exp?dmy(x.exp):'',qty:x.qty,bal:x.bal,by:x.by||'',posted:x.posted||'',ref:x.ref||'',note:x.note||'',val:it&&it.price!=null?Math.round(x.qty*it.price*100)/100:''};});
+    xlsxOut('CCS_Desk_log_'+(LOGF.from||'start')+'_to_'+(LOGF.to||today())+'.xlsx','transaction log',[['When','t','s',17],['Type','type','s',26],['ir_number','ir','s',14],['item name','name','s',60],['Expiry','exp','s',12],['Qty','qty','n',8],['Balance','bal','n',9],['Scanned / counted by','by','s',18],['Posted by','posted','s',14],['Reference','ref','s',20],['Note','note','s',40],['Value (QAR)','val','n',12]],out,'TRANSACTION LOG');};
+  draw();
+};
+
+// ---------------------------------------------------------------- STEP 5: REPORTS
+const REPS=[['stock','Stock on hand (with value)'],['exp','Expiring soon'],['use','Monthly use (Stock Out)'],['order','Order list (below minimum)'],['wo','Write offs'],['mov','Movements summary']];
+const REPF={r:'stock',win:90,old:true,months:6,from:'',to:''};
+PAGES.rep=()=>{
+  if(!REPF.from){REPF.from=addDays(-30);REPF.to=today();}
+  $('main').innerHTML='<div class="card"><div class="reptabs" id="rTabs">'+REPS.map(r=>'<button type="button" data-r="'+r[0]+'" class="'+(r[0]===REPF.r?'on':'')+'">'+esc(r[1])+'</button>').join('')+'</div>'
+    +'<div class="row filt" id="rPar" style="margin-top:10px"></div><div id="rInfo" class="note" style="margin-top:6px"></div></div><div class="card"><div style="max-height:62vh;overflow:auto"><table class="t" id="rTab"></table></div></div>';
+  $('rTabs').onclick=e=>{const b=e.target.closest('button[data-r]');if(b){REPF.r=b.dataset.r;PAGES.rep();}};
+  const R=REP[REPF.r];$('rPar').innerHTML=R.par()+'<div><label>&nbsp;</label><button class="btn" id="rX">⬇ Excel</button></div>';
+  const draw=()=>{const o=R.rows();$('rInfo').innerHTML=o.info||'';
+    $('rTab').innerHTML='<tr>'+o.cols.map(c=>'<th'+(c[2]==='n'?' style="text-align:right"':'')+'>'+esc(c[0])+'</th>').join('')+'</tr>'
+      +(o.rows.length?o.rows.slice(0,400).map(r=>'<tr'+(r._c?' class="'+r._c+'"':'')+'>'+o.cols.map(c=>'<td'+(c[2]==='n'?' class="num"':'')+'>'+esc(r[c[1]]==null?'':c[2]==='n'&&typeof r[c[1]]==='number'&&!Number.isInteger(r[c[1]])?r[c[1]].toFixed(c[1]==='val'||c[1]==='price'?2:1):r[c[1]])+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+o.cols.length+'" class="note">Nothing to show.</td></tr>')
+      +(o.rows.length>400?'<tr><td colspan="'+o.cols.length+'" class="note">Showing the first 400 lines - the Excel has all '+o.rows.length+'.</td></tr>':'');
+    $('rX').onclick=()=>xlsxOut('CCS_Desk_'+REPF.r+'_'+today()+'.xlsx',REPS.find(x=>x[0]===REPF.r)[1].slice(0,28),o.cols,o.rows.map(r=>{const c=Object.assign({},r);delete c._c;return c;}),o.title);};
+  $('rPar').addEventListener('change',e=>{const t=e.target;if(t.id==='rWin'){$('rDaysW').style.display=t.value==='c'?'':'none';if(t.value!=='c')REPF.win=+t.value;}if(t.id==='rDays')REPF.win=Math.max(1,Math.min(1500,Math.floor(+t.value)||90));
+    if(t.id==='rOld')REPF.old=t.checked;if(t.id==='rMon')REPF.months=+t.value;if(t.id==='rFrom')REPF.from=t.value;if(t.id==='rTo')REPF.to=t.value;draw();});
+  draw();
+};
+const dateRange=()=>'<div><label>From</label><input type="date" id="rFrom" value="'+REPF.from+'"></div><div><label>To</label><input type="date" id="rTo" value="'+REPF.to+'"></div>';
+const inRange=x=>{const d=x.t.slice(0,10);return(!REPF.from||d>=REPF.from)&&(!REPF.to||d<=REPF.to);};
+const priceOf=ir=>{const it=itemOf(ir);return it&&it.price!=null&&it.price!==''?+it.price:null;};
+function monthlyOut(ir,months){const since=addDays(-30*months);return DB.ledger.filter(x=>x.type==='OUT'&&x.ir===ir&&x.t>=since).reduce((a,x)=>a-x.qty,0)/months;}
+const REP={
+  stock:{par:()=>'',rows(){const rows=[];DB.items.forEach(it=>lotsOf(it.ir).forEach(l=>{const p=priceOf(it.ir);rows.push({ir:it.ir,name:it.name,unit:it.unit,loc:it.loc||'',exp:l.exp?dmy(l.exp):'',qty:l.qty,price:p==null?'':p,val:p==null?'':Math.round(l.qty*p*100)/100});}));
+    const v=rows.reduce((a,r)=>a+(+r.val||0),0);return{title:'STOCK ON HAND',info:rows.length+' item / expiry lines · '+rows.reduce((a,r)=>a+r.qty,0)+' units · value <b>'+money(v)+'</b>',
+      cols:[['ir_number','ir','s',14],['item name','name','s',60],['Qty_type','unit','s',10],['Location','loc','s',30],['Expiry','exp','s',12],['Qty','qty','n',8],['Unit Price','price','n',10],['Value (QAR)','val','n',12]],rows};}},
+  exp:{par:()=>'<div><label>Expire within</label><select id="rWin">'+[[30,'1 month'],[60,'2 months'],[90,'3 months'],[180,'6 months'],[365,'12 months']].map(o=>'<option value="'+o[0]+'"'+(o[0]===REPF.win?' selected':'')+'>'+o[1]+'</option>').join('')+'<option value="c"'+([30,60,90,180,365].includes(REPF.win)?'':' selected')+'>Other: days…</option></select></div>'
+      +'<div id="rDaysW" style="'+([30,60,90,180,365].includes(REPF.win)?'display:none':'')+'"><label>Days</label><input type="number" id="rDays" min="1" max="1500" value="'+REPF.win+'" style="width:90px"></div><div><label>&nbsp;</label><label style="display:flex;gap:6px;align-items:center;margin:8px 0 0"><input type="checkbox" id="rOld"'+(REPF.old?' checked':'')+'> expired too</label></div>',
+    rows(){const t=today(),lim=addDays(REPF.win),rows=[];DB.items.forEach(it=>lotsOf(it.ir).forEach(l=>{if(!l.exp||l.exp>lim||(l.exp<t&&!REPF.old))return;const days=Math.round((new Date(l.exp)-new Date(t))/864e5),p=priceOf(it.ir),m=monthlyOut(it.ir,3),use=Math.floor(m*Math.max(days,0)/30);
+      rows.push({_c:days<0?'errrow':'',exp:dmy(l.exp),days,ir:it.ir,name:it.name,unit:it.unit,loc:it.loc||'',qty:l.qty,val:p==null?'':Math.round(l.qty*p*100)/100,use:Math.round(m*10)/10,left:days<0?l.qty:Math.max(0,l.qty-use),act:days<0?'Write off (expired)':l.qty-use<=0?'Will be used in time':days<=180?'Give to another unit':'Watch'});}));
+      rows.sort((a,b)=>a.days-b.days);const v=rows.reduce((a,r)=>a+(+r.val||0),0);
+      return{title:'EXPIRING WITHIN '+REPF.win+' DAYS',info:rows.length+' lines · '+rows.filter(r=>r.days<0).length+' expired · value '+money(v)+' · “Will be left” = qty minus what this unit uses before the expiry date (Stock Out of the last 3 months)',
+        cols:[['Expiry','exp','s',12],['Days left','days','n',9],['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10],['Location','loc','s',25],['Qty','qty','n',7],['Value (QAR)','val','n',11],['Our use / month','use','n',11],['Will be left','left','n',10],['Action','act','s',28]],rows};}},
+  use:{par:()=>'<div><label>Months</label><select id="rMon">'+[3,6,12].map(m=>'<option'+(m===REPF.months?' selected':'')+'>'+m+'</option>').join('')+'</select></div>',
+    rows(){const n=REPF.months,ms=[];const d=new Date();for(let i=n-1;i>=0;i--){const x=new Date(d.getFullYear(),d.getMonth()-i,1);ms.push(x.getFullYear()+'-'+pad2(x.getMonth()+1));}
+      const by=new Map();DB.ledger.forEach(x=>{if(x.type!=='OUT')return;const m=x.t.slice(0,7);if(!ms.includes(m))return;if(!by.has(x.ir))by.set(x.ir,{});const o=by.get(x.ir);o[m]=(o[m]||0)-x.qty;});
+      const rows=[...by.entries()].map(([ir,o])=>{const it=itemOf(ir),tot=ms.reduce((a,m)=>a+(o[m]||0),0),avg=Math.round(tot/n*10)/10,stk=totalOf(ir),r={ir,name:it?it.name:ir,unit:it?it.unit:'',tot,avg,stock:stk,cover:avg>0?Math.round(stk/avg*10)/10:''};ms.forEach(m=>r['m'+m]=o[m]||0);return r;}).sort((a,b)=>b.tot-a.tot);
+      return{title:'MONTHLY USE - LAST '+n+' MONTHS',info:rows.length+' items used · “Months of stock” = stock now ÷ average use per month',
+        cols:[['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10]].concat(ms.map(m=>[m,'m'+m,'n',9]),[['Total','tot','n',9],['Average / month','avg','n',10],['Stock now','stock','n',9],['Months of stock','cover','n',10]]),rows};}},
+  order:{par:()=>'',rows(){const rows=[];DB.items.forEach(it=>{if(it.min==null||it.min==='')return;const stk=totalOf(it.ir),min=+it.min;if(stk>=min)return;const max=it.max!=null&&it.max!==''?+it.max:min*2,p=priceOf(it.ir),q=Math.max(0,max-stk);
+      rows.push({ir:it.ir,name:it.name,unit:it.unit,loc:it.loc||'',stock:stk,min,max,order:q,use:Math.round(monthlyOut(it.ir,3)*10)/10,val:p==null?'':Math.round(q*p*100)/100,_c:stk===0?'errrow':''});});
+      rows.sort((a,b)=>a.stock/Math.max(a.min,1)-b.stock/Math.max(b.min,1));
+      return{title:'ORDER LIST',info:rows.length+' items below the minimum · suggested order = max − stock (2 × min when there is no max) · value '+money(rows.reduce((a,r)=>a+(+r.val||0),0)),
+        cols:[['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10],['Location','loc','s',25],['Stock now','stock','n',9],['min_stock','min','n',9],['max_stock','max','n',9],['Order qty','order','n',9],['Use / month','use','n',10],['Value (QAR)','val','n',11]],rows};}},
+  wo:{par:dateRange,rows(){const rows=DB.ledger.filter(x=>/^WO/.test(x.type)&&inRange(x)).map(x=>{const it=itemOf(x.ir),p=priceOf(x.ir);return{t:disp(x.t),reason:WO_REASONS[+x.type.slice(2)-1]||x.type,ir:x.ir,name:it?it.name:x.ir,exp:x.exp?dmy(x.exp):'',qty:-x.qty,val:p==null?'':Math.round(-x.qty*p*100)/100,by:x.by||'',posted:x.posted||'',ref:x.ref||''};}).reverse();
+      const per=WO_REASONS.map(r=>{const L=rows.filter(x=>x.reason===r);return L.length?esc(r)+': '+L.reduce((a,x)=>a+x.qty,0)+' units, '+money(L.reduce((a,x)=>a+(+x.val||0),0)):'';}).filter(Boolean);
+      return{title:'WRITE OFFS '+REPF.from+' TO '+REPF.to,info:rows.length+' lines · total '+money(rows.reduce((a,x)=>a+(+x.val||0),0))+(per.length?'<br>'+per.join(' · '):''),
+        cols:[['When','t','s',17],['Reason','reason','s',26],['ir_number','ir','s',14],['item name','name','s',55],['Expiry','exp','s',12],['Qty','qty','n',8],['Value (QAR)','val','n',11],['Scanned by','by','s',16],['Posted by','posted','s',14],['Reference','ref','s',20]],rows};}},
+  mov:{par:dateRange,rows(){const by=new Map();DB.ledger.forEach(x=>{if(!inRange(x)||x.type==='OPEN')return;if(!by.has(x.ir))by.set(x.ir,{in:0,out:0,wo:0,adj:0});const o=by.get(x.ir);
+        if(x.type==='IN')o.in+=x.qty;else if(x.type==='OUT')o.out-=x.qty;else if(/^WO/.test(x.type))o.wo-=x.qty;else o.adj+=x.qty;});
+      const rows=[...by.entries()].map(([ir,o])=>{const it=itemOf(ir),p=priceOf(ir);return{ir,name:it?it.name:ir,unit:it?it.unit:'',in:o.in,out:o.out,wo:o.wo,adj:o.adj,net:o.in-o.out-o.wo+o.adj,stock:totalOf(ir),val:p==null?'':Math.round(o.out*p*100)/100};}).sort((a,b)=>b.out-a.out);
+      const s=k=>rows.reduce((a,r)=>a+r[k],0);
+      return{title:'MOVEMENTS '+REPF.from+' TO '+REPF.to,info:rows.length+' items · in +'+s('in')+' · out −'+s('out')+' · write off −'+s('wo')+' · counts/corrections '+(s('adj')>0?'+':'')+s('adj')+' · value of Stock Out '+money(rows.reduce((a,r)=>a+(+r.val||0),0)),
+        cols:[['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10],['Stock In','in','n',9],['Stock Out','out','n',9],['Write Off','wo','n',9],['Counts / corrections','adj','n',11],['Net change','net','n',10],['Stock now','stock','n',9],['Stock Out value (QAR)','val','n',13]],rows};}}
+};
+
+// ---------------------------------------------------------------- restore a backup (admin)
+async function restoreBackup(name){
+  const d=await bkDir(),h=await d.getFileHandle(name),txt=await (await h.getFile()).text();let o;
+  try{o=JSON.parse(txt);}catch(e){throw new Error('the backup file is damaged');}
+  if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users)||!Array.isArray(o.items)||typeof o.stock!=='object')throw new Error('this is not a CCS Desk data file');
+  if(!o.users.some(u=>u.role==='admin'&&u.active))throw new Error('the backup has no active admin');
+  const safe='ccs_desk_data_before_restore_'+nowStamp().replace(/\D/g,'').slice(0,12)+'.json';await writeBackup(safe);
+  const me=ME;DB=o;['ledger','audit','imports','pins'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=[];});if(!DB.flags)DB.flags={};if(!DB.settings)DB.settings={idleMin:15,backupDays:30};
+  ME=DB.users.find(u=>u.u===me.u&&u.active)||null;audit('RESTORE',name+' (the data before it: '+BKDIR+'/'+safe+')');await save(true);
+  return{safe,still:!!ME};
+}
+
+// ---------------------------------------------------------------- items (master list)
+let itemQ='';
+function itemsKeyed(){return DB.items.map(i=>Object.assign(i,{key:(i.name+' '+(i.alias||'')).toLowerCase()}));}
+PAGES.items=()=>{
+  $('main').innerHTML='<div class="card"><div class="row"><div class="search"><input type="text" id="iQ" placeholder="Search: last digits of the IR, or part of the name / other name" value="'+esc(itemQ)+'"></div>'
+    +(canEdit()?'<button class="btn" id="iNew">＋ New item</button>':'')+(ME.role==='admin'?'<button class="btn alt" id="iLoad">Load master list (Excel)…</button>':'')+'<button class="btn alt" id="iXlsx">⬇ Excel</button></div>'
+    +'<input type="file" id="iFile" accept=".xlsx" class="hidden"><div class="msg" id="pmsg"></div><div id="iInfo" class="note"></div><div style="max-height:70vh;overflow:auto"><table class="t" id="iTab"></table></div></div>';
+  const draw=()=>{itemQ=$('iQ').value;const q=itemQ.trim().toLowerCase(),all=itemsKeyed();
+    let L=q?all.filter(i=>q.split(/\s+/).every(w=>i.key.includes(w)||i.ir.endsWith(w)||i.ir.startsWith(w))):all;
+    $('iInfo').textContent=(q?L.length+' of ':'')+all.length+' items'+(L.length>300?' - showing the first 300, type more to narrow':'');
+    $('iTab').innerHTML='<tr><th>IR number</th><th>Item</th><th>Unit</th><th>Location</th><th style="text-align:right">Price</th><th style="text-align:right">Min / Max</th></tr>'
+      +L.slice(0,300).map(i=>'<tr class="click" data-ir="'+esc(i.ir)+'"><td class="mono">'+esc(i.ir)+'</td><td>'+esc(i.name)+(i.alias?'<span class="alt2">'+esc(i.alias)+'</span>':'')+'</td><td>'+esc(i.unit)+'</td><td>'+esc(i.loc)+'</td><td style="text-align:right">'+(i.price==null?'':Number(i.price).toFixed(2))+'</td><td style="text-align:right">'+(i.min==null?'-':i.min)+' / '+(i.max==null?'-':i.max)+'</td></tr>').join('');};
+  draw();$('iQ').addEventListener('input',draw);$('iQ').focus();
+  $('iTab').addEventListener('click',e=>{const tr=e.target.closest('tr[data-ir]');if(tr)itemDialog(DB.items.find(i=>i.ir===tr.dataset.ir));});
+  if($('iNew'))$('iNew').onclick=()=>itemDialog(null);
+  if($('iLoad'))$('iLoad').onclick=()=>{$('iFile').value='';$('iFile').click();};
+  $('iFile').onchange=loadMaster;
+  $('iXlsx').onclick=()=>{const rows=DB.items.map(i=>({ir:i.ir,name:i.name,alias:i.alias||'',unit:i.unit,loc:i.loc,max:i.max,min:i.min,price:i.price,expiry:'',qty:''}));
+    const cols=[['ir_number','ir','s',14],['item name','name','s',70],['other names','alias','s',30],['Qty_type','unit','s',10],['Location','loc','s',40],['max_stock','max','n',10],['min_stock','min','n',10],['Unit Price','price','n',11]];
+    download('CCS_Desk_master_list_'+today()+'.xlsx',buildXlsx('inventory list',cols,rows,null));};
+};
+function itemDialog(it){
+  const ro=!canEdit(),f=(k,l,v,t)=>'<div><label>'+l+'</label><input type="'+(t||'text')+'" id="f_'+k+'" value="'+esc(v==null?'':v)+'"'+(ro||(k==='ir'&&it)?' disabled':'')+'></div>';
+  modal('<h1>'+(it?esc(it.name):'New item')+'</h1><p class="sub">'+(it?'IR '+esc(it.ir):'All fields can be changed later, except the IR number.')+'</p>'
+    +'<div class="grid2">'+f('ir','IR number (10 digits)',it&&it.ir)+f('unit','Unit (Qty_type)',it&&it.unit)+'</div>'
+    +'<label>Item name</label><textarea id="f_name" rows="2"'+(ro?' disabled':'')+'>'+esc(it?it.name:'')+'</textarea>'
+    +'<label>Other names <span class="note">(for searching, separated by ;)</span></label><input type="text" id="f_alias" value="'+esc(it?it.alias||'':'')+'"'+(ro?' disabled':'')+'>'
+    +f('loc','Location',it&&it.loc)+'<div class="grid2">'+f('price','Unit price',it&&it.price,'number')+'<div class="grid2">'+f('min','Min',it&&it.min,'number')+f('max','Max',it&&it.max,'number')+'</div></div>'
+    +'<div class="row" style="margin-top:18px">'+(ro?'':'<button class="btn" id="fSave">Save</button>')+'<button class="btn alt" id="fClose">Close</button>'+(it&&!ro?'<button class="btn danger" id="fDel" style="margin-left:auto">Delete item</button>':'')+'</div><div class="msg" id="mmsg"></div>');
+  $('fClose').onclick=closeModal;
+  if(ro)return;
+  $('fSave').onclick=()=>{
+    const v=k=>$('f_'+k).value.trim(),num=k=>v(k)===''?null:+v(k),ir=it?it.ir:v('ir'),name=v('name').replace(/\s+/g,' ');
+    if(!/^\d{10}$/.test(ir)){mmsg('err','The IR number must have 10 digits.');return;}
+    if(!it&&DB.items.some(i=>i.ir===ir)){mmsg('err','This IR number is already in the list.');return;}
+    if(!name){mmsg('err','Type the item name.');return;}
+    for(const k of ['price','min','max'])if(v(k)!==''&&!(+v(k)>=0)){mmsg('err','Price, min and max must be numbers (0 or more).');return;}
+    const o={ir,name,unit:v('unit').toUpperCase(),loc:v('loc'),price:num('price'),min:num('min'),max:num('max'),alias:v('alias')};
+    if(it){const ch=Object.keys(o).filter(k=>String(it[k]==null?'':it[k])!==String(o[k]==null?'':o[k]));Object.assign(it,o);audit('ITEM_EDIT',ir+' '+ch.join(', '));}
+    else{DB.items.push(o);audit('ITEM_ADD',ir+' '+name);}
+    save();closeModal();go('items');};
+  if($('fDel'))$('fDel').onclick=()=>{
+    const st=Object.keys(DB.stock).filter(k=>k.startsWith(it.ir+'|')&&DB.stock[k]);
+    if(st.length){mmsg('err','This item still has stock ('+st.length+' expiry line'+(st.length===1?'':'s')+'). Set the stock to 0 first.');return;}
+    if(!confirm('Delete '+it.name+' ('+it.ir+') from the master list?'))return;
+    DB.items=DB.items.filter(i=>i.ir!==it.ir);DB.pins=DB.pins.filter(x=>x!==it.ir);audit('ITEM_DELETE',it.ir+' '+it.name);save();closeModal();go('items');};
+}
+async function loadMaster(){
+  const f=$('iFile').files&&$('iFile').files[0];if(!f)return;const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};
+  try{const r=await parseXlsxCatalog(await f.arrayBuffer()),by=new Map(DB.items.map(i=>[i.ir,i]));let add=0,upd=0,same=0;const nw=[];
+    r.items.forEach(a=>{const o={ir:a[0],name:a[1],unit:a[2]||'',loc:a[3]||'',price:a[4],max:a[5],min:a[6],alias:a[8]||''},old=by.get(o.ir);
+      if(!old){add++;nw.push(o);return;}const ch=['name','unit','loc','price','max','min','alias'].some(k=>String(old[k]==null?'':old[k])!==String(o[k]==null?'':o[k]));ch?upd++:same++;});
+    const keep=DB.items.filter(i=>!r.items.some(a=>a[0]===i.ir)).length;
+    if(!confirm('LOAD MASTER LIST\n\n'+f.name+' (sheet “'+r.sheet+'”): '+r.items.length+' items\n\nNew items: '+add+'\nChanged items (name, unit, location, price, min/max, other names): '+upd+'\nUnchanged: '+same+'\nItems of the app that are not in the file (kept): '+keep+'\n\nContinue?'))return;
+    r.items.forEach(a=>{const o={ir:a[0],name:a[1],unit:a[2]||'',loc:a[3]||'',price:a[4],max:a[5],min:a[6],alias:a[8]||''},old=by.get(o.ir);if(old)Object.assign(old,o);});
+    DB.items.push(...nw);audit('MASTER_LOAD',f.name+': '+add+' new, '+upd+' changed');await save();go('items');pm('ok','Master list loaded: '+add+' new, '+upd+' changed, '+same+' unchanged.');}
+  catch(e){pm('err','Could not read '+f.name+': '+(e.message||e.name));}
+}
+function download(name,bytes){const b=new Blob([bytes],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;document.body.appendChild(a);a.click();setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},2000);}
+
+// ---------------------------------------------------------------- users (admin)
+PAGES.users=()=>{
+  $('main').innerHTML='<div class="card"><div class="row" style="margin-bottom:10px"><h3 style="margin:0">Users</h3><button class="btn" id="uNew" style="margin-left:auto">＋ New user</button></div><table class="t" id="uTab"></table><p class="note">Charge nurses can do everything except users, master-list loading and settings. Every change is saved with the user name.</p></div>';
+  $('uTab').innerHTML='<tr><th>User name</th><th>Full name</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr>'+DB.users.map(u=>'<tr><td class="mono">'+esc(u.u)+'</td><td>'+esc(u.name)+'</td><td>'+(u.role==='admin'?'<span class="pill b">admin</span>':'<span class="pill">charge nurse</span>')+'</td><td>'+(u.active?'<span class="pill g">active</span>':'<span class="pill r">disabled</span>')+(u.mustChange?' <span class="pill">new password</span>':'')+'</td><td>'+esc(disp(u.last))+'</td><td style="text-align:right">'+(u.u===ME.u?'<span class="note">you</span>':'<button class="btn alt" data-pw="'+esc(u.u)+'">Reset password</button> <button class="btn alt" data-act="'+esc(u.u)+'">'+(u.active?'Disable':'Enable')+'</button>')+'</td></tr>').join('');
+  $('uTab').addEventListener('click',async e=>{const p=e.target.closest('button[data-pw]'),a=e.target.closest('button[data-act]');
+    if(p){const us=DB.users.find(x=>x.u===p.dataset.pw),np=prompt('New temporary password for '+us.name+' (at least 6 characters).\nThey must choose their own password at the next sign-in.','');if(np===null)return;if(pwRule(np)){alert(pwRule(np));return;}
+      us.salt=newSalt();us.hash=await pwHash(np,us.salt);us.mustChange=true;audit('USER_RESET',us.u);await save();PAGES.users();}
+    if(a){const us=DB.users.find(x=>x.u===a.dataset.act);us.active=!us.active;audit(us.active?'USER_ENABLE':'USER_DISABLE',us.u);await save();PAGES.users();}});
+  $('uNew').onclick=()=>{modal('<h1>New user</h1><div class="grid2"><div><label>User name</label><input type="text" id="nU" autocomplete="off" placeholder="e.g. mildred"></div><div><label>Full name</label><input type="text" id="nN"></div></div><label>Role</label><select id="nR"><option value="charge">Charge nurse</option><option value="admin">Admin</option></select><label>Temporary password</label><input type="text" id="nP" autocomplete="off"><p class="note">At the first sign-in the user must choose their own password.</p><div class="row" style="margin-top:14px"><button class="btn" id="nGo">Add user</button><button class="btn alt" id="nX">Cancel</button></div><div class="msg" id="mmsg"></div>');
+    $('nX').onclick=closeModal;
+    $('nGo').onclick=async()=>{const u=$('nU').value.trim().toLowerCase(),n=$('nN').value.trim(),p=$('nP').value;
+      if(!/^[a-z0-9._-]{3,30}$/.test(u)){mmsg('err','User name: 3-30 letters or digits, no spaces.');return;}if(DB.users.some(x=>x.u===u)){mmsg('err','This user name already exists.');return;}
+      if(!n){mmsg('err','Type the full name.');return;}if(pwRule(p)){mmsg('err',pwRule(p));return;}
+      const salt=newSalt();DB.users.push({u,name:n,role:$('nR').value,salt,hash:await pwHash(p,salt),active:true,mustChange:true,created:nowStamp(),last:''});audit('USER_ADD',u+' ('+$('nR').value+')');await save();closeModal();PAGES.users();};};
+};
+
+// ---------------------------------------------------------------- settings
+PAGES.set=async()=>{
+  const adm=ME.role==='admin';
+  $('main').innerHTML='<div class="card"><h3>Data folder and backups</h3><p>Folder <b>'+esc(DIR.name)+'</b> · file <span class="mono">'+DATA+'</span> · backups in the sub-folder <span class="mono">'+BKDIR+'</span> (one per day, the last '+((DB.settings&&DB.settings.backupDays)||30)+' days are kept)</p>'
+    +'<div class="row"><button class="btn" id="sBk">Backup now</button><button class="btn alt" id="sDl">Download a copy of the data file</button>'+(adm?'<button class="btn alt" id="sDir">Use another data folder…</button>':'')+'</div><div class="msg" id="pmsg"></div><div id="sBkList" class="note"></div></div>'
+    +'<div class="card"><h3>My account</h3><p>'+esc(ME.name)+' (<span class="mono">'+esc(ME.u)+'</span>)</p><button class="btn alt" id="sPw">Change my password</button></div>'
+    +(adm?'<div class="card"><h3>Unit and safety</h3><div class="grid2"><div><label>Unit name</label><input type="text" id="sUnit" value="'+esc(DB.unit)+'"></div><div><label>Sign out after … minutes without use</label><input type="number" id="sIdle" min="2" max="240" value="'+((DB.settings&&DB.settings.idleMin)||15)+'"></div></div><button class="btn" id="sSave" style="margin-top:12px">Save</button></div>':'')
+    +'<div class="card"><h3>Recent changes</h3><table class="t" id="sAud"></table></div>';
+  const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};
+  const showBk=async()=>{try{const b=await listBackups();$('sBkList').innerHTML=(b.length?'Newest backups: '+b.slice(0,6).map(x=>esc(x.name)).join(' · ')+(b.length>6?' · …':''):'No backup yet.')
+      +(adm&&b.length?'<div class="row" style="margin-top:10px"><select id="sRestSel" style="width:auto">'+b.map(x=>'<option>'+esc(x.name)+'</option>').join('')+'</select><button class="btn danger" id="sRest">Restore this backup…</button></div>':'');
+    if($('sRest'))$('sRest').onclick=async()=>{const nm=$('sRestSel').value;if(!confirm('RESTORE A BACKUP\n\n'+nm+'\n\nAll the data (stock, log, users, items) goes back to that backup. Everything done after it is lost.\nThe current data is saved first as a backup, so you can go back.\n\nContinue?'))return;
+      try{const r=await restoreBackup(nm);if(!r.still){alert('Restored. Your user does not exist in that backup: sign in again.');location.reload();return;}startApp();go('set');setTimeout(()=>{const m=$('pmsg');if(m){m.className='msg ok';m.textContent='Restored '+nm+'. The data before it was saved as '+BKDIR+'/'+r.safe+'.';}},50);}
+      catch(e){pm('err','Restore failed: '+(e.message||e.name));}};
+  }catch(e){}};showBk();
+  $('sBk').onclick=async()=>{try{const n='ccs_desk_data_'+nowStamp().replace(' ','_').replace(/:/g,'').slice(0,15)+'.json';await writeBackup(n);audit('BACKUP',n);await save();pm('ok','Backup saved: '+BKDIR+'/'+n);showBk();}catch(e){pm('err','Backup failed: '+(e.message||e.name));}};
+  $('sDl').onclick=()=>{const b=new Blob([JSON.stringify(DB)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ccs_desk_data_copy_'+today()+'.json';a.click();};
+  $('sPw').onclick=()=>changePwScreen(false);
+  if(adm){$('sDir').onclick=()=>{if(confirm('Switch to another data folder? You will be signed out. The current folder is not changed.')){ME=null;chooseFolder();}};
+    $('sSave').onclick=()=>{const u=$('sUnit').value.trim(),m=Math.max(2,Math.min(240,+$('sIdle').value||15));if(!u){pm('err','Type the unit name.');return;}DB.unit=u;DB.settings.idleMin=m;audit('SETTINGS','unit '+u+', sign out after '+m+' min');save();startApp();go('set');};}
+  $('sAud').innerHTML='<tr><th>When</th><th>User</th><th>What</th><th>Details</th></tr>'+DB.audit.slice(-40).reverse().map(a=>'<tr><td>'+esc(disp(a.t))+'</td><td>'+esc(a.u)+'</td><td>'+esc(a.a)+'</td><td>'+esc(a.d)+'</td></tr>').join('');
+};
+
+// ---------------------------------------------------------------- installable app (on the website only)
+if(location.protocol==='https:'&&'serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
+
+// ---------------------------------------------------------------- one window at a time
+if(navigator.locks&&navigator.locks.request){
+  navigator.locks.request('ccs-desk-window',{ifAvailable:true},lock=>{if(!lock){screen('<h1>CCS Desk is already open</h1><p class="sub">It is open in another tab or window of this browser. Use that one, or close it and reload this page.</p>');return;}boot();return new Promise(()=>{});});
+}else boot();
+})();
+</script>
+</body>
+</html>
