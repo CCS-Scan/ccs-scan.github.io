@@ -125,7 +125,7 @@ tr.errrow td{background:#fff5f5}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='1.2';
+const VERSION='1.3';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -731,7 +731,7 @@ function movPage(kind){
     +'<button class="btn alt" id="mImp">Import from Excel…</button>'+phBtn('mPh','⬇ From phones')+'</div><input type="file" id="mFile" accept=".xlsx" class="hidden"><div class="msg" id="pmsg"></div></div>'
     +'<div class="card"><div class="drafthead"><h3 id="mHead"></h3><button class="btn alt" id="mClear" style="margin-left:auto">Clear list</button></div><div style="max-height:52vh;overflow:auto"><table class="t" id="mTab"></table></div>'
     +'<div class="sumbar"><input type="text" id="mNote" placeholder="Reference / note (optional), e.g. store issue number" style="flex:1;min-width:240px"><span id="mSum" class="note"></span><button class="btn" id="mPost">Post</button></div></div>'
-    +'<div class="card"><h3>Last '+esc(M.name)+' postings</h3><table class="t" id="mLast"></table></div>';
+    +'<div class="card"><div class="drafthead"><h3>Last '+esc(M.name)+' postings</h3><select id="mRef" style="width:auto;margin-left:auto"></select><button class="btn alt" id="mCcs">⬇ Excel for CCS</button></div><table class="t" id="mLast"></table></div>';
   if(kind==='wo')$('mWo').onchange=()=>{woDefault=+$('mWo').value;};
   let hl=0,res=[];
   const sug=()=>{const q=$('mQ').value.trim().toLowerCase();if(!q){$('mSug').classList.add('hidden');return;}
@@ -774,7 +774,10 @@ function movPage(kind){
   $('mPost').onclick=()=>postMov(kind,draw);
   const last=()=>{const L=DB.ledger.filter(x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type).slice(-15).reverse();
     $('mLast').innerHTML='<tr><th>When</th><th>Item</th><th>Expiry</th><th style="text-align:right">Qty</th><th>Scanned / entered by</th><th>Posted by</th><th>Note</th></tr>'+(L.length?L.map(x=>{const it=DB.items.find(i=>i.ir===x.ir);return '<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(it?it.name:x.ir)+(kind==='wo'?'<div class="lots">'+esc(typeName(x.type))+'</div>':'')+'</td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.posted||'')+'</td><td>'+esc(x.note||'')+'</td></tr>';}).join(''):'<tr><td colspan="7" class="note">Nothing yet</td></tr>');};
-  movPage.last=last;draw();last();$('mQ').focus();
+  const refs=()=>{const seen=[],typ=x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type;for(let i=DB.ledger.length-1;i>=0&&seen.length<20;i--){const x=DB.ledger[i];if(typ(x)&&x.ref&&!seen.includes(x.ref))seen.push(x.ref);}
+    $('mRef').innerHTML=seen.length?seen.map(r=>{const x=DB.ledger.find(y=>y.ref===r);return '<option value="'+esc(r)+'">'+esc(disp(x.t))+' · '+esc(x.posted||'')+'</option>';}).join(''):'<option value="">no posting yet</option>';$('mCcs').disabled=!seen.length;};
+  $('mCcs').onclick=()=>{if($('mRef').value)ccsExcel($('mRef').value);};
+  const last0=last;movPage.last=()=>{last0();refs();};draw();last0();refs();$('mQ').focus();
 }
 // ---- Excel import into the list (nothing changes until "Post")
 function movRowsFrom(rows,kind){
@@ -808,6 +811,17 @@ async function importMov(kind,draw){
     DRAFT[kind]=DRAFT[kind].concat(rows);draw();
     const nErr=rows.filter(r=>r.err).length;pm(nErr?'warn':'ok','Added '+rows.length+' line'+(rows.length===1?'':'s')+' from '+f.name+' (sheet “'+sn+'”)'+(nErr?': '+nErr+' with errors - shown in red, they are NOT posted':'')+'. Check the list, then press Post.');}
   catch(e){pm('err','Could not read '+f.name+': '+(e.message||e.name));}
+}
+// ---- Excel for CCS (Import Stock In / Stock Out from Excel): exactly what was posted, with the expiry dates really taken
+const CCS_COLS=[['ir_number','ir','s',14],['item name','name','s',70],['Expiry','expiry','d',13],['Location','loc','s',42],['max_stock','max','n',10],['min_stock','min','n',10],['Unit Price','price','n',11],['Qty_type','unit','s',10],['Qty','qty','n',8]];
+function ccsExcel(ref){
+  const L=DB.ledger.filter(x=>x.ref===ref&&(x.type==='IN'||x.type==='OUT'||/^WO[1-5]$/.test(x.type)));if(!L.length){alert('Nothing to save for '+ref+'.');return;}
+  const kind=L[0].type==='IN'?'StockIn':L[0].type==='OUT'?'StockOut':'WriteOff',by=new Map();
+  L.forEach(x=>{const k=x.ir+'|'+x.exp+'|'+(kind==='WriteOff'?x.type:'');if(!by.has(k)){const it=itemOf(x.ir)||{};by.set(k,{ir:x.ir,name:it.name||x.ir,expiry:x.exp||'',loc:it.loc||'',max:it.max,min:it.min,price:it.price,unit:it.unit||'',qty:0,reason:kind==='WriteOff'?WO_REASONS[+x.type.slice(2)-1]:''});}by.get(k).qty+=Math.abs(x.qty);});
+  const rows=[...by.values()].sort((a,b)=>a.name.localeCompare(b.name)||(a.expiry||'9999').localeCompare(b.expiry||'9999'));
+  const cols=kind==='WriteOff'?CCS_COLS.concat([['Reason','reason','s',26]]):CCS_COLS,t=L[0].t,wn=String(ME?ME.name:'').replace(/\s+/g,'_').replace(/[^A-Za-z0-9_-]+/g,'');
+  download('CCS_'+kind+'_'+t.slice(0,10)+'_'+t.slice(11,13)+t.slice(14,16)+(wn?'_'+wn:'')+'.xlsx',buildXlsx('inventory list',cols,rows,null));
+  return rows.length;
 }
 // ---- posting (the agreed rules)
 // 1) Stock Out / Write Off take first from the expiry date of the line, then from the other expiry dates (earliest first)
@@ -858,7 +872,7 @@ async function postMov(kind,draw){
   if(!DB.imports)DB.imports=[];const seen=new Set();L.forEach(l=>{if(l.hash&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind,t:plan.now,u:ME.u,ref});}});
   audit('POST_'+kind.toUpperCase(),ref+': '+L.length+' lines'+(plan.moved?', '+plan.moved+' from another expiry date':'')+(plan.flags.length?', '+plan.flags.length+' corrected':''));
   await save();phAfterPost(L,ref);phStockSoon();DRAFT[kind]=DRAFT[kind].filter(l=>l.err);$('mNote').value='';draw();movPage.last();
-  $('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+').'+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
+  const nx=ccsExcel(ref);$('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+'). Excel for CCS saved ('+nx+' line'+(nx===1?'':'s')+') - see your Downloads.'+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
 }
 
 // ---------------------------------------------------------------- shared: item search box (last digits of the IR, or part of the name / other name)
