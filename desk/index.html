@@ -66,6 +66,9 @@ table.t th{text-align:left;font-size:11.5px;text-transform:uppercase;letter-spac
 table.t td{padding:9px 10px;border-bottom:1px solid var(--line);vertical-align:top}
 table.t tr.click:hover td{background:#f6f8fc;cursor:pointer}
 .alt2{display:block;font-size:12px;font-style:italic;color:#0f8a63;margin-top:2px}
+.thumb{width:38px;height:38px;object-fit:cover;border-radius:6px;border:1px solid var(--line);float:left;margin:0 9px 2px 0;background:#fff;cursor:zoom-in}
+.sugg .thumb{width:34px;height:34px;cursor:default}.bigph{max-width:100%;max-height:260px;border-radius:10px;border:1px solid var(--line);display:block;margin:10px 0}
+#phZoom{position:fixed;inset:0;background:rgba(0,0,0,.75);display:flex;align-items:center;justify-content:center;z-index:99;cursor:zoom-out}#phZoom img{max-width:92vw;max-height:92vh;border-radius:10px;background:#fff}
 .pill{display:inline-block;font-size:11px;font-weight:700;border-radius:20px;padding:2px 9px;background:#eef2f7;color:#475569}
 .pill.g{background:#e7f5ec;color:#1e7a3c}.pill.r{background:#fdecea;color:#b3261e}.pill.b{background:#e8f0fe;color:#1f6feb}
 .search{position:relative;flex:1;min-width:260px}.search input{padding-left:34px;font-size:15px}
@@ -122,7 +125,7 @@ tr.errrow td{background:#fff5f5}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='1.1';
+const VERSION='1.2';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -577,7 +580,7 @@ function startApp(){
   $('sideUnit').textContent=DB.unit;$('sideVer').textContent='version '+VERSION;
   $('sideWho').innerHTML='Signed in as <b>'+esc(ME.name)+'</b><br>'+esc(ME.u)+' · '+(ME.role==='admin'?'admin':'charge nurse');
   $('nav').innerHTML=NAV.filter(n=>!(n[4]==='admin'&&ME.role!=='admin')).map(n=>n[0]==='grp'?'<div class="grp">'+esc(n[1])+'</div>':'<button type="button" data-p="'+n[0]+'" class="'+(n[3]?'soon':'')+'"><span class="dot" style="background:var('+n[2]+')"></span>'+esc(n[1])+'</button>').join('');
-  saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();phInit().then(()=>{if(page==='dash'||page==='set'||MOV[page]||page==='cnt')go(page);});
+  saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();phInit().then(()=>{if(page==='dash'||page==='set'||MOV[page]||page==='cnt')go(page);mediaInit();});
 }
 $('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(b)go(b.dataset.p);});
 $('logoutBtn').onclick=()=>{audit('LOGOUT','');save();ME=null;page='dash';loginScreen();};
@@ -624,7 +627,7 @@ function invRows(){
   const t=today(),soon=addDays(90),by=new Map();Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])return;const ir=k.split('|')[0];if(!by.has(ir))by.set(ir,[]);by.get(ir).push({exp:k.slice(ir.length+1),qty:DB.stock[k]});});
   const freq=frequent();
   return DB.items.map((it,i)=>{const lots=(by.get(it.ir)||[]).sort((a,b)=>(a.exp||'9999').localeCompare(b.exp||'9999')),total=lots.reduce((a,l)=>a+l.qty,0),dated=lots.filter(l=>l.exp);
-    return {it,i,lots,total,expd:dated.some(l=>l.exp<t),soon:dated.some(l=>l.exp>=t&&l.exp<=soon),low:it.min!=null&&it.min!==''&&total<+it.min,flag:DB.flags[it.ir],freq:freq.has(it.ir),pin:DB.pins.includes(it.ir),key:(it.name+' '+(it.alias||'')).toLowerCase()};});
+    return {it,i,lots,total,expd:dated.some(l=>l.exp<t),soon:dated.some(l=>l.exp>=t&&l.exp<=soon),low:it.min!=null&&it.min!==''&&total<+it.min,flag:DB.flags[it.ir],freq:freq.has(it.ir),pin:DB.pins.includes(it.ir),key:(it.name+' '+altOf(it)).toLowerCase()};});
 }
 let invQ='',invF='stock';
 const INVF=[['stock','In stock'],['freq','Frequently used'],['flag','Needs a real count'],['low','Below minimum'],['soon','Expiring in 90 days'],['expd','Expired'],['zero','No stock'],['all','All items']];
@@ -647,7 +650,7 @@ PAGES.inv=()=>{
     const t=today(),soon=addDays(90);
     $('vTab').innerHTML='<tr><th style="width:34px"></th><th>Item</th><th>Location</th><th>Expiry dates</th><th style="text-align:right">Stock</th><th style="text-align:right">Min / Max</th></tr>'
       +L.slice(0,300).map(r=>'<tr class="click" data-ir="'+esc(r.it.ir)+'"><td><button type="button" class="star'+(r.pin?' on':'')+'" data-pin="'+esc(r.it.ir)+'" title="'+(r.pin?'Unpin from':'Pin to')+' frequently used">★</button></td>'
-        +'<td><b>'+esc(r.it.name)+'</b>'+(r.it.alias?'<span class="alt2">'+esc(r.it.alias)+'</span>':'')+'<div class="lots"><span class="mono">'+esc(r.it.ir)+'</span>'+(r.flag?'<span class="flag">needs a real count</span>':'')+(r.low?'<span class="low">below minimum</span>':'')+'</div></td>'
+        +'<td>'+thumb(r.it.ir)+'<b>'+esc(r.it.name)+'</b>'+altHtml(r.it)+'<div class="lots"><span class="mono">'+esc(r.it.ir)+'</span>'+(r.flag?'<span class="flag">needs a real count</span>':'')+(r.low?'<span class="low">below minimum</span>':'')+'</div></td>'
         +'<td>'+esc(r.it.loc)+'</td><td>'+(r.lots.length?r.lots.map(l=>'<span class="lot'+(l.exp&&l.exp<t?' exp':l.exp&&l.exp<=soon?' soon':'')+'">'+l.qty+' × '+(l.exp?dmy(l.exp):'no expiry')+'</span>').join(''):'<span class="note">-</span>')+'</td>'
         +'<td class="qty">'+r.total+' <span class="note" style="font-weight:400">'+esc(r.it.unit)+'</span></td><td class="num">'+(r.it.min==null?'-':r.it.min)+' / '+(r.it.max==null?'-':r.it.max)+'</td></tr>').join('');};
   draw();$('vQ').addEventListener('input',draw);$('vQ').focus();
@@ -663,7 +666,7 @@ PAGES.inv=()=>{
 };
 function invDialog(ir){
   const it=DB.items.find(i=>i.ir===ir);if(!it)return;const lots=lotsOf(ir),t=today(),total=lots.reduce((a,l)=>a+l.qty,0),f=DB.flags[ir],mv=DB.ledger.filter(x=>x.ir===ir).slice(-12).reverse();
-  modal('<h1>'+esc(it.name)+'</h1><p class="sub"><span class="mono">'+esc(ir)+'</span> · '+esc(it.unit)+' · '+esc(it.loc||'no location')+(it.alias?'<span class="alt2">'+esc(it.alias)+'</span>':'')+'</p>'
+  modal('<h1>'+esc(it.name)+'</h1><p class="sub"><span class="mono">'+esc(ir)+'</span> · '+esc(it.unit)+' · '+esc(it.loc||'no location')+altHtml(it)+'</p>'+(MEDIA.ph[ir]?'<img class="bigph" src="'+MEDIA.ph[ir].d+'" alt="">':'')
     +(f?'<div class="msg warn" style="display:block">Needs a real count: '+esc(f.reason)+' ('+esc(disp(f.at))+', '+esc(f.by)+')</div>':'')
     +'<h3 style="margin:14px 0 6px">Stock: '+total+' '+esc(it.unit)+'</h3><table class="t"><tr><th>Expiry date</th><th style="text-align:right">Qty</th></tr>'+(lots.length?lots.map(l=>'<tr><td>'+(l.exp?dmy(l.exp)+(l.exp<t?' <span class="low">expired</span>':''):'no expiry')+'</td><td class="num"><b>'+l.qty+'</b></td></tr>').join(''):'<tr><td colspan="2" class="note">No stock</td></tr>')+'</table>'
     +'<h3 style="margin:16px 0 6px">Last movements</h3><table class="t"><tr><th>When</th><th>Type</th><th>Expiry</th><th style="text-align:right">Qty</th><th>By</th></tr>'+(mv.length?mv.map(x=>'<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(typeName(x.type))+'</td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+'</td></tr>').join(''):'<tr><td colspan="5" class="note">None yet</td></tr>')+'</table>'
@@ -732,9 +735,9 @@ function movPage(kind){
   if(kind==='wo')$('mWo').onchange=()=>{woDefault=+$('mWo').value;};
   let hl=0,res=[];
   const sug=()=>{const q=$('mQ').value.trim().toLowerCase();if(!q){$('mSug').classList.add('hidden');return;}
-    const fr=frequent(),all=DB.items.map((it,i)=>({it,i,key:(it.name+' '+(it.alias||'')).toLowerCase()}));
+    const fr=frequent(),all=DB.items.map((it,i)=>({it,i,key:(it.name+' '+altOf(it)).toLowerCase()}));
     res=all.filter(r=>q.split(/\s+/).every(w=>r.key.includes(w)||r.it.ir.endsWith(w)||r.it.ir.startsWith(w))).sort((a,b)=>(fr.has(b.it.ir)-fr.has(a.it.ir))||a.i-b.i).slice(0,12);hl=0;
-    $('mSug').innerHTML=res.length?res.map((r,j)=>{const tot=lotsOf(r.it.ir).reduce((a,x)=>a+x.qty,0);return '<div data-j="'+j+'"'+(j===0?' class="hl"':'')+'>'+(fr.has(r.it.ir)?'★ ':'')+esc(r.it.name)+'<small>'+esc(r.it.ir)+' · stock '+tot+' '+esc(r.it.unit)+(r.it.alias?' · '+esc(r.it.alias):'')+'</small></div>';}).join(''):'<div class="note">No item found</div>';
+    $('mSug').innerHTML=res.length?res.map((r,j)=>{const tot=lotsOf(r.it.ir).reduce((a,x)=>a+x.qty,0);return '<div data-j="'+j+'"'+(j===0?' class="hl"':'')+'>'+thumb(r.it.ir)+(fr.has(r.it.ir)?'★ ':'')+esc(r.it.name)+'<small>'+esc(r.it.ir)+' · stock '+tot+' '+esc(r.it.unit)+(altOf(r.it)?' · '+esc(altOf(r.it)):'')+'</small></div>';}).join(''):'<div class="note">No item found</div>';
     $('mSug').classList.remove('hidden');};
   const add=it=>{const lots=lotsOf(it.ir),exp=kind==='in'?'':(lots.length?lots[0].exp:'');
     DRAFT[kind].push({ir:it.ir,exp,qty:1,wo:kind==='wo'?woDefault:0,by:'',src:'hand'});$('mQ').value='';$('mSug').classList.add('hidden');draw();
@@ -748,7 +751,7 @@ function movPage(kind){
     $('mTab').innerHTML='<tr><th>Item</th><th>Expiry date</th><th style="width:110px">Qty</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th>Check</th><th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
       let ex;if(l.err&&!it)ex=esc(l.exp?dmy(l.exp):'');else if(kind==='in')ex='<input type="text" class="me" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="DD/MM/YYYY or empty" style="width:150px">';
       else ex='<select class="ms" data-j="'+j+'">'+lots.map(x=>'<option value="'+x.exp+'"'+(x.exp===l.exp?' selected':'')+'>'+(x.exp?dmy(x.exp):'no expiry')+' (stock '+x.qty+')</option>').join('')+(lots.some(x=>x.exp===l.exp)?'':'<option value="'+esc(l.exp)+'" selected>'+(l.exp?dmy(l.exp):'no expiry')+' (stock 0)</option>')+'</select>';
-      return '<tr'+(l.err?' class="errrow"':'')+'><td><b>'+esc(it?it.name:(l.name||l.ir))+'</b><div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.src==='file'?' · from file (row '+l.line+')':'')+'</div></td><td>'+ex+'</td>'
+      return '<tr'+(l.err?' class="errrow"':'')+'><td>'+thumb(l.ir)+'<b>'+esc(it?it.name:(l.name||l.ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.src==='file'?' · from file (row '+l.line+')':'')+'</div></td><td>'+ex+'</td>'
         +'<td>'+(l.err&&!it?esc(l.qty):'<input type="number" min="1" class="mq" data-j="'+j+'" value="'+esc(l.qty)+'">')+'</td>'
         +(kind==='wo'?'<td><select class="mw" data-j="'+j+'">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===l.wo?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select></td>':'')
         +'<td class="stc '+stt[j].c+'" data-j="'+j+'">'+esc(stt[j].t)+'</td><td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>';}).join(''):'<tr><td colspan="6" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
@@ -862,9 +865,9 @@ async function postMov(kind,draw){
 function itemSearch(qId,sId,onPick){
   let hl=0,res=[];
   const sug=()=>{const q=$(qId).value.trim().toLowerCase();if(!q){$(sId).classList.add('hidden');return;}
-    const fr=frequent(),all=DB.items.map((it,i)=>({it,i,key:(it.name+' '+(it.alias||'')).toLowerCase()}));
+    const fr=frequent(),all=DB.items.map((it,i)=>({it,i,key:(it.name+' '+altOf(it)).toLowerCase()}));
     res=all.filter(r=>q.split(/\s+/).every(w=>r.key.includes(w)||r.it.ir.endsWith(w)||r.it.ir.startsWith(w))).sort((a,b)=>(fr.has(b.it.ir)-fr.has(a.it.ir))||a.i-b.i).slice(0,12);hl=0;
-    $(sId).innerHTML=res.length?res.map((r,j)=>{const tot=lotsOf(r.it.ir).reduce((a,x)=>a+x.qty,0);return '<div data-j="'+j+'"'+(j===0?' class="hl"':'')+'>'+(fr.has(r.it.ir)?'★ ':'')+esc(r.it.name)+'<small>'+esc(r.it.ir)+' · stock '+tot+' '+esc(r.it.unit)+(r.it.alias?' · '+esc(r.it.alias):'')+'</small></div>';}).join(''):'<div class="note">No item found</div>';
+    $(sId).innerHTML=res.length?res.map((r,j)=>{const tot=lotsOf(r.it.ir).reduce((a,x)=>a+x.qty,0);return '<div data-j="'+j+'"'+(j===0?' class="hl"':'')+'>'+thumb(r.it.ir)+(fr.has(r.it.ir)?'★ ':'')+esc(r.it.name)+'<small>'+esc(r.it.ir)+' · stock '+tot+' '+esc(r.it.unit)+(altOf(r.it)?' · '+esc(altOf(r.it)):'')+'</small></div>';}).join(''):'<div class="note">No item found</div>';
     $(sId).classList.remove('hidden');};
   const pick=it=>{$(qId).value='';$(sId).classList.add('hidden');onPick(it);};
   $(qId).addEventListener('input',sug);
@@ -903,7 +906,7 @@ PAGES.cnt=()=>{
     let h='<tr><th>Item</th><th>Expiry date</th><th style="width:110px">Counted</th><th>Check (whole item)</th><th></th></tr>';
     if(!CDRAFT.lines.length)h+='<tr><td colspan="5" class="note">Empty. Add items with the search box, or import the count Excel.</td></tr>';
     g.forEach((js,ir)=>{const it=itemOf(ir),ck=itemCheck(ir);js.forEach((j,k)=>{const l=CDRAFT.lines[j],lot=DB.stock[ir+'|'+l.exp]||0;
-      h+='<tr'+(l.err?' class="errrow"':'')+'>'+(k===0?'<td rowspan="'+(js.length+1)+'"><b>'+esc(it?it.name:(l.name||ir))+'</b><div class="lots"><span class="mono">'+esc(ir)+'</span>'+(it&&it.loc?' · '+esc(it.loc):'')+(l.by?' · counted by '+esc(l.by):'')+(l.src==='file'?' · from file':'')+'</div></td>':'')
+      h+='<tr'+(l.err?' class="errrow"':'')+'>'+(k===0?'<td rowspan="'+(js.length+1)+'">'+thumb(ir)+'<b>'+esc(it?it.name:(l.name||ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(ir)+'</span>'+(it&&it.loc?' · '+esc(it.loc):'')+(l.by?' · counted by '+esc(l.by):'')+(l.src==='file'?' · from file':'')+'</div></td>':'')
         +'<td>'+(l.err&&!it?esc(l.exp?dmy(l.exp):''):'<input type="text" class="ce" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="no expiry" style="width:130px">')+'<div class="lots">system: '+lot+'</div></td>'
         +'<td><input type="number" min="0" class="cq" data-j="'+j+'" value="'+esc(l.qty)+'" placeholder="qty"></td>'
         +(k===0?'<td rowspan="'+(js.length+1)+'" class="stc '+ck.c+'" data-ir="'+esc(ir)+'">'+esc(ck.t)+'</td>':'')+'<td><button class="btn alt" data-x="'+j+'" title="Remove this line">✕</button></td></tr>';});
@@ -994,7 +997,7 @@ PAGES.log=()=>{
     +'<div><label>&nbsp;</label><button class="btn alt" id="lX">⬇ Excel</button></div></div><div id="lInfo" class="note"></div></div>'
     +'<div class="card"><div style="max-height:66vh;overflow:auto"><table class="t" id="lTab"></table></div></div>';
   $('lType').value=LOGF.type;$('lUser').value=LOGF.user;
-  const rows=()=>{const q=LOGF.q.trim().toLowerCase(),to=LOGF.to||'9999',names=new Map(DB.items.map(i=>[i.ir,(i.name+' '+(i.alias||'')).toLowerCase()]));
+  const rows=()=>{const q=LOGF.q.trim().toLowerCase(),to=LOGF.to||'9999',names=new Map(DB.items.map(i=>[i.ir,(i.name+' '+altOf(i)).toLowerCase()]));
     return DB.ledger.filter(x=>{const d=x.t.slice(0,10);if(LOGF.from&&d<LOGF.from)return false;if(d>to)return false;
       if(LOGF.type&&!(LOGF.type==='WO'?/^WO/.test(x.type):x.type===LOGF.type))return false;if(LOGF.user&&x.posted!==LOGF.user&&x.by!==LOGF.user)return false;
       if(q){const n=names.get(x.ir)||'';if(!q.split(/\s+/).every(w=>n.includes(w)||x.ir.endsWith(w)||x.ir.startsWith(w)||(x.ref||'').toLowerCase().includes(w)))return false;}return true;}).reverse();};
@@ -1143,9 +1146,10 @@ async function phSettings(box){
   const draw=()=>{
     if(phOk()){box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p>Linked to <b>'+esc(PH.unitName||PH.unitId||'the unit')+'</b> as <b>'+esc(PH.name||'')+'</b> ('+esc(PH.corp||'')+', charge nurse). Last stock sent: '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+'.'+(DB.markQueue&&DB.markQueue.length?' <span class="st-err">'+DB.markQueue.length+' posting(s) not yet sent to the phones.</span>':'')+'</p>'
         +'<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="phAuto"'+(PH.auto===false?'':' checked')+'> Send the stock to the phones after every posting</label>'
-        +'<div class="row" style="margin-top:10px"><button class="btn" id="phSend">Send the stock now</button><button class="btn alt" id="phOut">Unlink</button></div><div class="msg" id="phMsg"></div>';
+        +'<p class="note">Photos and second names from the phones: '+Object.keys(MEDIA.ph).length+' photos, '+Object.keys(MEDIA.sn).length+' second names (updated every 30 minutes).</p>'+'<div class="row" style="margin-top:10px"><button class="btn" id="phSend">Send the stock now</button><button class="btn alt" id="phMedia">Get photos and names now</button><button class="btn alt" id="phOut">Unlink</button></div><div class="msg" id="phMsg"></div>';
       $('phAuto').onchange=()=>{PH.auto=$('phAuto').checked;phSave();};
       $('phSend').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Sending…';try{const j=await phSendStock(true);m.className='msg ok';m.textContent='Sent: '+j.items+' items. The phones show it within 5 minutes.';await phRetryMarks();draw();}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
+      $('phMedia').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Getting photos and names… (the first time can take a minute)';try{MEDIA.at=0;const r=await mediaSync(true);m.className='msg ok';m.textContent='Done: '+r.photos+' photos, '+r.names+' second names.';}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
       $('phOut').onclick=()=>{if(confirm('Unlink CCS Desk from the phones on this computer?')){PH=null;phSave();draw();}};return;}
     box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p class="note">Link CCS Desk to the Google Sheet of the unit: then Stock Out, Stock In, Write Off and Inventory Count get the phones\' lists with one button, the phones are told what was posted, and the phones show the stock of CCS Desk. Use a <b>charge nurse</b> account of the app.</p>'
       +'<div class="grid2">'+(units.length?'<div><label>Unit</label><select id="phU">'+units.map(u=>'<option value="'+esc(u.id)+'"'+(u.name===DB.unit?' selected':'')+'>'+esc(u.name)+'</option>').join('')+'</select></div>':'<div><label>Google Sheet web app link of the unit</label><input type="text" id="phL" placeholder="https://script.google.com/macros/s/…/exec"></div><div><label>Unit id (central script only, e.g. pltcu1)</label><input type="text" id="phId" placeholder="empty if the unit has its own script"></div>')
@@ -1159,11 +1163,32 @@ async function phSettings(box){
       try{const j=await phPost('login',{corp,password:pw,device:'ccsdesk'+Math.random().toString(36).slice(2,8),unit:nm,code:''});
         if(j.role!=='charge'){PH=null;m.className='msg err';m.textContent='This account is not a charge nurse. In the app: tap your name > I am a charge nurse, then try again.';return;}
         Object.assign(PH,{token:j.token,name:j.name,corp:j.corp});await phSave();audit('PHONES_LINK',nm+' as '+j.corp);await save();
-        try{await phSendStock(false);}catch(e){}draw();}
+        try{await phSendStock(false);}catch(e){}draw();mediaSync(true).then(()=>draw()).catch(()=>{});}
       catch(e){PH=null;m.className='msg err';m.textContent=e.message||e.name;}};
   };
   draw();
 }
+
+// ---------------------------------------------------------------- photos and second names of the phones (shared by all units)
+let MEDIA={ph:{},sn:{},at:0},mediaBusy=false;
+async function mediaInit(){try{const m=await kvGet('media');if(m&&m.ph)MEDIA=m;}catch(e){}mediaSync(false);}
+function altOf(it){const a=[it.alias||''],s=MEDIA.sn[it.ir];if(s&&s.n&&!String(it.alias||'').toLowerCase().includes(s.n.toLowerCase()))a.push(s.n);return a.filter(Boolean).join(' · ');}
+function altHtml(it){const a=altOf(it);return a?'<span class="alt2">'+esc(a)+'</span>':'';}
+function thumb(ir){const p=MEDIA.ph[ir];return p?'<img class="thumb" src="'+p.d+'" alt="" loading="lazy" data-zoom="'+esc(ir)+'">':'';}
+document.addEventListener('click',e=>{const t=e.target.closest('img[data-zoom]');if(!t||t.closest('.sugg'))return;e.stopPropagation();e.preventDefault();
+  const z=document.createElement('div');z.id='phZoom';z.innerHTML='<img src="'+t.src+'" alt="">';z.onclick=()=>z.remove();document.body.appendChild(z);},true);
+async function mediaSync(force){
+  if(mediaBusy||!phOk())return;if(!force&&Date.now()-(MEDIA.at||0)<30*60000)return;mediaBusy=true;
+  try{const nm=await phPost('names',{});MEDIA.sn=nm.names||{};
+    const list=(await phPost('photoList',{})).photos||{},need=Object.keys(list).filter(ir=>!MEDIA.ph[ir]||MEDIA.ph[ir].at!==list[ir]);
+    Object.keys(MEDIA.ph).forEach(ir=>{if(!(ir in list))delete MEDIA.ph[ir];});
+    for(let i=0;i<need.length;i+=20){const g=(await phPost('photoGet',{irs:need.slice(i,i+20)},60000)).photos||{};Object.keys(g).forEach(ir=>{MEDIA.ph[ir]={d:g[ir].d,at:g[ir].at};});}
+    MEDIA.at=Date.now();await kvSet('media',MEDIA);
+    if(['inv','items','in','out','wo','cnt','dash'].includes(page)&&!document.querySelector('#modal:not(.hidden)')&&!(document.activeElement&&document.activeElement.matches('input,textarea,select')))go(page);
+    return {photos:Object.keys(MEDIA.ph).length,names:Object.keys(MEDIA.sn).length};}
+  catch(e){if(force)throw e;}finally{mediaBusy=false;}
+}
+setInterval(()=>{if(ME&&!document.hidden)mediaSync(false);},30*60000);
 
 // ---------------------------------------------------------------- shelf labels (Code 128 barcode of the IR number)
 const C128=['212222','222122','222221','121223','121322','131222','122213','122312','132212','221213','221312','231212','112232','122132','122231','113222','123122','123221','223211','221132','221231','213212','223112','312131','311222','321122','321221','312212','322112','322211','212123','212321','232121','111323','131123','131321','112313','132113','132311','211313','231113','231311','112133','112331','132131','113123','113321','133121','313121','211331','231131','213113','213311','213131','311123','311321','331121','312113','312311','332111','314111','221411','431111','111224','111422','121124','121421','141122','141221','112214','112412','122114','122411','142112','142211','241211','221114','413111','241112','134111','111242','121142','121241','114212','124112','124211','411212','421112','421211','212141','214121','412121','111143','111341','131141','114113','114311','411113','411311','113141','114131','311141','411131','211412','211214','211232','2331112'];
@@ -1183,7 +1208,7 @@ function printLabels(list){
 
 // ---------------------------------------------------------------- items (master list)
 let itemQ='';
-function itemsKeyed(){return DB.items.map(i=>Object.assign(i,{key:(i.name+' '+(i.alias||'')).toLowerCase()}));}
+function itemsKeyed(){return DB.items.map(i=>Object.assign(i,{key:(i.name+' '+altOf(i)).toLowerCase()}));}
 PAGES.items=()=>{
   $('main').innerHTML='<div class="card"><div class="row"><div class="search"><input type="text" id="iQ" placeholder="Search: last digits of the IR, or part of the name / other name" value="'+esc(itemQ)+'"></div>'
     +(canEdit()?'<button class="btn" id="iNew">＋ New item</button>':'')+(ME.role==='admin'?'<button class="btn alt" id="iLoad">Load master list (Excel)…</button>':'')+'<button class="btn alt" id="iXlsx">⬇ Excel</button><button class="btn alt" id="iLbl" title="Shelf labels with barcode of the items in this list">🏷 Print labels</button></div>'
@@ -1192,7 +1217,7 @@ PAGES.items=()=>{
     let L=q?all.filter(i=>q.split(/\s+/).every(w=>i.key.includes(w)||i.ir.endsWith(w)||i.ir.startsWith(w))):all;
     PAGES.items.L=L;$('iInfo').textContent=(q?L.length+' of ':'')+all.length+' items'+(L.length>300?' - showing the first 300, type more to narrow':'');
     $('iTab').innerHTML='<tr><th>IR number</th><th>Item</th><th>Unit</th><th>Location</th><th style="text-align:right">Price</th><th style="text-align:right">Min / Max</th></tr>'
-      +L.slice(0,300).map(i=>'<tr class="click" data-ir="'+esc(i.ir)+'"><td class="mono">'+esc(i.ir)+'</td><td>'+esc(i.name)+(i.alias?'<span class="alt2">'+esc(i.alias)+'</span>':'')+'</td><td>'+esc(i.unit)+'</td><td>'+esc(i.loc)+'</td><td style="text-align:right">'+(i.price==null?'':Number(i.price).toFixed(2))+'</td><td style="text-align:right">'+(i.min==null?'-':i.min)+' / '+(i.max==null?'-':i.max)+'</td></tr>').join('');};
+      +L.slice(0,300).map(i=>'<tr class="click" data-ir="'+esc(i.ir)+'"><td class="mono">'+esc(i.ir)+'</td><td>'+thumb(i.ir)+esc(i.name)+altHtml(i)+'</td><td>'+esc(i.unit)+'</td><td>'+esc(i.loc)+'</td><td style="text-align:right">'+(i.price==null?'':Number(i.price).toFixed(2))+'</td><td style="text-align:right">'+(i.min==null?'-':i.min)+' / '+(i.max==null?'-':i.max)+'</td></tr>').join('');};
   draw();$('iQ').addEventListener('input',draw);$('iQ').focus();
   $('iTab').addEventListener('click',e=>{const tr=e.target.closest('tr[data-ir]');if(tr)itemDialog(DB.items.find(i=>i.ir===tr.dataset.ir));});
   if($('iNew'))$('iNew').onclick=()=>itemDialog(null);
