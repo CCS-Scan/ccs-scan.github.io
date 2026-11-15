@@ -125,7 +125,7 @@ tr.errrow td{background:#fff5f5}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='1.3';
+const VERSION='1.4';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -751,7 +751,7 @@ function movPage(kind){
     $('mTab').innerHTML='<tr><th>Item</th><th>Expiry date</th><th style="width:110px">Qty</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th>Check</th><th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
       let ex;if(l.err&&!it)ex=esc(l.exp?dmy(l.exp):'');else if(kind==='in')ex='<input type="text" class="me" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="DD/MM/YYYY or empty" style="width:150px">';
       else ex='<select class="ms" data-j="'+j+'">'+lots.map(x=>'<option value="'+x.exp+'"'+(x.exp===l.exp?' selected':'')+'>'+(x.exp?dmy(x.exp):'no expiry')+' (stock '+x.qty+')</option>').join('')+(lots.some(x=>x.exp===l.exp)?'':'<option value="'+esc(l.exp)+'" selected>'+(l.exp?dmy(l.exp):'no expiry')+' (stock 0)</option>')+'</select>';
-      return '<tr'+(l.err?' class="errrow"':'')+'><td>'+thumb(l.ir)+'<b>'+esc(it?it.name:(l.name||l.ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.src==='file'?' · from file (row '+l.line+')':'')+'</div></td><td>'+ex+'</td>'
+      return '<tr'+(l.err?' class="errrow"':'')+'><td>'+thumb(l.ir)+'<b>'+esc(it?it.name:(l.name||l.ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.src==='file'?' · from file (row '+l.line+')':'')+(l.src==='phonex'?' · <b>already in CCS</b> (SHARED tab, '+esc(disp(l.impAt||''))+')':'')+'</div></td><td>'+ex+'</td>'
         +'<td>'+(l.err&&!it?esc(l.qty):'<input type="number" min="1" class="mq" data-j="'+j+'" value="'+esc(l.qty)+'">')+'</td>'
         +(kind==='wo'?'<td><select class="mw" data-j="'+j+'">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===l.wo?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select></td>':'')
         +'<td class="stc '+stt[j].c+'" data-j="'+j+'">'+esc(stt[j].t)+'</td><td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>';}).join(''):'<tr><td colspan="6" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
@@ -774,7 +774,7 @@ function movPage(kind){
   $('mPost').onclick=()=>postMov(kind,draw);
   const last=()=>{const L=DB.ledger.filter(x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type).slice(-15).reverse();
     $('mLast').innerHTML='<tr><th>When</th><th>Item</th><th>Expiry</th><th style="text-align:right">Qty</th><th>Scanned / entered by</th><th>Posted by</th><th>Note</th></tr>'+(L.length?L.map(x=>{const it=DB.items.find(i=>i.ir===x.ir);return '<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(it?it.name:x.ir)+(kind==='wo'?'<div class="lots">'+esc(typeName(x.type))+'</div>':'')+'</td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+'</td><td>'+esc(x.posted||'')+'</td><td>'+esc(x.note||'')+'</td></tr>';}).join(''):'<tr><td colspan="7" class="note">Nothing yet</td></tr>');};
-  const refs=()=>{const seen=[],typ=x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type;for(let i=DB.ledger.length-1;i>=0&&seen.length<20;i--){const x=DB.ledger[i];if(typ(x)&&x.ref&&!seen.includes(x.ref))seen.push(x.ref);}
+  const refs=()=>{const seen=[],typ=x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type;for(let i=DB.ledger.length-1;i>=0&&seen.length<20;i--){const x=DB.ledger[i];if(typ(x)&&x.ref&&!x.pre&&!seen.includes(x.ref))seen.push(x.ref);}
     $('mRef').innerHTML=seen.length?seen.map(r=>{const x=DB.ledger.find(y=>y.ref===r);return '<option value="'+esc(r)+'">'+esc(disp(x.t))+' · '+esc(x.posted||'')+'</option>';}).join(''):'<option value="">no posting yet</option>';$('mCcs').disabled=!seen.length;};
   $('mCcs').onclick=()=>{if($('mRef').value)ccsExcel($('mRef').value);};
   const last0=last;movPage.last=()=>{last0();refs();};draw();last0();refs();$('mQ').focus();
@@ -815,7 +815,7 @@ async function importMov(kind,draw){
 // ---- Excel for CCS (Import Stock In / Stock Out from Excel): exactly what was posted, with the expiry dates really taken
 const CCS_COLS=[['ir_number','ir','s',14],['item name','name','s',70],['Expiry','expiry','d',13],['Location','loc','s',42],['max_stock','max','n',10],['min_stock','min','n',10],['Unit Price','price','n',11],['Qty_type','unit','s',10],['Qty','qty','n',8]];
 function ccsExcel(ref){
-  const L=DB.ledger.filter(x=>x.ref===ref&&(x.type==='IN'||x.type==='OUT'||/^WO[1-5]$/.test(x.type)));if(!L.length){alert('Nothing to save for '+ref+'.');return;}
+  const L=DB.ledger.filter(x=>x.ref===ref&&!x.pre&&(x.type==='IN'||x.type==='OUT'||/^WO[1-5]$/.test(x.type)));if(!L.length){if(!ccsExcel.quiet)alert('Nothing to save for '+ref+': these lines were already imported into CCS from the SHARED tab.');return 0;}
   const kind=L[0].type==='IN'?'StockIn':L[0].type==='OUT'?'StockOut':'WriteOff',by=new Map();
   L.forEach(x=>{const k=x.ir+'|'+x.exp+'|'+(kind==='WriteOff'?x.type:'');if(!by.has(k)){const it=itemOf(x.ir)||{};by.set(k,{ir:x.ir,name:it.name||x.ir,expiry:x.exp||'',loc:it.loc||'',max:it.max,min:it.min,price:it.price,unit:it.unit||'',qty:0,reason:kind==='WriteOff'?WO_REASONS[+x.type.slice(2)-1]:''});}by.get(k).qty+=Math.abs(x.qty);});
   const rows=[...by.values()].sort((a,b)=>a.name.localeCompare(b.name)||(a.expiry||'9999').localeCompare(b.expiry||'9999'));
@@ -847,12 +847,12 @@ function planPost(entries,resolve){
     st[k]+=adj;led.push({type:'ADJ',ir,exp:p.firstExp||'',qty:adj,bal:st[k],note:v>=0?'Approximate count when posting: '+shelf+' left on the shelf':'Could not count when posting: stock set to 0'});
     flags.push({ir,reason:v>=0?'Approximate count ('+shelf+' on the shelf) when a list was posted':'Stock was not enough and set to 0 when a list was posted'});});
   entries.forEach(e=>{
-    if(e.type==='IN'){const k=lot(e.ir,e.exp);st[k]+=e.qty;led.push({type:'IN',ir:e.ir,exp:e.exp,qty:e.qty,bal:st[k],by:e.by,note:e.note});return;}
+    if(e.type==='IN'){const k=lot(e.ir,e.exp);st[k]+=e.qty;led.push({type:'IN',ir:e.ir,exp:e.exp,qty:e.qty,bal:st[k],by:e.by,note:e.note,pre:e.pre});return;}
     let rem=e.qty;const k0=lot(e.ir,e.exp),t0=Math.min(rem,Math.max(st[k0],0));
-    if(t0>0){st[k0]-=t0;rem-=t0;led.push({type:e.type,ir:e.ir,exp:e.exp,qty:-t0,bal:st[k0],by:e.by,note:e.note});}
+    if(t0>0){st[k0]-=t0;rem-=t0;led.push({type:e.type,ir:e.ir,exp:e.exp,qty:-t0,bal:st[k0],by:e.by,note:e.note,pre:e.pre});}
     Object.keys(st).filter(k=>k.startsWith(e.ir+'|')&&k!==k0&&st[k]>0).sort((a,b)=>(a.split('|')[1]||'9999').localeCompare(b.split('|')[1]||'9999')).forEach(k=>{
       if(rem<=0)return;const u=Math.min(rem,st[k]);st[k]-=u;rem-=u;moved++;
-      led.push({type:e.type,ir:e.ir,exp:k.split('|')[1],qty:-u,bal:st[k],by:e.by,note:((e.note?e.note+' · ':'')+'taken from this expiry date (the line said '+(e.exp?dmy(e.exp):'no expiry')+')')});});
+      led.push({type:e.type,ir:e.ir,exp:k.split('|')[1],qty:-u,bal:st[k],by:e.by,pre:e.pre,note:((e.note?e.note+' · ':'')+'taken from this expiry date (the line said '+(e.exp?dmy(e.exp):'no expiry')+')')});});
     if(rem>0)throw new Error('stock calculation error for '+e.ir);
   });
   Object.keys(st).forEach(k=>{if(!st[k])delete st[k];});
@@ -860,7 +860,7 @@ function planPost(entries,resolve){
 }
 async function postMov(kind,draw){
   const L=DRAFT[kind].filter(l=>!l.err);if(!L.length)return;const note=$('mNote').value.trim().slice(0,120);
-  const entries=L.map(l=>({type:kind==='in'?'IN':kind==='out'?'OUT':'WO'+(l.wo||1),ir:l.ir,exp:l.exp||'',qty:l.qty,by:l.by||ME.name,note}));
+  const entries=L.map(l=>({type:kind==='in'?'IN':kind==='out'?'OUT':'WO'+(l.wo||1),ir:l.ir,exp:l.exp||'',qty:l.qty,by:l.by||ME.name,note,pre:l.src==='phonex'||undefined}));
   const nErr=DRAFT[kind].length-L.length;
   if(!confirm('POST '+MOV[kind].name.toUpperCase()+'\n\n'+L.length+' line'+(L.length===1?'':'s')+' · '+L.reduce((a,l)=>a+l.qty,0)+' units'+(nErr?'\n'+nErr+' line'+(nErr===1?'':'s')+' with errors stay in the list (not posted)':'')+'\n\nThe stock changes now. Continue?'))return;
   let plan=planPost(entries,{});
@@ -872,7 +872,7 @@ async function postMov(kind,draw){
   if(!DB.imports)DB.imports=[];const seen=new Set();L.forEach(l=>{if(l.hash&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind,t:plan.now,u:ME.u,ref});}});
   audit('POST_'+kind.toUpperCase(),ref+': '+L.length+' lines'+(plan.moved?', '+plan.moved+' from another expiry date':'')+(plan.flags.length?', '+plan.flags.length+' corrected':''));
   await save();phAfterPost(L,ref);phStockSoon();DRAFT[kind]=DRAFT[kind].filter(l=>l.err);$('mNote').value='';draw();movPage.last();
-  const nx=ccsExcel(ref);$('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+'). Excel for CCS saved ('+nx+' line'+(nx===1?'':'s')+') - see your Downloads.'+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
+  ccsExcel.quiet=true;const nx=ccsExcel(ref);ccsExcel.quiet=false;const npre=L.filter(l=>l.src==='phonex').length;$('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+').'+(nx?' Excel for CCS saved ('+nx+' line'+(nx===1?'':'s')+') - see your Downloads.':'')+(npre?' '+npre+' line'+(npre===1?' was':'s were')+' already imported into CCS from the SHARED tab: not in the Excel.':'')+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
 }
 
 // ---------------------------------------------------------------- shared: item search box (last digits of the IR, or part of the name / other name)
@@ -1115,8 +1115,10 @@ async function phPost(action,extra,ms){
 function phBtn(id,label){return phOk()?'<button class="btn alt" id="'+id+'" title="Lists scanned with the CCS Scan Helper app">'+label+'</button>':'';}
 // ---- after a posting: tell the phones these lines are done (they leave the SHARED list); kept in the data file until it works
 function phAfterPost(lines,ref){
+  if(!DB.phoneDone)DB.phoneDone={lines:[],refs:[]};DB.phoneDone.refs.push(ref);lines.forEach(l=>{if(l.src==='phonex'&&l.lineId)DB.phoneDone.lines.push(l.lineId);});
+  if(DB.phoneDone.lines.length>20000)DB.phoneDone.lines.splice(0,DB.phoneDone.lines.length-20000);if(DB.phoneDone.refs.length>3000)DB.phoneDone.refs.splice(0,DB.phoneDone.refs.length-3000);
   const items=lines.filter(l=>l.src==='phone'&&l.key).map(l=>({key:l.key,ir:l.ir,expiry:l.pexp||'',qty:Math.min(l.qty,l.pqty||l.qty)}));
-  if(!items.length)return;if(!DB.markQueue)DB.markQueue=[];DB.markQueue.push({ref,items,t:nowStamp()});save();phRetryMarks();
+  if(!items.length){save();return;}if(!DB.markQueue)DB.markQueue=[];DB.markQueue.push({ref,items,t:nowStamp()});save();phRetryMarks();
 }
 async function phRetryMarks(){
   if(!DB||!DB.markQueue||!DB.markQueue.length||!phOk())return;
@@ -1139,7 +1141,13 @@ async function phPullMov(kind,draw){
       const row={ir:l.ir,exp:l.expiry||'',pexp:l.expiry||'',qty:l.qty,pqty:l.qty,name:l.name||'',by:b.by||'',src:'phone',key:b.key,wo:kind==='wo'?(+String(b.mode).slice(2)||woDefault):0};
       if(!known.has(l.ir)){row.err='not in the master list (add it in Items first)';bad++;}
       DRAFT[kind].push(row);n++;if(b.by)who.add(b.by);}));
-    draw();pm(n?(bad?'warn':'ok'):'warn',n?'Added '+n+' line'+(n===1?'':'s')+' from the phones'+(who.size?' ('+[...who].join(', ')+')':'')+(skip?', '+skip+' already in the list':'')+(bad?'. '+bad+' not in the master list (red)':'')+'. Check, then Post: the phones are told that these lines are done.':'No new lines on the phones'+(skip?' ('+skip+' already in the list)':'')+'.');}
+    let nx=0;try{const since=[DB.stockSince||'',PH.linkedAt||''].sort().pop()||addDays(-14),done=DB.phoneDone||{lines:[],refs:[]},dl=new Set(done.lines),dr=new Set(done.refs),want=kind==='in'?m=>m==='IN':kind==='out'?m=>m==='OUT':m=>/^WO[1-5]$/.test(m);
+      const x=await phPost('imported',{since});(x.exports||[]).forEach(g=>{if(dr.has(g.exportId))return;g.lines.forEach(l=>{if(!want(l.mode)||dl.has(l.lineId)||DRAFT[kind].some(y=>y.lineId===l.lineId))return;
+        const row={ir:l.ir,exp:l.expiry||'',qty:l.qty,name:l.name||'',by:l.by||'',src:'phonex',lineId:l.lineId,exportId:g.exportId,impAt:g.imported,wo:kind==='wo'?(+String(l.mode).slice(2)||woDefault):0};
+        if(!known.has(l.ir)){row.err='not in the master list (add it in Items first)';bad++;}DRAFT[kind].push(row);nx++;if(l.by)who.add(l.by);});});}
+    catch(e){if(!/unknown action/i.test(e.message||''))throw e;}
+    n+=nx;
+    draw();pm(n?(bad?'warn':'ok'):'warn',n?'Added '+n+' line'+(n===1?'':'s')+' from the phones'+(nx?' ('+nx+' already imported into CCS from the SHARED tab: they change the stock here, but are not put in the Excel for CCS again)':'')+(who.size?' ('+[...who].join(', ')+')':'')+(skip?', '+skip+' already in the list':'')+(bad?'. '+bad+' not in the master list (red)':'')+'. Check, then Post: the phones are told that these lines are done.':'No new lines on the phones'+(skip?' ('+skip+' already in the list)':'')+'.');}
   catch(e){pm('err','Could not get the lists of the phones: '+(e.message||e.name));}
 }
 // ---- Inventory Count: take the counts of the phones newer than the last count posted here
@@ -1176,7 +1184,7 @@ async function phSettings(box){
       m.className='msg warn';m.textContent='Signing in…';PH={url,unitId:id,unitName:nm,auto:true};
       try{const j=await phPost('login',{corp,password:pw,device:'ccsdesk'+Math.random().toString(36).slice(2,8),unit:nm,code:''});
         if(j.role!=='charge'){PH=null;m.className='msg err';m.textContent='This account is not a charge nurse. In the app: tap your name > I am a charge nurse, then try again.';return;}
-        Object.assign(PH,{token:j.token,name:j.name,corp:j.corp});await phSave();audit('PHONES_LINK',nm+' as '+j.corp);await save();
+        Object.assign(PH,{token:j.token,name:j.name,corp:j.corp,linkedAt:nowStamp()});await phSave();audit('PHONES_LINK',nm+' as '+j.corp);await save();
         try{await phSendStock(false);}catch(e){}draw();mediaSync(true).then(()=>draw()).catch(()=>{});}
       catch(e){PH=null;m.className='msg err';m.textContent=e.message||e.name;}};
   };
