@@ -97,6 +97,13 @@ td.num{text-align:right;white-space:nowrap}
 table.t input,table.t select{padding:6px 8px;font-size:13.5px}
 .st-ok{color:#1e7a3c;font-weight:600}.st-mv{color:#8a5a00;font-weight:600}.st-short{color:#b3261e;font-weight:700}.st-err{color:#b3261e;font-weight:700}
 tr.errrow td{background:#fff5f5}
+.pwwrap{position:relative}.pwwrap input{padding-right:44px}.eye{position:absolute;right:4px;top:50%;transform:translateY(-50%);border:0;background:none;font-size:17px;padding:6px 8px;border-radius:8px;opacity:.55;line-height:1}.eye:hover,.eye.on{opacity:1}
+.kbwarn{margin-top:6px;font-size:13px;font-weight:600;color:#8a5a00;background:#fff4d6;border-radius:8px;padding:7px 10px}
+.links{margin:14px 0 0;text-align:center;font-size:13px}.links a{color:var(--dash)}
+.keybox{font:700 25px/1.3 ui-monospace,Consolas,'Courier New',monospace;letter-spacing:2px;text-align:center;padding:16px 10px;border:2px dashed #b9c2d3;border-radius:12px;margin:14px 0;user-select:all;background:#f8fafc}
+body.locked #modal{display:none!important}
+#uTab .pill{white-space:nowrap}
+#printArea{display:none}@media print{body.printkey>*{display:none!important}body.printkey>#printArea{display:block!important;padding:30px;font-size:15px}body.printkey .keybox{font-size:30px}}
 .drafthead{display:flex;align-items:center;gap:10px;margin-bottom:8px}.drafthead h3{margin:0}
 .sumbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .filt{align-items:flex-end;gap:10px}.filt>div{display:flex;flex-direction:column}.filt label{margin:0 0 4px}.filt input,.filt select{width:auto}
@@ -115,7 +122,7 @@ tr.errrow td{background:#fff5f5}
     <div class="brand">CCS Desk<small id="sideUnit"></small></div>
     <div class="who" id="sideWho"></div>
     <nav id="nav"></nav>
-    <div class="foot"><span id="sideVer"></span><button id="logoutBtn" type="button">Sign out</button></div>
+    <div class="foot"><span id="sideVer"></span><button id="lockBtn" type="button" title="Lock the screen; your work stays as it is">Lock</button><button id="logoutBtn" type="button">Sign out</button></div>
   </aside>
   <div id="mainwrap">
     <div id="top"><div><div class="crumb" id="crumb"></div><h2 id="title"></h2></div><div class="right"><span id="saveDot"></span><span id="saveTxt"></span></div></div>
@@ -125,7 +132,7 @@ tr.errrow td{background:#fff5f5}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='1.4';
+const VERSION='1.5';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -467,13 +474,14 @@ const b64=u=>btoa(String.fromCharCode(...new Uint8Array(u)));
 async function pwHash(pw,salt){const k=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveBits']);
   return b64(await crypto.subtle.deriveBits({name:'PBKDF2',hash:'SHA-256',salt:Uint8Array.from(atob(salt),c=>c.charCodeAt(0)),iterations:120000},k,256));}
 const newSalt=()=>b64(crypto.getRandomValues(new Uint8Array(16)));
-function pwRule(p){return p.length>=6?'':'The password must have at least 6 characters.';}
+function pwRule(p){return p.length>=8&&p.length<=64&&/[A-Za-z]/.test(p)&&/[0-9]/.test(p)?'':'The password must have at least 8 characters, with letters AND numbers.';}
 
 // ---------------------------------------------------------------- start screens
-function screen(html){$('app').classList.add('hidden');$('scr').classList.remove('hidden');$('scrBox').innerHTML='<div class="logo">CCS <span>Desk</span></div>'+html;}
+function screen(html){document.documentElement.style.setProperty('--accent','var(--dash)');$('app').classList.add('hidden');$('scr').classList.remove('hidden');$('scrBox').innerHTML='<div class="logo">CCS <span>Desk</span></div>'+html;}
 function smsg(k,t){const m=$('smsg');if(m){m.className='msg '+k;m.textContent=t;}}
 function fsOk(){return !!window.__CCSD_TEST_DIR_PROMISE||'showDirectoryPicker' in window;}
 async function boot(){
+  try{FAILS=(await kvGet('fails'))||{};}catch(e){}
   if(!fsOk()){screen('<h1>This browser cannot use a data folder</h1><p class="sub">Open this file with <b>Microsoft Edge</b> or <b>Google Chrome</b> on a computer.</p><p class="note">If you already use Edge, the hospital may have switched this feature off: ask IT about “File System Access” for this file.</p>');return;}
   const h=await kvGet('dir');
   if(!h){welcome();return;}
@@ -496,47 +504,311 @@ async function chooseFolder(){
 async function openFolder(){
   try{FILEH=await DIR.getFileHandle(DATA);}catch(e){FILEH=null;}
   if(!FILEH){setupScreen();return;}
-  try{const f=await FILEH.getFile(),o=JSON.parse(await f.text());if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users))throw new Error('this is not a CCS Desk data file');DB=o;lastMod=f.lastModified;loginScreen();}
+  try{const f=await FILEH.getFile(),o=JSON.parse(await f.text());if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users))throw new Error('this is not a CCS Desk data file');DB=o;migrate();lastMod=f.lastModified;loginScreen();}
   catch(e){screen('<h1>The data file cannot be read</h1><p class="sub">'+esc(e.message)+'</p><p class="note">Do not delete anything. Restore the newest file from the “backups” folder (rename it to '+DATA+') or ask for help.</p><button class="btn alt big" id="otherBtn">Use another folder…</button>');$('otherBtn').onclick=chooseFolder;}
 }
-function setupScreen(){
-  screen('<h1>New data file</h1><p class="sub">Folder <b>'+esc(DIR.name)+'</b> has no CCS Desk data yet. Set it up once.</p>'
-    +'<label>Unit</label><input type="text" id="sUnit" value="PLTCU-1">'
-    +'<div class="grid2"><div><label>Your user name (admin)</label><input type="text" id="sUser" autocomplete="off" placeholder="e.g. ahmadreza"></div><div><label>Your full name</label><input type="text" id="sName" autocomplete="off"></div></div>'
-    +'<div class="grid2"><div><label>Password</label><input type="password" id="sPw"></div><div><label>Password again</label><input type="password" id="sPw2"></div></div>'
-    +'<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="sItems" checked> Start with the built-in PLTCU-1 master list ('+BUILTIN.length+' items)</label>'
-    +'<button class="btn big" id="sGo">Create the data file</button><div class="msg" id="smsg"></div>');
-  $('sGo').onclick=async()=>{
-    const unit=$('sUnit').value.trim(),u=$('sUser').value.trim().toLowerCase(),name=$('sName').value.trim(),pw=$('sPw').value;
-    if(!unit||!u||!name){smsg('err','Fill in the unit, user name and full name.');return;}
-    if(!/^[a-z0-9._-]{3,30}$/.test(u)){smsg('err','User name: 3-30 letters or digits, no spaces.');return;}
-    const r=pwRule(pw);if(r){smsg('err',r);return;}if(pw!==$('sPw2').value){smsg('err','The two passwords are not the same.');return;}
-    const salt=newSalt(),now=nowStamp();
-    DB={app:'CCS Desk',fmt:1,unit,created:now,seq:0,
-      users:[{u,name,role:'admin',salt,hash:await pwHash(pw,salt),active:true,created:now,last:''}],
-      items:$('sItems').checked?BUILTIN.map(a=>({ir:a[0],name:a[1],unit:a[2]||'',loc:a[3]||'',price:a[4],max:a[5],min:a[6],alias:a[7]||''})):[],
-      stock:{},flags:{},pins:[],ledger:[],audit:[],settings:{idleMin:15,backupDays:30}};
-    try{FILEH=await DIR.getFileHandle(DATA,{create:true});lastMod=0;ME=DB.users[0];audit('SETUP','Data file created ('+DB.items.length+' items)');await save(true);startApp();}
-    catch(e){smsg('err','Could not create the data file: '+(e.message||e.name));}
+// ---------------------------------------------------------------- sign-in 1.5
+// One account per person: the CCS Scan Helper account (Corp No. + app password), checked by the unit Google Sheet.
+// The data file keeps only: who may use CCS Desk, their role here, and a salted check of the last good password
+// (so sign-in still works without internet, for a limited number of days). Old CCS Desk passwords keep working
+// until the person signs in once with the app password. A recovery key (kept on paper) resets any password.
+const CORP_RE=/^[A-Z0-9]{3,12}$/,RK_ABC='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+let FAILS={},LOCKED=false,CAPS=false,UNITS=null;
+const fixDigits=s=>String(s||'').replace(/[۰-۹]/g,c=>String(c.charCodeAt(0)-0x06F0)).replace(/[٠-٩]/g,c=>String(c.charCodeAt(0)-0x0660));
+const daysSince=t=>{const d=new Date(String(t||'').replace(' ','T'));return isNaN(d)?1e9:(Date.now()-d.getTime())/864e5;};
+const normU=s=>String(s||'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const offDays=()=>(DB.settings&&DB.settings.offlineDays)||30;
+const idleMin=()=>(DB.settings&&DB.settings.idleMin)||60;
+const corpGuess=us=>us.corp||(CORP_RE.test(us.u.toUpperCase())&&/[0-9]/.test(us.u)?us.u.toUpperCase():'');
+const signName=us=>us.corp||us.u;
+const hasLocal=us=>!!(us.hash&&us.salt&&!us.hashOff);
+function migrate(){   // a data file of version 1.4 or older: nothing is removed
+  if(!DB.settings)DB.settings={backupDays:30};const s=DB.settings;
+  if(!s.v15){s.v15=true;if(!s.idleMin||s.idleMin===15)s.idleMin=60;if(!s.offlineDays)s.offlineDays=30;}
+  ['ledger','audit'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=[];});
+}
+function failWait(k){const f=FAILS[k];return f&&f.until>Date.now()?Math.ceil((f.until-Date.now())/1000):0;}
+function failAdd(k){const f=FAILS[k]=FAILS[k]||{n:0,until:0};f.n++;if(f.n>=5)f.until=Date.now()+Math.min(15,Math.pow(2,f.n-5))*60000;kvSet('fails',FAILS);}
+function failClear(k){if(FAILS[k]){delete FAILS[k];kvSet('fails',FAILS);}}
+const waitMsg=s=>'Too many wrong tries. Wait '+(s>90?Math.ceil(s/60)+' minutes':s+' seconds')+', then try again.';
+
+// ---- the unit link (where the app accounts are checked): kept in the data file, so every computer of the unit knows it
+async function unitList(){
+  if(UNITS)return UNITS;if(location.protocol==='file:')return [];
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),6000);
+  try{const r=await fetch('../config.json',{cache:'no-store',signal:ctl.signal}),c=await r.json();
+    UNITS=(c.units||[]).filter(u=>u.id&&u.name&&/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u.syncUrl||''));return UNITS;}
+  catch(e){return [];}finally{clearTimeout(to);}
+}
+async function unitLink(){
+  if(DB.link&&DB.link.url)return DB.link;
+  let ph=null;try{ph=await kvGet('phones');}catch(e){}
+  if(ph&&ph.url)return DB.link={url:ph.url,unitId:ph.unitId||'',unitName:ph.unitName||DB.unit};
+  const u=(await unitList()).find(x=>normU(x.name)===normU(DB.unit));
+  return u?(DB.link={url:u.syncUrl,unitId:u.id,unitName:u.name}):null;
+}
+async function linkPost(L,action,extra,ms){
+  const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),ms||15000),net=m=>{const x=new Error(m);x.net=true;return x;};
+  try{const r=await fetch(L.url,{method:'POST',body:JSON.stringify(Object.assign({},extra||{},{action},L.unitId?{hubUnit:L.unitId}:{})),redirect:'follow',signal:ctl.signal});let j;
+    try{j=await r.json();}catch(e){throw net('the Google Sheet did not answer correctly');}
+    if(!j||j.ok!==true)throw new Error((j&&j.error)||'refused');
+    return j;}
+  catch(e){if(e.name==='AbortError')throw net('no answer from the Google Sheet');if(e instanceof TypeError)throw net('no internet connection');throw e;}
+  finally{clearTimeout(to);}
+}
+async function deskDevice(){let d=await kvGet('device');if(!d){d='ccsdesk'+Math.random().toString(36).slice(2,8);await kvSet('device',d);}return d;}
+async function appLogin(corp,pw){
+  const L=await unitLink();if(!L){const x=new Error('This CCS Desk is not linked to a unit yet.');x.nolink=true;throw x;}
+  return {L,j:await linkPost(L,'login',{corp,password:pw,device:await deskDevice(),unit:L.unitName||DB.unit})};
+}
+async function appOk(us,j,L,pw){   // a good sign-in with the app account: remember it for offline use, and link this computer to the phones
+  us.corp=j.corp;us.app=true;if(!us.name)us.name=j.name||j.corp;
+  const salt=newSalt();us.off={salt,hash:await pwHash(pw,salt),at:nowStamp()};
+  if(us.hash)us.hashOff=true;delete us.mustChange;delete us.blocked;DB.link=L;
+  let ph=null;try{ph=await kvGet('phones');}catch(e){}
+  const same=ph&&ph.url===L.url&&(ph.unitId||'')===(L.unitId||'');
+  PH=Object.assign({auto:true,linkedAt:nowStamp()},same?ph:{},{url:L.url,unitId:L.unitId||'',unitName:L.unitName||DB.unit,token:j.token,name:j.name,corp:j.corp});await phSave();
+}
+const offOk=async(us,pw)=>!!(us.off&&us.off.salt&&await pwHash(pw,us.off.salt)===us.off.hash);
+const localOk=async(us,pw)=>hasLocal(us)&&await pwHash(pw,us.salt)===us.hash;
+async function verify(us,pw,quick){   // -> {ok,how} or {ok:false,msg}
+  if(quick)return (await localOk(us,pw)||await offOk(us,pw))?{ok:true,how:'unlock'}:{ok:false,msg:'Wrong password.'};
+  if(!us.blocked&&await localOk(us,pw))return {ok:true,how:'CCS Desk password'};
+  const corp=corpGuess(us),wrong='Wrong password for '+us.name+'.';
+  if(!corp)return {ok:false,msg:wrong};
+  try{const {j,L}=await appLogin(corp,pw);
+    if(j.role!=='charge')return {ok:false,msg:'The app account '+corp+' is not a charge nurse. In the CCS Scan Helper app: tap your name > I am a charge nurse. Then sign in here again.'};
+    await appOk(us,j,L,pw);return {ok:true,how:'app account'};}
+  catch(e){const m=e.message||e.name;
+    if(e.nolink)return {ok:false,msg:us.app?m:wrong};
+    if(e.net){
+      if(us.blocked)return {ok:false,msg:'This account was blocked. It can be used again only after a sign-in with internet.'};
+      if(!us.off)return {ok:false,msg:us.app?'Could not check the password ('+m+'). The first sign-in with the app account needs the internet.':wrong};
+      if(!await offOk(us,pw))return {ok:false,msg:wrong+' (Checked without internet: '+m+'.)'};
+      if(daysSince(us.off.at)>offDays())return {ok:false,msg:'No internet, and your last sign-in with internet was more than '+offDays()+' days ago. Connect this computer to the internet and sign in again.'};
+      return {ok:true,how:'app account, without internet'};}
+    if(/blocked/i.test(m)){us.blocked=true;return {ok:false,dirty:true,msg:'This account is blocked in the Users sheet of the unit Google Sheet. Ask the person who manages it.'};}
+    if(/^Wrong password/i.test(m))return {ok:false,msg:wrong+(us.app?'':' Use your CCS Desk password or the password of the CCS Scan Helper app.')};
+    if(/^No account/i.test(m))return {ok:false,msg:us.app?'The app account '+corp+' does not exist any more in this unit. Make it again in the CCS Scan Helper app (same Corp No.), then sign in here.':wrong};
+    return {ok:false,msg:m};}
+}
+async function refreshDB(){   // another computer may have saved since this screen was opened
+  try{await saving;const f=await FILEH.getFile();if(f.lastModified===lastMod)return;const o=JSON.parse(await f.text());
+    if(o&&o.app==='CCS Desk'&&Array.isArray(o.users)){DB=o;migrate();lastMod=f.lastModified;}}catch(e){}
+}
+
+// ---- small helpers of the password fields: show/hide, keyboard language, Caps Lock
+function pwField(id,ph){return '<div class="pwwrap"><input type="password" id="'+id+'" data-kb autocomplete="off"'+(ph?' placeholder="'+esc(ph)+'"':'')+'><button type="button" class="eye" data-eye="'+id+'" title="Show or hide the password" aria-label="Show or hide the password">&#128065;</button></div><div class="kbwarn hidden" id="'+id+'W"></div>';}
+document.addEventListener('click',e=>{const b=e.target.closest&&e.target.closest('button[data-eye]');if(!b)return;const i=$(b.dataset.eye);if(!i)return;i.type=i.type==='password'?'text':'password';b.classList.toggle('on',i.type==='text');i.focus();});
+function kbCheck(e){
+  const i=e.target;if(!i||!i.matches||!i.matches('input[data-kb]'))return;const w=$(i.id+'W');if(!w)return;
+  if(e.getModifierState)CAPS=e.getModifierState('CapsLock');const t=[];
+  if(/[^\x20-\x7E]/.test(i.value)||(e.type==='keydown'&&e.key&&e.key.length===1&&/[^\x20-\x7E]/.test(e.key)))t.push('The keyboard is not English. Change the keyboard language (Alt+Shift or Windows+Space), clear the box and type again.');
+  if(CAPS)t.push('Caps Lock is on.');
+  w.textContent=t.join(' ');w.classList.toggle('hidden',!t.length);
+}
+['keydown','keyup','input'].forEach(ev=>document.addEventListener(ev,kbCheck,true));
+
+// ---- new data file
+async function setupScreen(){
+  screen('<h1>New data file</h1><p class="sub">One moment…</p>');
+  const units=await unitList();let mode=units.length?'app':'local';
+  const draw=()=>{
+    screen('<h1>New data file</h1><p class="sub">Folder <b>'+esc(DIR.name)+'</b> has no CCS Desk data yet. Set it up once.</p>'
+      +(units.length?'<label>Unit</label><select id="sUnitSel">'+units.map(u=>'<option value="'+esc(u.id)+'">'+esc(u.name)+'</option>').join('')+'<option value="">Another unit (not in the list)</option></select>':'')
+      +'<div id="sUnitBox"'+(units.length?' class="hidden"':'')+'><label>Unit name</label><input type="text" id="sUnit" value="'+(units.length?'':'PLTCU-1')+'"></div>'
+      +(mode==='app'
+        ?'<label>Your Corp No.</label><input type="text" id="sCorp" data-kb autocomplete="off" inputmode="numeric"><div class="kbwarn hidden" id="sCorpW"></div><label>Password of the CCS Scan Helper app</label>'+pwField('sApw')+'<p class="note">Use your own charge nurse account of the app. You become the admin of this data file.</p>'
+        :'<div class="grid2"><div><label>Your user name (admin)</label><input type="text" id="sUser" autocomplete="off" placeholder="your Corp No."></div><div><label>Your full name</label><input type="text" id="sName" autocomplete="off"></div></div>'
+         +'<div class="grid2"><div><label>Password</label>'+pwField('sPw')+'</div><div><label>Password again</label>'+pwField('sPw2')+'</div></div>')
+      +'<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="sItems"> Start with the built-in PLTCU-1 master list ('+BUILTIN.length+' items)</label>'
+      +'<button class="btn big" id="sGo">Create the data file</button><div class="msg" id="smsg"></div>'
+      +(units.length?'<p class="links"><a href="#" id="sMode">'+(mode==='app'?'No internet or no app account? Use a CCS Desk password instead':'Use my CCS Scan Helper account instead')+'</a></p>':''));
+    const selU=()=>units.length?units.find(u=>u.id===$('sUnitSel').value)||null:null;
+    const unitNow=()=>{const u=selU();return u?u.name:$('sUnit').value.trim();};
+    const sync=()=>{if(units.length)$('sUnitBox').classList.toggle('hidden',!!selU());$('sItems').checked=normU(unitNow())==='pltcu1';};
+    if(units.length){$('sUnitSel').onchange=()=>{if(!selU()&&mode==='app'){mode='local';draw();$('sUnitSel').value='';}sync();};$('sMode').onclick=e=>{e.preventDefault();mode=mode==='app'?'local':'app';draw();};}
+    sync();
+    $('sGo').onclick=async()=>{
+      const unit=unitNow(),uu=selU(),now=nowStamp();if(!unit){smsg('err','Type the unit name.');return;}
+      const base=()=>({app:'CCS Desk',fmt:1,unit,created:now,seq:0,users:[],
+        items:$('sItems').checked?BUILTIN.map(a=>({ir:a[0],name:a[1],unit:a[2]||'',loc:a[3]||'',price:a[4],max:a[5],min:a[6],alias:a[7]||''})):[],
+        stock:{},flags:{},pins:[],ledger:[],audit:[],settings:{idleMin:60,backupDays:30,offlineDays:30,v15:true}});
+      $('sGo').disabled=true;
+      try{
+        if(mode==='app'){
+          const corp=fixDigits($('sCorp').value).trim().toUpperCase(),pw=$('sApw').value;
+          if(!CORP_RE.test(corp)){smsg('err','Type your Corp No.');return;}if(!pw){smsg('err','Type the password of the app.');return;}
+          smsg('warn','Checking the app account…');DB=base();DB.link={url:uu.syncUrl,unitId:uu.id,unitName:uu.name};
+          let r;try{r=await appLogin(corp,pw);}catch(e){DB=null;smsg('err',e.net?'Could not check the app account: '+e.message+'. Check the internet, or use a CCS Desk password instead (link below).':e.message);return;}
+          if(r.j.role!=='charge'){DB=null;smsg('err','This app account is not a charge nurse. In the CCS Scan Helper app: tap your name > I am a charge nurse. Then try again.');return;}
+          const us={u:corp.toLowerCase(),name:r.j.name||corp,role:'admin',active:true,created:now,last:now};await appOk(us,r.j,r.L,pw);DB.users.push(us);
+        }else{
+          const u=$('sUser').value.trim().toLowerCase(),name=$('sName').value.trim(),pw=$('sPw').value;
+          if(!u||!name){smsg('err','Fill in the user name and full name.');return;}
+          if(!/^[a-z0-9._-]{3,30}$/.test(u)){smsg('err','User name: 3-30 letters or digits, no spaces.');return;}
+          const r=pwRule(pw);if(r){smsg('err',r);return;}if(pw!==$('sPw2').value){smsg('err','The two passwords are not the same.');return;}
+          DB=base();if(uu)DB.link={url:uu.syncUrl,unitId:uu.id,unitName:uu.name};
+          const salt=newSalt();DB.users.push({u,name,role:'admin',salt,hash:await pwHash(pw,salt),active:true,created:now,last:now});
+        }
+        FILEH=await DIR.getFileHandle(DATA,{create:true});lastMod=0;ME=DB.users[0];kvSet('lastUser',ME.u);
+        audit('SETUP','Data file created ('+DB.items.length+' items), admin '+signName(ME)+(ME.app?' (app account)':''));await save(true);recoveryScreen(true);
+      }catch(e){smsg('err','Could not create the data file: '+(e.message||e.name));}
+      finally{if($('sGo'))$('sGo').disabled=false;}
+    };
   };
+  draw();
 }
-function loginScreen(){
-  screen('<h1>Sign in</h1><p class="sub">'+esc(DB.unit)+' · data folder <b>'+esc(DIR.name)+'</b></p><label>User name</label><input type="text" id="lUser" autocomplete="off" autocapitalize="none"><label>Password</label><input type="password" id="lPw"><button class="btn big" id="lGo">Sign in</button><div class="msg" id="smsg"></div>');
-  const go=async()=>{const u=$('lUser').value.trim().toLowerCase(),pw=$('lPw').value,us=DB.users.find(x=>x.u===u);
-    if(!us||!us.active||await pwHash(pw,us.salt)!==us.hash){smsg('err','Wrong user name or password.');$('lPw').value='';return;}
-    ME=us;
-    if(us.mustChange){changePwScreen(true);return;}
-    us.last=nowStamp();audit('LOGIN','');save();startApp();};
-  $('lGo').onclick=go;$('lPw').addEventListener('keydown',e=>{if(e.key==='Enter')go();});$('lUser').addEventListener('keydown',e=>{if(e.key==='Enter')$('lPw').focus();});setTimeout(()=>$('lUser').focus(),50);
+
+// ---- sign in
+async function loginScreen(kind,text){
+  ME=null;LOCKED=false;document.body.classList.remove('locked');
+  screen('<h1>Sign in</h1><p class="sub">'+esc(DB.unit)+' · one moment…</p>');
+  await refreshDB();const L=await unitLink(),last=(await kvGet('lastUser'))||'';
+  const users=DB.users.filter(u=>u.active).sort((a,b)=>a.name.localeCompare(b.name)),join=!!L&&DB.settings.selfJoin!==false;
+  screen('<h1>Sign in</h1><p class="sub">'+esc(DB.unit)+' · data folder <b>'+esc(DIR.name)+'</b></p>'
+    +'<label for="lWho">Who are you?</label><select id="lWho">'+users.map(u=>'<option value="'+esc(u.u)+'"'+(u.u===last?' selected':'')+'>'+esc(u.name)+' · '+esc(signName(u))+(u.role==='admin'?' (admin)':'')+'</option>').join('')
+      +(join?'<option value="+">I am not in this list (charge nurse with the app)…</option>':'')+'</select>'
+    +'<div id="lCorpBox" class="hidden"><label for="lCorp">Your Corp No.</label><input type="text" id="lCorp" data-kb autocomplete="off" inputmode="numeric"><div class="kbwarn hidden" id="lCorpW"></div></div>'
+    +'<label for="lPw">Password</label>'+pwField('lPw')+'<p class="note" id="lHint" style="margin:6px 0 0"></p>'
+    +'<button class="btn big" id="lGo">Sign in</button><div class="msg" id="smsg"></div><p class="links"><a href="#" id="lForgot">Forgot password?</a></p>'
+    +(L?'':'<p class="note">Sign-in with the app account is not possible yet: this CCS Desk is not linked to a unit (admin: Settings > Phones).</p>'));
+  if(kind)smsg(kind,text);
+  const hint=()=>{const w=$('lWho').value,us=DB.users.find(x=>x.u===w);$('lCorpBox').classList.toggle('hidden',w!=='+');
+    $('lHint').textContent=w==='+'?'Corp No. and password of your CCS Scan Helper account. Charge nurses only. This first sign-in needs the internet.'
+      :!us?'':!hasLocal(us)?'The password of your CCS Scan Helper app.':corpGuess(us)&&L?'Your CCS Desk password, or the password of your CCS Scan Helper app.':'Your CCS Desk password.';};
+  hint();$('lWho').onchange=()=>{hint();(($('lWho').value==='+')?$('lCorp'):$('lPw')).focus();};
+  let busy=false;
+  const go=async()=>{
+    if(busy)return;const who=$('lWho').value,pw=$('lPw').value;if(!pw){smsg('err','Type the password.');return;}
+    const fail=(m)=>{smsg('err',m);$('lPw').value='';$('lPw').focus();};
+    busy=true;$('lGo').disabled=true;smsg('warn','Checking…');
+    try{
+      await refreshDB();let us=null,how='';
+      if(who==='+'){
+        const corp=fixDigits($('lCorp').value).trim().toUpperCase();if(!CORP_RE.test(corp)){fail('Type your Corp No. (letters and numbers only).');return;}
+        us=DB.users.find(x=>String(x.corp||'').toUpperCase()===corp||x.u.toUpperCase()===corp)||null;
+        if(us&&!us.active){fail('This user is switched off in CCS Desk. Ask the admin (Users page).');return;}
+        if(!us){
+          const k='+'+corp,w=failWait(k);if(w){fail(waitMsg(w));return;}
+          let r;try{r=await appLogin(corp,pw);}catch(e){if(!e.net&&!e.nolink)failAdd(k);fail(e.net?'Could not check the app account: '+e.message+'. The first sign-in needs the internet.':e.message);return;}
+          if(r.j.role!=='charge'){fail('This app account is not a charge nurse. In the CCS Scan Helper app: tap your name > I am a charge nurse. Then sign in here again.');return;}
+          us={u:corp.toLowerCase(),name:r.j.name||corp,role:'charge',active:true,created:nowStamp(),last:''};await appOk(us,r.j,r.L,pw);DB.users.push(us);
+          ME=us;audit('USER_ADD',us.u+' ('+us.name+', charge nurse): first sign-in with the app account');how='app account';failClear(k);
+        }
+      }else us=DB.users.find(x=>x.u===who&&x.active)||null;
+      if(!us){loginScreen('err','The list of users changed. Choose your name again.');return;}
+      if(!ME){
+        const w=failWait(us.u);if(w){fail(waitMsg(w));return;}
+        const r=await verify(us,pw);
+        if(!r.ok){failAdd(us.u);audit('LOGIN_FAIL',signName(us)+' ('+us.name+')');save();fail(r.msg+(failWait(us.u)?' '+waitMsg(failWait(us.u)):''));return;}
+        ME=us;how=r.how;failClear(us.u);
+      }
+      kvSet('lastUser',ME.u);
+      if(ME.mustChange){changePwScreen(true);return;}
+      ME.last=nowStamp();audit('LOGIN',how);await save();enterApp();
+    }catch(e){fail('Sign-in failed: '+(e.message||e.name));}
+    finally{busy=false;if($('lGo'))$('lGo').disabled=false;}
+  };
+  $('lGo').onclick=go;$('lPw').addEventListener('keydown',e=>{if(e.key==='Enter')go();});$('lCorp').addEventListener('keydown',e=>{if(e.key==='Enter')$('lPw').focus();});
+  $('lForgot').onclick=e=>{e.preventDefault();forgotScreen($('lWho').value);};
+  setTimeout(()=>{const f=$('lWho')&&$('lWho').value==='+'?$('lCorp'):$('lPw');if(f)f.focus();},50);
 }
+function enterApp(){if(ME.role==='admin'&&!DB.recovery){recoveryScreen(true);return;}startApp();}
+
+// ---- own password
 function changePwScreen(first){
-  screen('<h1>'+(first?'Choose your own password':'Change password')+'</h1><p class="sub">'+esc(ME.name)+'</p>'+(first?'':'<label>Current password</label><input type="password" id="cOld">')+'<label>New password</label><input type="password" id="cNew"><label>New password again</label><input type="password" id="cNew2"><button class="btn big" id="cGo">Save password</button>'+(first?'':'<button class="btn alt big" id="cBack" style="margin-top:8px">Cancel</button>')+'<div class="msg" id="smsg"></div>');
+  const app=!first&&!!corpGuess(ME)&&!hasLocal(ME);
+  screen('<h1>'+(first?'Choose your own password':'Change password')+'</h1><p class="sub">'+esc(ME.name)+(app?' · this also changes the password of your CCS Scan Helper app':'')+'</p>'
+    +(first?'':'<label>Current password</label>'+pwField('cOld'))+'<label>New password</label>'+pwField('cNew')+'<label>New password again</label>'+pwField('cNew2')
+    +'<p class="note">At least 8 characters, with letters and numbers.</p><button class="btn big" id="cGo">Save password</button>'+(first?'':'<button class="btn alt big" id="cBack" style="margin-top:8px">Cancel</button>')+'<div class="msg" id="smsg"></div>');
   if(!first)$('cBack').onclick=startApp;
   $('cGo').onclick=async()=>{
-    if(!first&&await pwHash($('cOld').value,ME.salt)!==ME.hash){smsg('err','The current password is wrong.');return;}
-    const p=$('cNew').value,r=pwRule(p);if(r){smsg('err',r);return;}if(p!==$('cNew2').value){smsg('err','The two passwords are not the same.');return;}
-    ME.salt=newSalt();ME.hash=await pwHash(p,ME.salt);delete ME.mustChange;ME.last=nowStamp();audit('PASSWORD','Own password changed');await save();startApp();};
+    const old=first?'':$('cOld').value,p=$('cNew').value,r=pwRule(p);
+    if(!first&&!app&&!await localOk(ME,old)){smsg('err','The current password is wrong.');return;}
+    if(r){smsg('err',r);return;}if(p!==$('cNew2').value){smsg('err','The two passwords are not the same.');return;}
+    $('cGo').disabled=true;
+    try{
+      if(app){smsg('warn','Changing the password of the app account…');const L=await unitLink(),j=await linkPost(L,'login',{corp:corpGuess(ME),password:old,device:await deskDevice(),unit:L.unitName||DB.unit});
+        await linkPost(L,'changePw',{code:j.token,old,password:p});await appOk(ME,j,L,p);audit('PASSWORD','Own app password changed');}
+      else{ME.salt=newSalt();ME.hash=await pwHash(p,ME.salt);delete ME.hashOff;delete ME.mustChange;audit('PASSWORD','Own password changed');}
+      ME.last=nowStamp();await save();if(first)enterApp();else{startApp();go('set');}
+    }catch(e){smsg('err',e.net?'Could not change it: '+e.message+'. The app password can only be changed with internet.':(e.message||e.name));}
+    finally{if($('cGo'))$('cGo').disabled=false;}
+  };
 }
+
+// ---- recovery key
+function newKey(){const b=crypto.getRandomValues(new Uint8Array(16));let s='';for(let i=0;i<16;i++)s+=RK_ABC[b[i]%32];return s.replace(/(.{4})(?=.)/g,'$1-');}
+const normKey=k=>String(k||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+function printKey(key){
+  let a=$('printArea');if(!a){a=document.createElement('div');a.id='printArea';document.body.appendChild(a);}
+  a.innerHTML='<h1>CCS Desk recovery key</h1><p>Unit: <b>'+esc(DB.unit)+'</b> &nbsp; Made: '+esc(disp(nowStamp()))+' by '+esc(ME.name)+'</p><div class="keybox">'+esc(key)+'</div>'
+    +'<p><b>How to use it:</b> CCS Desk sign-in screen &gt; Forgot password? &gt; type this key, choose the user, type a new password.</p>'
+    +'<p>Keep this paper locked away. Whoever has this key can sign in to CCS Desk of this unit as any user. A new key can be made in Settings &gt; Unit and safety; the old key then stops working.</p>';
+  document.body.classList.add('printkey');const done=()=>document.body.classList.remove('printkey');window.addEventListener('afterprint',done,{once:true});setTimeout(done,120000);window.print();
+}
+function recoveryScreen(first){
+  const key=newKey();
+  screen('<h1>Recovery key</h1><p class="sub">'+(first?'Keep this key on paper. It is the way back in when a password is forgotten.':'This is a new key. The old key stops working when you press Continue.')+'</p>'
+    +'<div class="keybox" id="rkKey">'+key+'</div>'
+    +'<p>With this key, a forgotten password can be reset on the sign-in screen (<b>Forgot password?</b>) for any user, also the admin. It is shown <b>only now</b>.</p>'
+    +'<div class="row"><button class="btn alt" id="rkPrint" type="button">Print</button><button class="btn alt" id="rkCopy" type="button">Copy</button></div>'
+    +'<p class="note">Print it or write it down, and keep it locked away (not on this computer).</p>'
+    +'<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="rkOk"> I printed or wrote down this key</label>'
+    +'<button class="btn big" id="rkGo" disabled>Continue</button>'+(first?'':'<button class="btn alt big" id="rkX" style="margin-top:8px">Cancel (keep the old key)</button>')+'<div class="msg" id="smsg"></div>');
+  $('rkPrint').onclick=()=>printKey(key);
+  $('rkCopy').onclick=async()=>{try{await navigator.clipboard.writeText(key);smsg('ok','Copied. Paste it somewhere safe, not on this computer.');}catch(e){smsg('warn','Could not copy. Write the key down.');}};
+  $('rkOk').onchange=()=>{$('rkGo').disabled=!$('rkOk').checked;};
+  if(!first)$('rkX').onclick=()=>{startApp();go('set');};
+  $('rkGo').onclick=async()=>{const salt=newSalt();DB.recovery={salt,hash:await pwHash(normKey(key),salt),made:nowStamp(),by:ME.u};
+    audit('RECOVERY_KEY',first?'Recovery key made':'New recovery key made (the old one stopped working)');await save();startApp();if(!first)go('set');};
+}
+function forgotScreen(pre){
+  const users=DB.users.filter(u=>u.active).sort((a,b)=>a.name.localeCompare(b.name));
+  screen('<h1>Forgot password?</h1>'
+    +'<p><b>You sign in with the app password</b> (CCS Scan Helper): ask the person who manages the unit Google Sheet to delete your row in the <b>Users</b> sheet. Make your account again in the app with the same Corp No. Then sign in here with the new password.</p>'
+    +'<p><b>You have a CCS Desk password:</b> an admin signs in and gives you a temporary password (Users &gt; Reset password).</p>'
+    +'<h3 style="margin:18px 0 0">Nobody can help? Use the recovery key</h3>'
+    +(DB.recovery?'<label>Recovery key (16 characters, on paper)</label><input type="text" id="fKey" data-kb autocomplete="off" placeholder="XXXX-XXXX-XXXX-XXXX" style="text-transform:uppercase"><div class="kbwarn hidden" id="fKeyW"></div>'
+      +'<label>User</label><select id="fWho">'+users.map(u=>'<option value="'+esc(u.u)+'"'+(u.u===pre?' selected':'')+'>'+esc(u.name)+' · '+esc(signName(u))+(u.role==='admin'?' (admin)':'')+'</option>').join('')+'</select>'
+      +'<div class="grid2"><div><label>New password</label>'+pwField('fPw')+'</div><div><label>New password again</label>'+pwField('fPw2')+'</div></div>'
+      +'<button class="btn big" id="fGo">Reset the password and sign in</button>'
+      :'<p class="note">This data file has no recovery key yet. An admin makes one in Settings &gt; Unit and safety.</p>')
+    +'<button class="btn alt big" id="fBack" style="margin-top:8px">Back to sign in</button><div class="msg" id="smsg"></div>');
+  $('fBack').onclick=()=>loginScreen();
+  if(!DB.recovery)return;
+  $('fGo').onclick=async()=>{
+    const w=failWait('#key');if(w){smsg('err',waitMsg(w));return;}
+    const key=normKey($('fKey').value),p=$('fPw').value,r=pwRule(p);
+    if(key.length!==16){smsg('err','The recovery key has 16 letters and numbers.');return;}
+    if(r){smsg('err',r);return;}if(p!==$('fPw2').value){smsg('err','The two passwords are not the same.');return;}
+    $('fGo').disabled=true;
+    try{await refreshDB();const us=DB.users.find(x=>x.u===$('fWho').value&&x.active);
+      if(!DB.recovery||!us||await pwHash(key,DB.recovery.salt)!==DB.recovery.hash){failAdd('#key');audit('RECOVERY_FAIL','Wrong recovery key');save();smsg('err','Wrong recovery key.'+(failWait('#key')?' '+waitMsg(failWait('#key')):''));return;}
+      failClear('#key');failClear(us.u);us.salt=newSalt();us.hash=await pwHash(p,us.salt);delete us.hashOff;delete us.mustChange;
+      ME=us;kvSet('lastUser',us.u);us.last=nowStamp();DB.recovery.used=nowStamp();audit('RECOVERY','Password of '+signName(us)+' ('+us.name+') reset with the recovery key');audit('LOGIN','recovery key');await save();enterApp();
+    }catch(e){smsg('err','Could not reset: '+(e.message||e.name));}
+    finally{if($('fGo'))$('fGo').disabled=false;}
+  };
+}
+
+// ---- lock (the work on the screen stays as it is)
+function lockNow(why){
+  if(!ME||LOCKED)return;LOCKED=true;clearTimeout(idleT);document.body.classList.add('locked');audit('LOCK',why||'');save();
+  screen('<h1>Locked</h1><p class="sub"><b>'+esc(ME.name)+'</b>'+(why?' · '+esc(why):'')+'</p><label for="kPw">Password</label>'+pwField('kPw')
+    +'<button class="btn big" id="kGo">Unlock</button><button class="btn alt big" id="kSw" style="margin-top:8px">Switch user</button><div class="msg" id="smsg"></div>'
+    +'<p class="note">The work on the screen is kept as it is. “Switch user” signs '+esc(ME.name)+' out.</p>');
+  const k='L:'+ME.u,go=async()=>{const w=failWait(k);if(w){smsg('err',waitMsg(w));return;}const pw=$('kPw').value;if(!pw)return;
+    const r=await verify(ME,pw,true);if(!r.ok){failAdd(k);$('kPw').value='';smsg('err','Wrong password.'+(failWait(k)?' '+waitMsg(failWait(k)):''));return;}
+    failClear(k);LOCKED=false;document.body.classList.remove('locked');$('scr').classList.add('hidden');$('app').classList.remove('hidden');const nv=NAV.find(x=>x[0]===page);if(nv)document.documentElement.style.setProperty('--accent','var('+nv[2]+')');audit('UNLOCK','');save();idle();};
+  $('kGo').onclick=go;$('kPw').addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+  $('kSw').onclick=()=>{audit('LOGOUT','Switch user from the lock screen');save();closeModal();page='dash';loginScreen();};
+  setTimeout(()=>{if($('kPw'))$('kPw').focus();},50);
+}
+function idle(){clearTimeout(idleT);if(!ME||LOCKED)return;const m=idleMin();idleT=setTimeout(()=>lockNow('locked after '+m+' minutes without use'),m*60000);}
+$('logoutBtn').onclick=()=>{audit('LOGOUT','');save();clearTimeout(idleT);page='dash';loginScreen();};
+$('lockBtn').onclick=()=>lockNow('');
 
 // ---------------------------------------------------------------- saving (one file + daily backup)
 function audit(a,d){DB.audit.push({t:nowStamp(),u:ME?ME.u:'',a,d:String(d||'').slice(0,300)});if(DB.audit.length>20000)DB.audit.splice(0,DB.audit.length-20000);}
@@ -578,13 +850,11 @@ const NAV=[['grp','Overview'],['dash','Dashboard','--dash'],['inv','Inventory','
 function startApp(){
   $('scr').classList.add('hidden');$('app').classList.remove('hidden');$('modal').classList.add('hidden');
   $('sideUnit').textContent=DB.unit;$('sideVer').textContent='version '+VERSION;
-  $('sideWho').innerHTML='Signed in as <b>'+esc(ME.name)+'</b><br>'+esc(ME.u)+' · '+(ME.role==='admin'?'admin':'charge nurse');
+  $('sideWho').innerHTML='Signed in as <b>'+esc(ME.name)+'</b><br>'+esc(signName(ME))+' · '+(ME.role==='admin'?'admin':'charge nurse');
   $('nav').innerHTML=NAV.filter(n=>!(n[4]==='admin'&&ME.role!=='admin')).map(n=>n[0]==='grp'?'<div class="grp">'+esc(n[1])+'</div>':'<button type="button" data-p="'+n[0]+'" class="'+(n[3]?'soon':'')+'"><span class="dot" style="background:var('+n[2]+')"></span>'+esc(n[1])+'</button>').join('');
   saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();phInit().then(()=>{if(page==='dash'||page==='set'||MOV[page]||page==='cnt')go(page);mediaInit();});
 }
 $('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(b)go(b.dataset.p);});
-$('logoutBtn').onclick=()=>{audit('LOGOUT','');save();ME=null;page='dash';loginScreen();};
-function idle(){clearTimeout(idleT);const m=(DB.settings&&DB.settings.idleMin)||15;idleT=setTimeout(()=>{if(ME){audit('LOGOUT','Signed out after '+m+' minutes without use');save();ME=null;page='dash';loginScreen();smsg('warn','You were signed out after '+m+' minutes without use.');}},m*60000);}
 ['mousemove','keydown','click','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{if(ME)idle();},{passive:true}));
 function go(p){
   const n=NAV.find(x=>x[0]===p)||NAV[1];if(n[4]==='admin'&&ME.role!=='admin')p='dash';page=p;
@@ -1090,7 +1360,7 @@ async function restoreBackup(name){
   if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users)||!Array.isArray(o.items)||typeof o.stock!=='object')throw new Error('this is not a CCS Desk data file');
   if(!o.users.some(u=>u.role==='admin'&&u.active))throw new Error('the backup has no active admin');
   const safe='ccs_desk_data_before_restore_'+nowStamp().replace(/\D/g,'').slice(0,12)+'.json';await writeBackup(safe);
-  const me=ME;DB=o;['ledger','audit','imports','pins'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=[];});if(!DB.flags)DB.flags={};if(!DB.settings)DB.settings={idleMin:15,backupDays:30};
+  const me=ME,rk=DB.recovery,lk=DB.link;DB=o;['ledger','audit','imports','pins'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=[];});if(!DB.flags)DB.flags={};if(rk)DB.recovery=rk;if(lk&&!DB.link)DB.link=lk;migrate();
   ME=DB.users.find(u=>u.u===me.u&&u.active)||null;audit('RESTORE',name+' (the data before it: '+BKDIR+'/'+safe+')');await save(true);phStockSoon();
   return{safe,still:!!ME};
 }
@@ -1184,7 +1454,7 @@ async function phSettings(box){
       m.className='msg warn';m.textContent='Signing in…';PH={url,unitId:id,unitName:nm,auto:true};
       try{const j=await phPost('login',{corp,password:pw,device:'ccsdesk'+Math.random().toString(36).slice(2,8),unit:nm,code:''});
         if(j.role!=='charge'){PH=null;m.className='msg err';m.textContent='This account is not a charge nurse. In the app: tap your name > I am a charge nurse, then try again.';return;}
-        Object.assign(PH,{token:j.token,name:j.name,corp:j.corp,linkedAt:nowStamp()});await phSave();audit('PHONES_LINK',nm+' as '+j.corp);await save();
+        Object.assign(PH,{token:j.token,name:j.name,corp:j.corp,linkedAt:nowStamp()});await phSave();DB.link={url,unitId:id,unitName:nm};audit('PHONES_LINK',nm+' as '+j.corp);await save();
         try{await phSendStock(false);}catch(e){}draw();mediaSync(true).then(()=>draw()).catch(()=>{});}
       catch(e){PH=null;m.className='msg err';m.textContent=e.message||e.name;}};
   };
@@ -1291,18 +1561,33 @@ function download(name,bytes){const b=new Blob([bytes],{type:'application/vnd.op
 
 // ---------------------------------------------------------------- users (admin)
 PAGES.users=()=>{
-  $('main').innerHTML='<div class="card"><div class="row" style="margin-bottom:10px"><h3 style="margin:0">Users</h3><button class="btn" id="uNew" style="margin-left:auto">＋ New user</button></div><table class="t" id="uTab"></table><p class="note">Charge nurses can do everything except users, master-list loading and settings. Every change is saved with the user name.</p></div>';
-  $('uTab').innerHTML='<tr><th>User name</th><th>Full name</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr>'+DB.users.map(u=>'<tr><td class="mono">'+esc(u.u)+'</td><td>'+esc(u.name)+'</td><td>'+(u.role==='admin'?'<span class="pill b">admin</span>':'<span class="pill">charge nurse</span>')+'</td><td>'+(u.active?'<span class="pill g">active</span>':'<span class="pill r">disabled</span>')+(u.mustChange?' <span class="pill">new password</span>':'')+'</td><td>'+esc(disp(u.last))+'</td><td style="text-align:right">'+(u.u===ME.u?'<span class="note">you</span>':'<button class="btn alt" data-pw="'+esc(u.u)+'">Reset password</button> <button class="btn alt" data-act="'+esc(u.u)+'">'+(u.active?'Disable':'Enable')+'</button>')+'</td></tr>').join('');
-  $('uTab').addEventListener('click',async e=>{const p=e.target.closest('button[data-pw]'),a=e.target.closest('button[data-act]');
-    if(p){const us=DB.users.find(x=>x.u===p.dataset.pw),np=prompt('New temporary password for '+us.name+' (at least 6 characters).\nThey must choose their own password at the next sign-in.','');if(np===null)return;if(pwRule(np)){alert(pwRule(np));return;}
-      us.salt=newSalt();us.hash=await pwHash(np,us.salt);us.mustChange=true;audit('USER_RESET',us.u);await save();PAGES.users();}
-    if(a){const us=DB.users.find(x=>x.u===a.dataset.act);us.active=!us.active;audit(us.active?'USER_ENABLE':'USER_DISABLE',us.u);await save();PAGES.users();}});
-  $('uNew').onclick=()=>{modal('<h1>New user</h1><div class="grid2"><div><label>User name</label><input type="text" id="nU" autocomplete="off" placeholder="e.g. mildred"></div><div><label>Full name</label><input type="text" id="nN"></div></div><label>Role</label><select id="nR"><option value="charge">Charge nurse</option><option value="admin">Admin</option></select><label>Temporary password</label><input type="text" id="nP" autocomplete="off"><p class="note">At the first sign-in the user must choose their own password.</p><div class="row" style="margin-top:14px"><button class="btn" id="nGo">Add user</button><button class="btn alt" id="nX">Cancel</button></div><div class="msg" id="mmsg"></div>');
+  $('main').innerHTML='<div class="card"><div class="row" style="margin-bottom:10px"><h3 style="margin:0">Users</h3><button class="btn" id="uNew" style="margin-left:auto">＋ New user</button></div><table class="t" id="uTab"></table>'
+    +'<p class="note">People with an <b>app account</b> sign in with the password of their CCS Scan Helper app. '+(DB.settings.selfJoin!==false?'A charge nurse of the unit can sign in the first time by themselves (sign-in screen: “I am not in this list”) and then appears here. ':'')+'Charge nurses can do everything except users, master-list loading and settings. Every change is saved with the user name.</p></div>';
+  $('uTab').innerHTML='<tr><th>Full name</th><th>Signs in with</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr>'+DB.users.map(u=>'<tr><td>'+esc(u.name)+'</td>'
+    +'<td>'+(u.corp?'app account <span class="mono">'+esc(u.corp)+'</span>'+(hasLocal(u)?'<br>or CCS Desk password':''):'CCS Desk password, user <span class="mono">'+esc(u.u)+'</span>')+'</td>'
+    +'<td>'+(u.role==='admin'?'<span class="pill b">admin</span>':'<span class="pill">charge nurse</span>')+'</td>'
+    +'<td>'+(u.active?'<span class="pill g">active</span>':'<span class="pill r">disabled</span>')+(u.mustChange?' <span class="pill">new password</span>':'')+(u.blocked?' <span class="pill r">blocked at the last check</span>':'')+'</td><td>'+esc(disp(u.last))+'</td>'
+    +'<td style="text-align:right">'+(u.u===ME.u?'<span class="note">you</span>'+(u.corp?'':' <button class="btn alt" data-corp="'+esc(u.u)+'">Corp No.…</button>'):'<button class="btn alt" data-pw="'+esc(u.u)+'">Reset password</button> '+(u.corp?'':'<button class="btn alt" data-corp="'+esc(u.u)+'">Corp No.…</button> ')
+      +'<button class="btn alt" data-role="'+esc(u.u)+'">'+(u.role==='admin'?'Make charge nurse':'Make admin')+'</button> <button class="btn alt" data-act="'+esc(u.u)+'">'+(u.active?'Disable':'Enable')+'</button>')+'</td></tr>').join('');
+  $('uTab').addEventListener('click',async e=>{const B=k=>{const b=e.target.closest('button[data-'+k+']');return b?DB.users.find(x=>x.u===b.dataset[k]):null;},p=B('pw'),a=B('act'),r=B('role'),c=B('corp');
+    if(p){const np=prompt('Temporary CCS Desk password for '+p.name+' (at least 8 characters, with letters and numbers).\nThey must choose their own password at the next sign-in.'+(p.corp?'\n\n'+p.name+' normally signs in with the app password. This temporary password works too.':''),'');if(np===null)return;if(pwRule(np)){alert(pwRule(np));return;}
+      p.salt=newSalt();p.hash=await pwHash(np,p.salt);delete p.hashOff;p.mustChange=true;failClear(p.u);audit('USER_RESET',signName(p));await save();PAGES.users();}
+    if(a){a.active=!a.active;audit(a.active?'USER_ENABLE':'USER_DISABLE',signName(a));await save();PAGES.users();}
+    if(r){if(!confirm(r.role==='admin'?'Make '+r.name+' a charge nurse (no users, settings and master-list loading)?':'Make '+r.name+' an admin (users, settings, master-list loading, restore)?'))return;r.role=r.role==='admin'?'charge':'admin';audit('USER_ROLE',signName(r)+' -> '+r.role);await save();PAGES.users();}
+    if(c){const v=prompt('Corp No. of '+c.name+'.\nAfter this, '+c.name+' can sign in with the password of the CCS Scan Helper app (charge nurse account).','');if(v===null)return;const corp=fixDigits(v).trim().toUpperCase();
+      if(!CORP_RE.test(corp)){alert('Corp No.: 3-12 letters or numbers.');return;}if(DB.users.some(x=>x!==c&&(String(x.corp||'').toUpperCase()===corp||x.u.toUpperCase()===corp))){alert('Another user already has this Corp No.');return;}
+      c.corp=corp;audit('USER_CORP',c.u+' = '+corp);await save();PAGES.users();}});
+  $('uNew').onclick=()=>{modal('<h1>New user</h1><p class="sub">A charge nurse with the app does not need this: they sign in by themselves the first time.</p><div class="grid2"><div><label>Full name</label><input type="text" id="nN"></div><div><label>Corp No. (signs in with the app password)</label><input type="text" id="nC" autocomplete="off"></div></div>'
+      +'<div class="grid2"><div><label>User name (only without Corp No.)</label><input type="text" id="nU" autocomplete="off"></div><div><label>Role</label><select id="nR"><option value="charge">Charge nurse</option><option value="admin">Admin</option></select></div></div>'
+      +'<label>Temporary CCS Desk password (needed without Corp No.)</label><input type="text" id="nP" autocomplete="off"><p class="note">With a temporary password, the user must choose their own password at the first sign-in.</p><div class="row" style="margin-top:14px"><button class="btn" id="nGo">Add user</button><button class="btn alt" id="nX">Cancel</button></div><div class="msg" id="mmsg"></div>');
     $('nX').onclick=closeModal;
-    $('nGo').onclick=async()=>{const u=$('nU').value.trim().toLowerCase(),n=$('nN').value.trim(),p=$('nP').value;
-      if(!/^[a-z0-9._-]{3,30}$/.test(u)){mmsg('err','User name: 3-30 letters or digits, no spaces.');return;}if(DB.users.some(x=>x.u===u)){mmsg('err','This user name already exists.');return;}
-      if(!n){mmsg('err','Type the full name.');return;}if(pwRule(p)){mmsg('err',pwRule(p));return;}
-      const salt=newSalt();DB.users.push({u,name:n,role:$('nR').value,salt,hash:await pwHash(p,salt),active:true,mustChange:true,created:nowStamp(),last:''});audit('USER_ADD',u+' ('+$('nR').value+')');await save();closeModal();PAGES.users();};};
+    $('nGo').onclick=async()=>{const corp=fixDigits($('nC').value).trim().toUpperCase(),u=($('nU').value.trim()||corp).toLowerCase(),nm=$('nN').value.trim(),pw=$('nP').value;
+      if(!nm){mmsg('err','Type the full name.');return;}if(corp&&!CORP_RE.test(corp)){mmsg('err','Corp No.: 3-12 letters or numbers.');return;}
+      if(!/^[a-z0-9._-]{3,30}$/.test(u)){mmsg('err',corp?'User name: 3-30 letters or digits, no spaces.':'Type a Corp No., or a user name (3-30 letters or digits, no spaces).');return;}
+      if(DB.users.some(x=>x.u===u||(corp&&(String(x.corp||'').toUpperCase()===corp||x.u.toUpperCase()===corp)))){mmsg('err','This user already exists.');return;}
+      if(!pw&&!corp){mmsg('err','Type a temporary password, or a Corp No. (then the person signs in with the app password).');return;}if(pw&&pwRule(pw)){mmsg('err',pwRule(pw));return;}
+      const us={u,name:nm,role:$('nR').value,active:true,created:nowStamp(),last:''};if(corp)us.corp=corp;if(pw){us.salt=newSalt();us.hash=await pwHash(pw,us.salt);us.mustChange=true;}
+      DB.users.push(us);audit('USER_ADD',signName(us)+' ('+us.role+')');await save();closeModal();PAGES.users();};};
 };
 
 // ---------------------------------------------------------------- settings
@@ -1311,8 +1596,13 @@ PAGES.set=async()=>{
   $('main').innerHTML='<div class="card"><h3>Data folder and backups</h3><p>Folder <b>'+esc(DIR.name)+'</b> · file <span class="mono">'+DATA+'</span> · backups in the sub-folder <span class="mono">'+BKDIR+'</span> (one per day, the last '+((DB.settings&&DB.settings.backupDays)||30)+' days are kept)</p>'
     +'<div class="row"><button class="btn" id="sBk">Backup now</button><button class="btn alt" id="sDl">Download a copy of the data file</button>'+(adm?'<button class="btn alt" id="sDir">Use another data folder…</button>':'')+'</div><div class="msg" id="pmsg"></div><div id="sBkList" class="note"></div></div>'
     +'<div class="card" id="phBox"></div>'
-    +'<div class="card"><h3>My account</h3><p>'+esc(ME.name)+' (<span class="mono">'+esc(ME.u)+'</span>)</p><button class="btn alt" id="sPw">Change my password</button></div>'
-    +(adm?'<div class="card"><h3>Unit and safety</h3><div class="grid2"><div><label>Unit name</label><input type="text" id="sUnit" value="'+esc(DB.unit)+'"></div><div><label>Sign out after … minutes without use</label><input type="number" id="sIdle" min="2" max="240" value="'+((DB.settings&&DB.settings.idleMin)||15)+'"></div></div><button class="btn" id="sSave" style="margin-top:12px">Save</button></div>':'')
+    +'<div class="card"><h3>My account</h3><p>'+esc(ME.name)+' (<span class="mono">'+esc(signName(ME))+'</span>) · '+(!hasLocal(ME)?'you sign in with the password of your CCS Scan Helper app'+(ME.off?' (last checked with internet: '+esc(disp(ME.off.at))+')':''):corpGuess(ME)?'you sign in with your CCS Desk password or your app password':'you sign in with your CCS Desk password')+'</p><div class="row"><button class="btn alt" id="sPw">Change my password</button><button class="btn alt" id="sLock">Lock now</button></div></div>'
+    +(adm?'<div class="card"><h3>Unit and safety</h3><div class="grid2"><div><label>Unit name</label><input type="text" id="sUnit" value="'+esc(DB.unit)+'"></div><div><label>Lock the screen after … minutes without use</label><input type="number" id="sIdle" min="2" max="240" value="'+idleMin()+'"></div>'
+      +'<div><label>Sign-in without internet: for … days after the last sign-in with internet</label><input type="number" id="sOff" min="1" max="365" value="'+offDays()+'"></div></div>'
+      +'<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="sJoin"'+(DB.settings.selfJoin!==false?' checked':'')+'> A charge nurse of the unit can sign in the first time with the app account, without being added by an admin</label>'
+      +'<button class="btn" id="sSave" style="margin-top:12px">Save</button>'
+      +'<p style="margin:18px 0 8px"><b>Recovery key:</b> '+(DB.recovery?'made '+esc(disp(DB.recovery.made))+' by '+esc(DB.recovery.by)+(DB.recovery.used?' · last used '+esc(disp(DB.recovery.used)):' · never used'):'not made yet')+'</p><button class="btn alt" id="sKey">Make a new recovery key…</button>'
+      +'<p class="note">App accounts are checked in: '+(DB.link?esc(DB.link.unitName||DB.unit)+(DB.link.unitId?' ('+esc(DB.link.unitId)+')':''):'not linked yet (use the Phones card above)')+'.</p></div>':'')
     +'<div class="card"><h3>Recent changes</h3><table class="t" id="sAud"></table></div>';
   const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};
   const showBk=async()=>{try{const b=await listBackups();$('sBkList').innerHTML=(b.length?'Newest backups: '+b.slice(0,6).map(x=>esc(x.name)).join(' · ')+(b.length>6?' · …':''):'No backup yet.')
@@ -1323,10 +1613,11 @@ PAGES.set=async()=>{
   }catch(e){}};showBk();
   $('sBk').onclick=async()=>{try{const n='ccs_desk_data_'+nowStamp().replace(' ','_').replace(/:/g,'').slice(0,15)+'.json';await writeBackup(n);audit('BACKUP',n);await save();pm('ok','Backup saved: '+BKDIR+'/'+n);showBk();}catch(e){pm('err','Backup failed: '+(e.message||e.name));}};
   $('sDl').onclick=()=>{const b=new Blob([JSON.stringify(DB)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ccs_desk_data_copy_'+today()+'.json';a.click();};
-  $('sPw').onclick=()=>changePwScreen(false);
+  $('sPw').onclick=()=>changePwScreen(false);$('sLock').onclick=()=>lockNow('');
   phSettings($('phBox'));
   if(adm){$('sDir').onclick=()=>{if(confirm('Switch to another data folder? You will be signed out. The current folder is not changed.')){ME=null;chooseFolder();}};
-    $('sSave').onclick=()=>{const u=$('sUnit').value.trim(),m=Math.max(2,Math.min(240,+$('sIdle').value||15));if(!u){pm('err','Type the unit name.');return;}DB.unit=u;DB.settings.idleMin=m;audit('SETTINGS','unit '+u+', sign out after '+m+' min');save();startApp();go('set');};}
+    $('sSave').onclick=()=>{const u=$('sUnit').value.trim(),m=Math.max(2,Math.min(240,+$('sIdle').value||60)),od=Math.max(1,Math.min(365,+$('sOff').value||30));if(!u){pm('err','Type the unit name.');return;}DB.unit=u;DB.settings.idleMin=m;DB.settings.offlineDays=od;DB.settings.selfJoin=$('sJoin').checked;audit('SETTINGS','unit '+u+', lock after '+m+' min, offline sign-in '+od+' days, first sign-in by themselves '+(DB.settings.selfJoin?'on':'off'));save();startApp();go('set');};
+    $('sKey').onclick=()=>{if(confirm(DB.recovery?'Make a NEW recovery key?\n\nThe old key (on paper) stops working.':'Make the recovery key now?'))recoveryScreen(!DB.recovery);};}
   $('sAud').innerHTML='<tr><th>When</th><th>User</th><th>What</th><th>Details</th></tr>'+DB.audit.slice(-40).reverse().map(a=>'<tr><td>'+esc(disp(a.t))+'</td><td>'+esc(a.u)+'</td><td>'+esc(a.a)+'</td><td>'+esc(a.d)+'</td></tr>').join('');
 };
 
