@@ -104,11 +104,14 @@ tr.errrow td{background:#fff5f5}
 body.locked #modal{display:none!important}
 #uTab .pill{white-space:nowrap}
 #printArea{display:none}@media print{body.printkey>*{display:none!important}body.printkey>#printArea{display:block!important;padding:30px;font-size:15px}body.printkey .keybox{font-size:30px}}
+#mTab select.ms{min-width:230px}#mTab input.me{min-width:170px}#mTab input.mq{width:76px}#mTab td.stc{min-width:190px}
+#nav button svg{width:18px;height:18px;flex:0 0 18px;stroke:var(--c);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
+.shelf{margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--ink)}.shelf input{width:74px!important}.shelf input.she{width:118px!important}.shelf .btn{padding:4px 10px}.shelf a{cursor:pointer;text-decoration:underline}
 .drafthead{display:flex;align-items:center;gap:10px;margin-bottom:8px}.drafthead h3{margin:0}
 .sumbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
 .filt{align-items:flex-end;gap:10px}.filt>div{display:flex;flex-direction:column}.filt label{margin:0 0 4px}.filt input,.filt select{width:auto}
 .reptabs{display:flex;flex-wrap:wrap;gap:6px}.reptabs button{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:20px;padding:7px 14px;font-weight:600}.reptabs button.on{background:var(--accent);border-color:var(--accent);color:#fff}
-#cTab input.cq{width:90px}#cTab td.stc{max-width:260px}
+#cTab input.cq{width:78px}#cTab td.stc{max-width:260px}
 </style>
 </head>
 <body>
@@ -132,7 +135,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='1.6';
+const VERSION='1.7';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -843,8 +846,16 @@ async function dailyBackup(){
 }
 
 const tmTxt=(a,t)=>t?a+' '+disp(t):'';
-const scanLine=x=>(x.sc||x.imp)?'<div class="lots">'+esc([tmTxt('scanned',x.sc),tmTxt('imported in CCS',x.imp)].filter(Boolean).join(' · '))+'</div>':'';
+const fpOf=(ir,e,q,t,by)=>t?[ir,e||'',q,t,by||''].join('|'):'';
+const fpSet=()=>new Set((DB.phoneDone&&DB.phoneDone.fps)||[]);
+const scanLine=x=>(x.sc||x.imp)?'<div class="lots">'+esc([tmTxt(x.type==='COUNT'?'counted':'scanned',x.sc),tmTxt('imported in CCS',x.imp)].filter(Boolean).join(' · '))+'</div>':'';
 // ---------------------------------------------------------------- application shell
+const ICO={dash:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
+  inv:'<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',in:'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 20h16"/>',out:'<path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 20h16"/>',
+  wo:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',cnt:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9zM9 14l2 2 4-4"/>',
+  log:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',rep:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',items:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-4 3.2-6 6.5-6s6 2 6.5 6M17 11a3 3 0 100-6M21.5 20c-.3-2.6-1.6-4.3-3.5-5"/>',set:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'};
+const ico=(k,c)=>'<svg viewBox="0 0 24 24" style="--c:var('+c+')" aria-hidden="true">'+(ICO[k]||'')+'</svg>';
 const NAV=[['grp','Overview'],['dash','Dashboard','--dash'],['inv','Inventory','--inv'],
   ['grp','Stock movements'],['in','Stock In','--in'],['out','Stock Out','--out'],['wo','Write Off','--wo'],['cnt','Inventory Count','--cnt'],
   ['grp','Records'],['log','Transaction Log','--log'],['rep','Reports','--rep'],
@@ -853,7 +864,7 @@ function startApp(){
   $('scr').classList.add('hidden');$('app').classList.remove('hidden');$('modal').classList.add('hidden');
   $('sideUnit').textContent=DB.unit;$('sideVer').textContent='version '+VERSION;
   $('sideWho').innerHTML='Signed in as <b>'+esc(ME.name)+'</b><br>'+esc(signName(ME))+' · '+(ME.role==='admin'?'admin':'charge nurse');
-  $('nav').innerHTML=NAV.filter(n=>!(n[4]==='admin'&&ME.role!=='admin')).map(n=>n[0]==='grp'?'<div class="grp">'+esc(n[1])+'</div>':'<button type="button" data-p="'+n[0]+'" class="'+(n[3]?'soon':'')+'"><span class="dot" style="background:var('+n[2]+')"></span>'+esc(n[1])+'</button>').join('');
+  $('nav').innerHTML=NAV.filter(n=>!(n[4]==='admin'&&ME.role!=='admin')).map(n=>n[0]==='grp'?'<div class="grp">'+esc(n[1])+'</div>':'<button type="button" data-p="'+n[0]+'" class="'+(n[3]?'soon':'')+'">'+ico(n[0],n[2])+esc(n[1])+'</button>').join('');
   saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();phInit().then(()=>{if(page==='dash'||page==='set'||MOV[page]||page==='cnt')go(page);mediaInit();});
 }
 $('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(b)go(b.dataset.p);});
@@ -985,17 +996,19 @@ async function loadStartStock(){
 // ---------------------------------------------------------------- STOCK IN / STOCK OUT / WRITE OFF
 const WO_REASONS=['Expired without use','Near expiry distributed','Distributed to other unit','Damaged','Lost'];
 const MOV={in:{type:'IN',name:'Stock In'},out:{type:'OUT',name:'Stock Out'},wo:{type:'WO',name:'Write Off'}};
-const DRAFT={in:[],out:[],wo:[]};let woDefault=1;
+const DRAFT={in:[],out:[],wo:[]},SHELF={in:{},out:{},wo:{}};let woDefault=1;
 const typeName=t=>t==='IN'?'Stock In':t==='OUT'?'Stock Out':/^WO[1-5]$/.test(t)?'Write Off - '+WO_REASONS[+t.slice(2)-1]:t==='ADJ'?'Correction':t==='OPEN'?'Starting stock':t==='COUNT'?'Inventory count':t;
 // availability of the list lines against the stock (preview only)
 function draftStatus(kind,list){
+  const firstOf=new Set(),seenIr=new Set();list.forEach((l,j)=>{if(!l.err&&!seenIr.has(l.ir)){seenIr.add(l.ir);firstOf.add(j);}});
   if(kind==='in')return list.map(l=>l.err?{c:'st-err',t:l.err}:{c:'st-ok',t:'ok'});
   const need=new Map(),own=new Map();list.forEach(l=>{if(l.err)return;need.set(l.ir,(need.get(l.ir)||0)+l.qty);const k=l.ir+'|'+l.exp;own.set(k,(own.get(k)||0)+l.qty);});
-  return list.map(l=>{if(l.err)return{c:'st-err',t:l.err};const tot=lotsOf(l.ir).reduce((a,x)=>a+x.qty,0),k=l.ir+'|'+l.exp;
-    if(need.get(l.ir)>tot)return{c:'st-short',t:'not enough stock ('+tot+') - you will be asked'};
+  return list.map((l,j)=>{if(l.err)return{c:'st-err',t:l.err};const tot=lotsOf(l.ir).reduce((a,x)=>a+x.qty,0),k=l.ir+'|'+l.exp;
+    if(need.get(l.ir)>tot){const sh=SHELF[kind][l.ir];if(sh)return{c:'st-mv',t:'approximate count: '+sh.n+' left on the shelf'+(sh.exp?' (expiry '+dmy(sh.exp)+')':''),ir:l.ir,done:1,first:firstOf.has(j)};return{c:'st-short',t:'not enough stock ('+tot+')',ir:l.ir,ask:1,first:firstOf.has(j),exp:l.exp};}
     if(own.get(k)>(DB.stock[k]||0))return{c:'st-mv',t:'part from another expiry date'};return{c:'st-ok',t:'ok'};});
 }
 PAGES.in=()=>movPage('in');PAGES.out=()=>movPage('out');PAGES.wo=()=>movPage('wo');
+const stHtml=(s,l)=>s.ask&&s.first?esc(s.t)+'<div class="shelf" data-ir="'+esc(s.ir)+'"><span>Count on the shelf now:</span><input type="number" min="0" class="shq" placeholder="qty"><input type="text" class="she" placeholder="expiry" value="'+esc(s.exp?dmy(s.exp):'')+'"><button type="button" class="btn alt shb">Set</button></div>':s.ask?esc(s.t):s.done&&s.first?esc(s.t)+' <a class="shundo" data-ir="'+esc(s.ir)+'">change</a>':esc(s.t);
 function movPage(kind){
   const M=MOV[kind];
   $('main').innerHTML='<div class="card"><div class="row"><div class="search" style="position:relative"><input type="text" id="mQ" autocomplete="off" placeholder="Add an item: last digits of the IR, or part of the name"><div class="sugg hidden" id="mSug"></div></div>'
@@ -1020,26 +1033,31 @@ function movPage(kind){
   $('mSug').addEventListener('click',e=>{const d=e.target.closest('div[data-j]');if(d)add(res[+d.dataset.j].it);});
   const draw=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L),ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0);
     $('mHead').textContent=M.name+' list: '+L.length+' line'+(L.length===1?'':'s');
-    $('mTab').innerHTML='<tr><th>Item</th><th>Expiry date</th><th style="width:110px">Qty</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th>Check</th><th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
+    $('mTab').innerHTML='<tr><th>Item</th><th style="min-width:240px">Expiry date</th><th style="width:96px">Qty</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th>Check</th><th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
       let ex;if(l.err&&!it)ex=esc(l.exp?dmy(l.exp):'');else if(kind==='in')ex='<input type="text" class="me" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="DD/MM/YYYY or empty" style="width:150px">';
       else ex='<select class="ms" data-j="'+j+'">'+lots.map(x=>'<option value="'+x.exp+'"'+(x.exp===l.exp?' selected':'')+'>'+(x.exp?dmy(x.exp):'no expiry')+' (stock '+x.qty+')</option>').join('')+(lots.some(x=>x.exp===l.exp)?'':'<option value="'+esc(l.exp)+'" selected>'+(l.exp?dmy(l.exp):'no expiry')+' (stock 0)</option>')+'</select>';
       return '<tr'+(l.err?' class="errrow"':'')+'><td>'+thumb(l.ir)+'<b>'+esc(it?it.name:(l.name||l.ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.sc?' <b>'+esc(disp(l.sc))+'</b>':'')+(l.src==='file'?' · from file (row '+l.line+')':'')+(l.src==='phonex'?' · <b>already in CCS</b> (imported on the SHARED tab '+esc(disp(l.impAt||''))+')':'')+'</div></td><td>'+ex+'</td>'
         +'<td>'+(l.err&&!it?esc(l.qty):'<input type="number" min="1" class="mq" data-j="'+j+'" value="'+esc(l.qty)+'">')+'</td>'
         +(kind==='wo'?'<td><select class="mw" data-j="'+j+'">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===l.wo?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select></td>':'')
-        +'<td class="stc '+stt[j].c+'" data-j="'+j+'">'+esc(stt[j].t)+'</td><td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>';}).join(''):'<tr><td colspan="6" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
+        +'<td class="stc '+stt[j].c+'" data-j="'+j+'">'+stHtml(stt[j],l)+'</td><td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>';}).join(''):'<tr><td colspan="6" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
     sumUp(L,stt);};
   // after a change in a box: update the checks and totals only (the table is not rebuilt, so the cursor stays where the user clicked)
   const sumUp=(L,stt)=>{const ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0),nErr=L.filter(l=>l.err).length,nShort=stt.filter(x=>x.c==='st-short').length;
     $('mSum').innerHTML=ok.length+' line'+(ok.length===1?'':'s')+' · '+units+' units'+(nErr?' · <span class="st-err">'+nErr+' with errors (not posted)</span>':'')+(nShort?' · <span class="st-short">'+nShort+' not enough stock</span>':'');
     $('mPost').disabled=!ok.length;$('mPost').textContent='Post '+ok.length+' line'+(ok.length===1?'':'s');};
-  const refresh=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L);$('mTab').querySelectorAll('td.stc').forEach(td=>{const j=+td.dataset.j;if(!stt[j])return;td.className='stc '+stt[j].c;td.textContent=stt[j].t;const tr=td.parentElement;tr.classList.toggle('errrow',!!L[j].err);});sumUp(L,stt);};
+  const refresh=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L);$('mTab').querySelectorAll('td.stc').forEach(td=>{const j=+td.dataset.j;if(!stt[j])return;td.className='stc '+stt[j].c;if(td.querySelector('input:focus'))return;td.innerHTML=stHtml(stt[j],L[j]);const tr=td.parentElement;tr.classList.toggle('errrow',!!L[j].err);});sumUp(L,stt);};
   $('mTab').addEventListener('change',e=>{const t=e.target,j=+t.dataset.j,l=DRAFT[kind][j];if(!l)return;
     if(t.classList.contains('mq')){const q=Math.floor(+t.value);if(q>0){l.qty=q;if(/quantity/.test(l.err||''))delete l.err;}else{t.value=l.qty;}}
     if(t.classList.contains('me')){const v=t.value.trim();if(!v){l.exp='';if(/expiry/.test(l.err||''))delete l.err;}else{const e2=parseExpiry(v);if(e2){l.exp=e2;if(/expiry/.test(l.err||''))delete l.err;}else{alert('Expiry date not understood: '+v+'\nUse 31/12/2030 or 12/2030, or leave it empty (no expiry).');t.value=l.exp?dmy(l.exp):'';}}}
     if(t.classList.contains('ms'))l.exp=t.value;if(t.classList.contains('mw'))l.wo=+t.value;refresh();});
   $('mTab').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('input')){e.preventDefault();$('mQ').focus();}});   // leaving the box saves the change (one change event)
-  $('mTab').addEventListener('click',e=>{const b=e.target.closest('button[data-x]');if(b){DRAFT[kind].splice(+b.dataset.x,1);draw();}});
-  $('mClear').onclick=()=>{if(DRAFT[kind].length&&confirm('Clear the whole list? Nothing is posted.')){DRAFT[kind]=[];draw();}};
+  $('mTab').addEventListener('click',e=>{const b=e.target.closest('button[data-x]');if(b){DRAFT[kind].splice(+b.dataset.x,1);draw();return;}
+    const u=e.target.closest('a.shundo');if(u){delete SHELF[kind][u.dataset.ir];draw();return;}
+    const sb=e.target.closest('button.shb');if(sb){const box=sb.closest('.shelf'),ir=box.dataset.ir,v=box.querySelector('.shq').value.trim(),ev=box.querySelector('.she').value.trim();
+      if(v===''||!(+v>=0)||Math.floor(+v)!==+v){alert('Type how many are on the shelf now (a whole number, 0 or more).');return;}
+      let ex='';if(ev){ex=parseExpiry(ev);if(!ex){alert('Expiry date not understood: '+ev+'\nUse 31/12/2030 or 12/2030, or leave it empty.');return;}}
+      SHELF[kind][ir]={n:+v,exp:ex};draw();}});
+  $('mClear').onclick=()=>{if(DRAFT[kind].length&&confirm('Clear the whole list? Nothing is posted.')){DRAFT[kind]=[];SHELF[kind]={};draw();}};
   $('mImp').onclick=()=>{$('mFile').value='';$('mFile').click();};
   $('mFile').onchange=()=>importMov(kind,draw);
   if($('mPh'))$('mPh').onclick=()=>phPullMov(kind,draw);
@@ -1107,7 +1125,7 @@ function askShelf(short){return new Promise(res=>{
   $('shNo').onclick=()=>{closeModal();res(null);};
   $('shOk').onclick=()=>{const out={};for(let j=0;j<short.length;j++){const v=$('sh'+j).value.trim();if(v===''){out[short[j].ir]=-1;continue;}const n=+v;if(!(n>=0)||Math.floor(n)!==n){mmsg('err','“'+v+'” is not a whole number.');return;}out[short[j].ir]=n;}closeModal();res(out);};
   setTimeout(()=>$('sh0')&&$('sh0').focus(),50);});}
-function planPost(entries,resolve){
+function planPost(entries,resolve,rexp){
   const st=Object.assign({},DB.stock),per=new Map(),order=[];
   entries.forEach(e=>{if(!per.has(e.ir)){per.set(e.ir,{ins:0,outs:0,firstExp:null});order.push(e.ir);}const p=per.get(e.ir);if(e.type==='IN')p.ins+=e.qty;else{p.outs+=e.qty;if(p.firstExp===null)p.firstExp=e.exp;}});
   const tot=ir=>Object.keys(st).filter(k=>k.startsWith(ir+'|')).reduce((a,k)=>a+st[k],0);
@@ -1115,8 +1133,8 @@ function planPost(entries,resolve){
   if(short.length)return{short};
   const led=[],flags=[],now=nowStamp();let moved=0;
   const lot=(ir,e)=>{const k=ir+'|'+(e||'');if(!(k in st))st[k]=0;return k;};
-  order.forEach(ir=>{const p=per.get(ir);if(p.after>=0)return;const v=resolve[ir],shelf=v>=0?v:0,adj=shelf-p.after,k=lot(ir,p.firstExp);
-    st[k]+=adj;led.push({type:'ADJ',ir,exp:p.firstExp||'',qty:adj,bal:st[k],note:v>=0?'Approximate count when posting: '+shelf+' left on the shelf':'Could not count when posting: stock set to 0'});
+  order.forEach(ir=>{const p=per.get(ir);if(p.after>=0)return;const v=resolve[ir],shelf=v>=0?v:0,adj=shelf-p.after,ax=(rexp&&rexp[ir]!=null&&rexp[ir]!=='')?rexp[ir]:p.firstExp,k=lot(ir,ax);
+    st[k]+=adj;led.push({type:'ADJ',ir,exp:ax||'',qty:adj,bal:st[k],note:v>=0?'Approximate count when posting: '+shelf+' left on the shelf':'Could not count when posting: stock set to 0'});
     flags.push({ir,reason:v>=0?'Approximate count ('+shelf+' on the shelf) when a list was posted':'Stock was not enough and set to 0 when a list was posted'});});
   entries.forEach(e=>{
     if(e.type==='IN'){const k=lot(e.ir,e.exp);st[k]+=e.qty;led.push({type:'IN',ir:e.ir,exp:e.exp,qty:e.qty,bal:st[k],by:e.by,note:e.note,pre:e.pre,sc:e.sc,imp:e.imp});return;}
@@ -1131,19 +1149,22 @@ function planPost(entries,resolve){
   return{stock:st,led,flags,moved,now};
 }
 async function postMov(kind,draw){
+  const fpd=fpSet(),again=DRAFT[kind].filter(l=>l.fp&&fpd.has(l.fp));
+  if(again.length){DRAFT[kind]=DRAFT[kind].filter(l=>!again.includes(l));draw();$('pmsg').className='msg warn';$('pmsg').textContent=again.length+' line'+(again.length===1?' was':'s were')+' posted before (same item, expiry, quantity and scan time) and '+(again.length===1?'was':'were')+' taken out of the list, so nothing is posted twice. Check the list and press Post again.';return;}
   const L=DRAFT[kind].filter(l=>!l.err);if(!L.length)return;const note=$('mNote').value.trim().slice(0,120);
   const entries=L.map(l=>({type:kind==='in'?'IN':kind==='out'?'OUT':'WO'+(l.wo||1),ir:l.ir,exp:l.exp||'',qty:l.qty,by:l.by||ME.name,note,pre:l.src==='phonex'||undefined,sc:l.sc||undefined,imp:l.src==='phonex'?l.impAt||undefined:undefined}));
   const nErr=DRAFT[kind].length-L.length;
   if(!confirm('POST '+MOV[kind].name.toUpperCase()+'\n\n'+L.length+' line'+(L.length===1?'':'s')+' · '+L.reduce((a,l)=>a+l.qty,0)+' units'+(nErr?'\n'+nErr+' line'+(nErr===1?'':'s')+' with errors stay in the list (not posted)':'')+'\n\nThe stock changes now. Continue?'))return;
-  let plan=planPost(entries,{});
-  if(plan.short){const r=await askShelf(plan.short);if(!r){$('pmsg').className='msg warn';$('pmsg').textContent='Cancelled - nothing was posted.';return;}plan=planPost(entries,r);}
+  const pre={},preX={};Object.keys(SHELF[kind]).forEach(ir=>{pre[ir]=SHELF[kind][ir].n;preX[ir]=SHELF[kind][ir].exp;});
+  let plan=planPost(entries,pre,preX);
+  if(plan.short){const r=await askShelf(plan.short);if(!r){$('pmsg').className='msg warn';$('pmsg').textContent='Cancelled - nothing was posted.';return;}plan=planPost(entries,Object.assign({},pre,r),preX);}
   const ref=MOV[kind].type+'-'+plan.now.replace(/\D/g,'').slice(0,14);
   plan.led.forEach(x=>{DB.seq++;x.id=DB.seq;x.t=plan.now;x.by=x.by||ME.name;x.posted=ME.u;x.ref=ref;x.note=x.note||'';DB.ledger.push(x);});
   plan.flags.forEach(f=>{DB.flags[f.ir]={reason:f.reason,by:ME.u,at:plan.now};});
   DB.stock=plan.stock;
   if(!DB.imports)DB.imports=[];const seen=new Set();L.forEach(l=>{if(l.hash&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind,t:plan.now,u:ME.u,ref});}});
   audit('POST_'+kind.toUpperCase(),ref+': '+L.length+' lines'+(plan.moved?', '+plan.moved+' from another expiry date':'')+(plan.flags.length?', '+plan.flags.length+' corrected':''));
-  await save();phAfterPost(L,ref);phStockSoon();DRAFT[kind]=DRAFT[kind].filter(l=>l.err);$('mNote').value='';draw();movPage.last();
+  await save();phAfterPost(L,ref);phStockSoon();DRAFT[kind]=DRAFT[kind].filter(l=>l.err);SHELF[kind]={};$('mNote').value='';draw();movPage.last();
   ccsExcel.quiet=true;const nx=ccsExcel(ref);ccsExcel.quiet=false;const npre=L.filter(l=>l.src==='phonex').length;$('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+').'+(nx?' Excel for CCS saved ('+nx+' line'+(nx===1?'':'s')+') - see your Downloads.':'')+(npre?' '+npre+' line'+(npre===1?' was':'s were')+' already imported into CCS from the SHARED tab: not in the Excel.':'')+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
 }
 
@@ -1192,7 +1213,7 @@ PAGES.cnt=()=>{
     let h='<tr><th>Item</th><th>Expiry date</th><th style="width:110px">Counted</th><th>Check (whole item)</th><th></th></tr>';
     if(!CDRAFT.lines.length)h+='<tr><td colspan="5" class="note">Empty. Add items with the search box, or import the count Excel.</td></tr>';
     g.forEach((js,ir)=>{const it=itemOf(ir),ck=itemCheck(ir);js.forEach((j,k)=>{const l=CDRAFT.lines[j],lot=DB.stock[ir+'|'+l.exp]||0;
-      h+='<tr'+(l.err?' class="errrow"':'')+'>'+(k===0?'<td rowspan="'+(js.length+1)+'">'+thumb(ir)+'<b>'+esc(it?it.name:(l.name||ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(ir)+'</span>'+(it&&it.loc?' · '+esc(it.loc):'')+(l.by?' · counted by '+esc(l.by):'')+(l.src==='file'?' · from file':'')+'</div></td>':'')
+      h+='<tr'+(l.err?' class="errrow"':'')+'>'+(k===0?'<td rowspan="'+(js.length+1)+'">'+thumb(ir)+'<b>'+esc(it?it.name:(l.name||ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(ir)+'</span>'+(it&&it.loc?' · '+esc(it.loc):'')+(l.by?' · counted by '+esc(l.by):'')+(l.sc?' · <b>'+esc(disp(l.sc))+'</b>':'')+(l.src==='file'?' · from file':'')+'</div></td>':'')
         +'<td>'+(l.err&&!it?esc(l.exp?dmy(l.exp):''):'<input type="text" class="ce" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="no expiry" style="width:130px">')+'<div class="lots">system: '+lot+'</div></td>'
         +'<td><input type="number" min="0" class="cq" data-j="'+j+'" value="'+esc(l.qty)+'" placeholder="qty"></td>'
         +(k===0?'<td rowspan="'+(js.length+1)+'" class="stc '+ck.c+'" data-ir="'+esc(ir)+'">'+esc(ck.t)+'</td>':'')+'<td><button class="btn alt" data-x="'+j+'" title="Remove this line">✕</button></td></tr>';});
@@ -1218,7 +1239,7 @@ PAGES.cnt=()=>{
   if($('cPh'))$('cPh').onclick=()=>phPullCount(draw);
   $('cPost').onclick=()=>postCount(draw);
   const last=()=>{const refs=[],seen=new Set();for(let i=DB.ledger.length-1;i>=0&&refs.length<12;i--){const x=DB.ledger[i];if(x.type==='COUNT'&&!seen.has(x.ref)){seen.add(x.ref);refs.push(x.ref);}}
-    $('cLast').innerHTML='<tr><th>When</th><th>Reference</th><th style="text-align:right">Items</th><th style="text-align:right">Difference (units)</th><th>Posted by</th><th>Note</th></tr>'+(refs.length?refs.map(r=>{const L=DB.ledger.filter(x=>x.ref===r);return '<tr><td>'+esc(disp(L[0].t))+'</td><td class="mono">'+esc(r)+'</td><td class="num">'+new Set(L.map(x=>x.ir)).size+'</td><td class="num">'+(L.reduce((a,x)=>a+x.qty,0)>0?'+':'')+L.reduce((a,x)=>a+x.qty,0)+'</td><td>'+esc(L[0].posted||'')+'</td><td>'+esc(L[0].note||'')+'</td></tr>';}).join(''):'<tr><td colspan="6" class="note">None yet</td></tr>');};
+    $('cLast').innerHTML='<tr><th>When</th><th>Counted at</th><th>Reference</th><th style="text-align:right">Items</th><th style="text-align:right">Difference (units)</th><th>Posted by</th><th>Note</th></tr>'+(refs.length?refs.map(r=>{const L=DB.ledger.filter(x=>x.ref===r);const sc=L.map(x=>x.sc).filter(Boolean).sort(),cat=sc.length?(sc[0]===sc[sc.length-1]?disp(sc[0]):disp(sc[0])+' – '+disp(sc[sc.length-1])):'';return '<tr><td>'+esc(disp(L[0].t))+'</td><td>'+esc(cat)+'</td><td class="mono">'+esc(r)+'</td><td class="num">'+new Set(L.map(x=>x.ir)).size+'</td><td class="num">'+(L.reduce((a,x)=>a+x.qty,0)>0?'+':'')+L.reduce((a,x)=>a+x.qty,0)+'</td><td>'+esc(L[0].posted||'')+'</td><td>'+esc(L[0].note||'')+'</td></tr>';}).join(''):'<tr><td colspan="7" class="note">None yet</td></tr>');};
   PAGES.cnt.last=last;draw();last();$('cQ').focus();
 };
 async function importCount(draw){
@@ -1256,10 +1277,10 @@ async function postCount(draw){
   const units=ok.reduce((a,ir)=>a+byIr.get(ir).reduce((b,l)=>b+l.qty,0),0);
   if(!confirm('POST INVENTORY COUNT\n\n'+ok.length+' counted item'+(ok.length===1?'':'s')+' · '+units+' units counted'+(bad.length?'\n'+bad.length+' item'+(bad.length===1?'':'s')+' with errors stay in the list (not posted)':'')+(zero.length?'\n\nFULL COUNT: '+zero.length+' other item'+(zero.length===1?'':'s')+' with stock become 0!':'')+'\n\nThe stock of these items is REPLACED by the count. Continue?'))return;
   const now=nowStamp(),ref='CNT-'+now.replace(/\D/g,'').slice(0,14),note=$('cNote').value.trim().slice(0,120),st=Object.assign({},DB.stock),led=[];
-  const apply=(ir,lots,by)=>{const nw=new Map();lots.forEach(l=>nw.set(l.exp||'',(nw.get(l.exp||'')||0)+l.qty));
+  const apply=(ir,lots,by)=>{const sc=(lots.find(l=>l.sc)||{}).sc||undefined,nw=new Map();lots.forEach(l=>nw.set(l.exp||'',(nw.get(l.exp||'')||0)+l.qty));
     const old=new Map(Object.keys(st).filter(k=>k.startsWith(ir+'|')).map(k=>[k.slice(ir.length+1),st[k]]));let any=false;
-    new Set([...old.keys(),...nw.keys()]).forEach(e=>{const o=old.get(e)||0,n=nw.get(e)||0,k=ir+'|'+e;if(n)st[k]=n;else delete st[k];if(n!==o){any=true;led.push({type:'COUNT',ir,exp:e,qty:n-o,bal:n,by,note:(note?note+' · ':'')+'counted '+n+(o?' (was '+o+')':'')});}});
-    if(!any)led.push({type:'COUNT',ir,exp:'',qty:0,bal:[...nw.values()].reduce((a,b)=>a+b,0),by,note:(note?note+' · ':'')+'counted - same as the stock'});};
+    new Set([...old.keys(),...nw.keys()]).forEach(e=>{const o=old.get(e)||0,n=nw.get(e)||0,k=ir+'|'+e;if(n)st[k]=n;else delete st[k];if(n!==o){any=true;led.push({type:'COUNT',ir,exp:e,qty:n-o,bal:n,by,sc,note:(note?note+' · ':'')+'counted '+n+(o?' (was '+o+')':'')});}});
+    if(!any)led.push({type:'COUNT',ir,exp:'',qty:0,bal:[...nw.values()].reduce((a,b)=>a+b,0),by,sc,note:(note?note+' · ':'')+'counted - same as the stock'});};
   ok.forEach(ir=>{const L=byIr.get(ir);apply(ir,L,(L.find(l=>l.by)||{}).by||ME.name);});
   zero.forEach(ir=>apply(ir,[],ME.name));
   led.forEach(x=>{DB.seq++;x.id=DB.seq;x.t=now;x.posted=ME.u;x.ref=ref;DB.ledger.push(x);});
@@ -1387,7 +1408,7 @@ async function phPost(action,extra,ms){
 function phBtn(id,label){return phOk()?'<button class="btn alt" id="'+id+'" title="Lists scanned with the CCS Scan Helper app">'+label+'</button>':'';}
 // ---- after a posting: tell the phones these lines are done (they leave the SHARED list); kept in the data file until it works
 function phAfterPost(lines,ref){
-  if(!DB.phoneDone)DB.phoneDone={lines:[],refs:[]};DB.phoneDone.refs.push(ref);lines.forEach(l=>{if(l.src==='phonex'&&l.lineId)DB.phoneDone.lines.push(l.lineId);});
+  if(!DB.phoneDone)DB.phoneDone={lines:[],refs:[]};if(!DB.phoneDone.fps)DB.phoneDone.fps=[];lines.forEach(l=>{if(l.fp)DB.phoneDone.fps.push(l.fp);});if(DB.phoneDone.fps.length>20000)DB.phoneDone.fps.splice(0,DB.phoneDone.fps.length-20000);DB.phoneDone.refs.push(ref);lines.forEach(l=>{if(l.src==='phonex'&&l.lineId)DB.phoneDone.lines.push(l.lineId);});
   if(DB.phoneDone.lines.length>20000)DB.phoneDone.lines.splice(0,DB.phoneDone.lines.length-20000);if(DB.phoneDone.refs.length>3000)DB.phoneDone.refs.splice(0,DB.phoneDone.refs.length-3000);
   const items=lines.filter(l=>l.src==='phone'&&l.key).map(l=>({key:l.key,ir:l.ir,expiry:l.pexp||'',qty:Math.min(l.qty,l.pqty||l.qty)}));
   if(!items.length){save();return;}if(!DB.markQueue)DB.markQueue=[];DB.markQueue.push({ref,items,t:nowStamp()});save();phRetryMarks();
@@ -1407,19 +1428,20 @@ async function phSendStock(show){
 // ---- Stock In / Stock Out / Write Off: take the open lists of the phones
 async function phPullMov(kind,draw){
   const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};pm('warn','Getting the lists of the phones…');
-  try{const j=await phPost('list',{mode:kind==='in'?'IN':kind==='out'?'OUT':'WO'});const known=new Set(DB.items.map(i=>i.ir));let n=0,skip=0,bad=0;const who=new Set();
+  try{const j=await phPost('list',{mode:kind==='in'?'IN':kind==='out'?'OUT':'WO'});const known=new Set(DB.items.map(i=>i.ir)),fpd=fpSet();let n=0,skip=0,bad=0,dup=0;const who=new Set();
     (j.batches||[]).forEach(b=>(b.lines||[]).forEach(l=>{
+      const fp=fpOf(l.ir,l.expiry,l.qty,l.scanned,b.by);if(fp&&(fpd.has(fp)||DRAFT[kind].some(x=>x.fp===fp))){dup++;return;}
       if(DRAFT[kind].some(x=>x.src==='phone'&&x.key===b.key&&x.ir===l.ir&&x.pexp===(l.expiry||''))){skip++;return;}
-      const row={ir:l.ir,exp:l.expiry||'',pexp:l.expiry||'',qty:l.qty,pqty:l.qty,name:l.name||'',by:b.by||'',sc:l.scanned||'',src:'phone',key:b.key,wo:kind==='wo'?(+String(b.mode).slice(2)||woDefault):0};
+      const row={ir:l.ir,exp:l.expiry||'',pexp:l.expiry||'',qty:l.qty,pqty:l.qty,name:l.name||'',by:b.by||'',sc:l.scanned||'',fp:fpOf(l.ir,l.expiry,l.qty,l.scanned,b.by),src:'phone',key:b.key,wo:kind==='wo'?(+String(b.mode).slice(2)||woDefault):0};
       if(!known.has(l.ir)){row.err='not in the master list (add it in Items first)';bad++;}
       DRAFT[kind].push(row);n++;if(b.by)who.add(b.by);}));
     let nx=0;try{const since=[DB.stockSince||'',PH.linkedAt||''].sort().pop()||addDays(-14),done=DB.phoneDone||{lines:[],refs:[]},dl=new Set(done.lines),dr=new Set(done.refs),want=kind==='in'?m=>m==='IN':kind==='out'?m=>m==='OUT':m=>/^WO[1-5]$/.test(m);
-      const x=await phPost('imported',{since});(x.exports||[]).forEach(g=>{if(dr.has(g.exportId))return;g.lines.forEach(l=>{if(!want(l.mode)||dl.has(l.lineId)||DRAFT[kind].some(y=>y.lineId===l.lineId))return;
-        const row={ir:l.ir,exp:l.expiry||'',qty:l.qty,name:l.name||'',by:l.by||'',sc:l.scanned||'',src:'phonex',lineId:l.lineId,exportId:g.exportId,impAt:g.imported,wo:kind==='wo'?(+String(l.mode).slice(2)||woDefault):0};
+      const x=await phPost('imported',{since});(x.exports||[]).forEach(g=>{if(dr.has(g.exportId))return;g.lines.forEach(l=>{if(!want(l.mode)||dl.has(l.lineId)||DRAFT[kind].some(y=>y.lineId===l.lineId))return;const fp=fpOf(l.ir,l.expiry,l.qty,l.scanned,l.by);if(fp&&(fpd.has(fp)||DRAFT[kind].some(y=>y.fp===fp))){dup++;return;}
+        const row={ir:l.ir,exp:l.expiry||'',qty:l.qty,name:l.name||'',by:l.by||'',sc:l.scanned||'',fp:fpOf(l.ir,l.expiry,l.qty,l.scanned,l.by),src:'phonex',lineId:l.lineId,exportId:g.exportId,impAt:g.imported,wo:kind==='wo'?(+String(l.mode).slice(2)||woDefault):0};
         if(!known.has(l.ir)){row.err='not in the master list (add it in Items first)';bad++;}DRAFT[kind].push(row);nx++;if(l.by)who.add(l.by);});});}
     catch(e){if(!/unknown action/i.test(e.message||''))throw e;}
     n+=nx;
-    draw();pm(n?(bad?'warn':'ok'):'warn',n?'Added '+n+' line'+(n===1?'':'s')+' from the phones'+(nx?' ('+nx+' already imported into CCS from the SHARED tab: they change the stock here, but are not put in the Excel for CCS again)':'')+(who.size?' ('+[...who].join(', ')+')':'')+(skip?', '+skip+' already in the list':'')+(bad?'. '+bad+' not in the master list (red)':'')+'. Check, then Post: the phones are told that these lines are done.':'No new lines on the phones'+(skip?' ('+skip+' already in the list)':'')+'.');}
+    draw();pm(n?(bad?'warn':'ok'):'warn',n?'Added '+n+' line'+(n===1?'':'s')+' from the phones'+(nx?' ('+nx+' already imported into CCS from the SHARED tab: they change the stock here, but are not put in the Excel for CCS again)':'')+(who.size?' ('+[...who].join(', ')+')':'')+(skip?', '+skip+' already in the list':'')+(bad?'. '+bad+' not in the master list (red)':'')+'. Check, then Post: the phones are told that these lines are done.':'No new lines on the phones'+(skip?' ('+skip+' already in the list)':'')+'.'+(dup?' '+dup+' line'+(dup===1?' was':'s were')+' not listed again: same item, expiry, quantity and scan time as a line already in the list or posted before.':''));}
   catch(e){pm('err','Could not get the lists of the phones: '+(e.message||e.name));}
 }
 // ---- Inventory Count: take the counts of the phones newer than the last count posted here
@@ -1428,10 +1450,10 @@ async function phPullCount(draw){
   try{const j=await phPost('counts',{}),c=j.counts||{},known=new Set(DB.items.map(i=>i.ir)),since=addDays(-31),lastCnt=new Map();
     DB.ledger.forEach(x=>{if(x.type==='COUNT'&&x.t>(lastCnt.get(x.ir)||''))lastCnt.set(x.ir,x.t);});
     let n=0,old=0;Object.keys(c).forEach(ir=>{const o=c[ir];if(!o||!Array.isArray(o.lots))return;const at=String(o.at||'');
-      if(at<since||(lastCnt.get(ir)&&at<=lastCnt.get(ir))){old++;return;}
+      if(at<since||(DB.stockSince&&at<=DB.stockSince)||(lastCnt.get(ir)&&at<=lastCnt.get(ir))){old++;return;}
       CDRAFT.lines=CDRAFT.lines.filter(l=>l.ir!==ir);const by=new Map();o.lots.forEach(l=>{const e=l.expiry||'';by.set(e,(by.get(e)||0)+(+l.qty||0));});if(!by.size)by.set('',0);
-      by.forEach((q,e)=>{const row={ir,exp:e,qty:q,by:o.by||'',src:'phone',name:ir};if(!known.has(ir))row.err='not in the master list (add it in Items first)';CDRAFT.lines.push(row);});n++;});
-    draw();pm(n?'ok':'warn',n?'Added '+n+' counted item'+(n===1?'':'s')+' from the phones (counted in the last 31 days, newer than the last count posted here)'+(old?'. '+old+' older counts skipped':'')+'. Check the differences, then Post count.':'No new counts on the phones'+(old?' ('+old+' older or already posted)':'')+'.');}
+      by.forEach((q,e)=>{const row={ir,exp:e,qty:q,by:o.by||'',sc:at,src:'phone',name:ir};if(!known.has(ir))row.err='not in the master list (add it in Items first)';CDRAFT.lines.push(row);});n++;});
+    draw();pm(n?'ok':'warn',n?'Added '+n+' counted item'+(n===1?'':'s')+' from the phones (counted in the last 31 days, newer than the last count posted here and than the starting stock)'+(old?'. '+old+' counts skipped: older, already posted here, or already inside the starting stock':'')+'. Check the differences, then Post count.':'No new counts on the phones'+(old?' ('+old+' older, already posted, or already inside the starting stock)':'')+'.');}
   catch(e){pm('err','Could not get the counts of the phones: '+(e.message||e.name));}
 }
 // ---- Settings > Phones
@@ -1626,6 +1648,7 @@ PAGES.set=async()=>{
 // ---------------------------------------------------------------- installable app (on the website only)
 if(location.protocol==='https:'&&'serviceWorker' in navigator){navigator.serviceWorker.register('sw.js').catch(()=>{});}
 
+if(window.__CCSD_TEST_DIR_PROMISE)window.__T={get DRAFT(){return DRAFT;},get DB(){return DB;},go:p=>go(p),save:()=>save(true)};
 // ---------------------------------------------------------------- one window at a time
 if(navigator.locks&&navigator.locks.request){
   navigator.locks.request('ccs-desk-window',{ifAvailable:true},lock=>{if(!lock){screen('<h1>CCS Desk is already open</h1><p class="sub">It is open in another tab or window of this browser. Use that one, or close it and reload this page.</p>');return;}boot();return new Promise(()=>{});});
