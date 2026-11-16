@@ -15,6 +15,7 @@ body{margin:0;font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-s
 button{font:inherit;cursor:pointer}
 input,select,textarea{font:inherit;color:inherit}
 .hidden{display:none!important}
+body.demo #crumb{color:#b36b00;font-weight:700}body.demo #sideUnit::after{content:' · DEMO';color:#f2b84b}
 /* start screens */
 .center{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px}
 .box{background:var(--card);border-radius:16px;box-shadow:0 10px 40px rgba(20,27,45,.12);padding:28px 32px;width:min(520px,100%)}
@@ -135,7 +136,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='1.9';
+const VERSION='2.1';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -468,7 +469,7 @@ const disp=t=>{t=String(t||'');return /^\d{4}-\d{2}-\d{2}/.test(t)?dmy(t.slice(0
 let DIR=null,FILEH=null,DB=null,ME=null,lastMod=0,page='dash',saving=Promise.resolve(),idleT=null;
 
 // ---------------------------------------------------------------- tiny key/value store (remembers the data folder)
-function idb(){return new Promise((res,rej)=>{const r=indexedDB.open('ccsdesk',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
+function idb(){return new Promise((res,rej)=>{const r=indexedDB.open(window.CCSD_DEMO?'ccsdesk_demo':'ccsdesk',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);});}
 async function kvGet(k){try{const d=await idb();return await new Promise(res=>{const q=d.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>res(undefined);});}catch(e){return undefined;}}
 async function kvSet(k,v){try{const d=await idb();await new Promise(res=>{const t=d.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=res;t.onerror=res;});}catch(e){}}
 
@@ -480,12 +481,13 @@ const newSalt=()=>b64(crypto.getRandomValues(new Uint8Array(16)));
 function pwRule(p){return p.length>=8&&p.length<=64&&/[A-Za-z]/.test(p)&&/[0-9]/.test(p)?'':'The password must have at least 8 characters, with letters AND numbers.';}
 
 // ---------------------------------------------------------------- start screens
-function screen(html){document.documentElement.style.setProperty('--accent','var(--dash)');$('app').classList.add('hidden');$('scr').classList.remove('hidden');$('scrBox').innerHTML='<div class="logo">CCS <span>Desk</span></div>'+html;}
+function screen(html){document.documentElement.style.setProperty('--accent','var(--dash)');$('app').classList.add('hidden');$('scr').classList.remove('hidden');$('scrBox').innerHTML='<div class="logo">CCS <span>Desk</span>'+(window.CCSD_DEMO?' DEMO':'')+'</div>'+html;}
 function smsg(k,t){const m=$('smsg');if(m){m.className='msg '+k;m.textContent=t;}}
-function fsOk(){return !!window.__CCSD_TEST_DIR_PROMISE||'showDirectoryPicker' in window;}
+function fsOk(){return !!window.__CCSD_TEST_DIR_PROMISE||!!window.CCSD_DEMO||'showDirectoryPicker' in window;}
 async function boot(){
   try{FAILS=(await kvGet('fails'))||{};}catch(e){}
   if(!fsOk()){screen('<h1>This browser cannot use a data folder</h1><p class="sub">Open this file with <b>Microsoft Edge</b> or <b>Google Chrome</b> on a computer.</p><p class="note">If you already use Edge, the hospital may have switched this feature off: ask IT about “File System Access” for this file.</p>');return;}
+  if(window.CCSD_DEMO){DIR=await(await navigator.storage.getDirectory()).getDirectoryHandle('ccs_demo',{create:true});return openFolder();}   // the demo keeps its data inside the browser, never in a real data folder
   const h=await kvGet('dir');
   if(!h){welcome();return;}
   if(h==='test'&&window.__CCSD_TEST_DIR_PROMISE){DIR=await window.__CCSD_TEST_DIR_PROMISE;return openFolder();}   // automated tests only
@@ -506,7 +508,7 @@ async function chooseFolder(){
 }
 async function openFolder(){
   try{FILEH=await DIR.getFileHandle(DATA);}catch(e){FILEH=null;}
-  if(!FILEH){setupScreen();return;}
+  if(!FILEH){if(window.CCSD_DEMO)demoSetup();else setupScreen();return;}
   try{const f=await FILEH.getFile(),o=JSON.parse(await f.text());if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users))throw new Error('this is not a CCS Desk data file');DB=o;migrate();lastMod=f.lastModified;loginScreen();}
   catch(e){screen('<h1>The data file cannot be read</h1><p class="sub">'+esc(e.message)+'</p><p class="note">Do not delete anything. Restore the newest file from the “backups” folder (rename it to '+DATA+') or ask for help.</p><button class="btn alt big" id="otherBtn">Use another folder…</button>');$('otherBtn').onclick=chooseFolder;}
 }
@@ -540,7 +542,7 @@ async function unitList(){
   if(UNITS)return UNITS;if(location.protocol==='file:')return [];
   const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),6000);
   try{const r=await fetch('../config.json',{cache:'no-store',signal:ctl.signal}),c=await r.json();
-    UNITS=(c.units||[]).filter(u=>u.id&&u.name&&/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u.syncUrl||''));return UNITS;}
+    UNITS=(c.units||[]).filter(u=>u.id&&u.name&&/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u.syncUrl||'')&&(!window.CCSD_DEMO||/^demo/i.test(u.id)));return UNITS;}
   catch(e){return [];}finally{clearTimeout(to);}
 }
 async function unitLink(){
@@ -551,6 +553,7 @@ async function unitLink(){
   return u?(DB.link={url:u.syncUrl,unitId:u.id,unitName:u.name}):null;
 }
 async function linkPost(L,action,extra,ms){
+  if(window.CCSD_DEMO&&!/^demo/i.test(L.unitId||'')){const x=new Error('DEMO: it can be linked only to a demo unit.');x.nolink=true;throw x;}
   const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),ms||15000),net=m=>{const x=new Error(m);x.net=true;return x;};
   try{const r=await fetch(L.url,{method:'POST',body:JSON.stringify(Object.assign({},extra||{},{action},L.unitId?{hubUnit:L.unitId}:{})),redirect:'follow',signal:ctl.signal});let j;
     try{j=await r.json();}catch(e){throw net('the Google Sheet did not answer correctly');}
@@ -675,7 +678,7 @@ async function loginScreen(kind,text){
     +'<div id="lCorpBox" class="hidden"><label for="lCorp">Your Corp No.</label><input type="text" id="lCorp" data-kb autocomplete="off" inputmode="numeric"><div class="kbwarn hidden" id="lCorpW"></div></div>'
     +'<label for="lPw">Password</label>'+pwField('lPw')+'<p class="note" id="lHint" style="margin:6px 0 0"></p>'
     +'<button class="btn big" id="lGo">Sign in</button><div class="msg" id="smsg"></div><p class="links"><a href="#" id="lForgot">Forgot password?</a></p>'
-    +(L?'':'<p class="note">Sign-in with the app account is not possible yet: this CCS Desk is not linked to a unit (admin: Settings > Phones).</p>'));
+    +(window.CCSD_DEMO?DEMO_NOTE:'')+(L||window.CCSD_DEMO?'':'<p class="note">Sign-in with the app account is not possible yet: this CCS Desk is not linked to a unit (admin: Settings > Phones).</p>'));
   if(kind)smsg(kind,text);
   const hint=()=>{const w=$('lWho').value,us=DB.users.find(x=>x.u===w);$('lCorpBox').classList.toggle('hidden',w!=='+');
     $('lHint').textContent=w==='+'?'Corp No. and password of your CCS Scan Helper account. Charge nurses only. This first sign-in needs the internet.'
@@ -861,13 +864,14 @@ const ICO={dash:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="
   inv:'<path d="M21 8l-9-5-9 5v8l9 5 9-5z"/><path d="M3 8l9 5 9-5M12 13v8"/>',in:'<path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 20h16"/>',out:'<path d="M12 15V3M7 8l5-5 5 5"/><path d="M4 20h16"/>',
   wo:'<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/>',cnt:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4h6v3H9zM9 14l2 2 4-4"/>',
   log:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',rep:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>',items:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>',
-  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-4 3.2-6 6.5-6s6 2 6.5 6M17 11a3 3 0 100-6M21.5 20c-.3-2.6-1.6-4.3-3.5-5"/>',set:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'};
+  users:'<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.5-4 3.2-6 6.5-6s6 2 6.5 6M17 11a3 3 0 100-6M21.5 20c-.3-2.6-1.6-4.3-3.5-5"/>',help:'<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 115 0c0 1.7-2.5 2-2.5 4M12 17h.01"/>',set:'<path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/>'};
 const ico=(k,c)=>'<svg viewBox="0 0 24 24" style="--c:var('+c+')" aria-hidden="true">'+(ICO[k]||'')+'</svg>';
 const NAV=[['grp','Overview'],['dash','Dashboard','--dash'],['inv','Inventory','--inv'],
   ['grp','Stock movements'],['in','Stock In','--in'],['out','Stock Out','--out'],['wo','Write Off','--wo'],['cnt','Inventory Count','--cnt'],
   ['grp','Records'],['log','Transaction Log','--log'],['rep','Reports','--rep'],
-  ['grp','Setup'],['items','Items (master list)','--items'],['users','Users','--users',0,'admin'],['set','Settings','--set']];
+  ['grp','Setup'],['items','Items (master list)','--items'],['users','Users','--users',0,'admin'],['set','Settings','--set'],['help','Help','--users']];
 function startApp(){
+  if(window.CCSD_DEMO)document.body.classList.add('demo');
   $('scr').classList.add('hidden');$('app').classList.remove('hidden');$('modal').classList.add('hidden');
   $('sideUnit').textContent=DB.unit;$('sideVer').textContent='version '+VERSION;
   $('sideWho').innerHTML='Signed in as <b>'+esc(ME.name)+'</b><br>'+esc(signName(ME))+' · '+(ME.role==='admin'?'admin':'charge nurse');
@@ -880,7 +884,7 @@ function go(p){
   const n=NAV.find(x=>x[0]===p)||NAV[1];if(n[4]==='admin'&&ME.role!=='admin')p='dash';page=p;
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
   document.documentElement.style.setProperty('--accent','var('+n[2]+')');
-  $('title').textContent=n[1];$('crumb').textContent=DB.unit+' · CCS Desk';
+  $('title').textContent=n[1];$('crumb').textContent=DB.unit+' · CCS Desk'+(window.CCSD_DEMO?' · DEMO: made-up data for training':'');
   (PAGES[p]||soon)(n);
 }
 function soon(n){$('main').innerHTML='<div class="card soonbox"><b>'+esc(n[1])+'</b>Coming in step '+n[3]+' of the trial version.</div>';}
@@ -890,19 +894,237 @@ function mmsg(k,t){const m=$('mmsg');if(m){m.className='msg '+k;m.textContent=t;
 const canEdit=()=>ME&&(ME.role==='admin'||ME.role==='charge');
 const PAGES={};
 
+// ---------------------------------------------------------------- cost helpers, reports, dashboard
+const R2=v=>Math.round(v*100)/100;
+const isoOf=d=>d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());
+function isoAdd(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return isoOf(d);}
+function daysBetween(a,b){return Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5);}
+function weekRange(off){const d=new Date();d.setHours(12,0,0,0);d.setDate(d.getDate()-d.getDay()+off*7);const e=new Date(d);e.setDate(e.getDate()+6);return{from:isoOf(d),to:isoOf(e)};}   // Sunday to Saturday
+function monthRange(off){const d=new Date(),a=new Date(d.getFullYear(),d.getMonth()+off,1,12),b=new Date(d.getFullYear(),d.getMonth()+off+1,0,12);return{from:isoOf(a),to:isoOf(b)};}
+const unitPx=x=>{if(x.pr!=null)return +x.pr;const p=priceOf(x.ir);return p==null?null:p;};
+function costBetween(from,to){
+  const r={out:0,outQty:0,wo:0,woQty:0,lines:0,noPrice:0,byItem:new Map(),byDay:new Map(),woBy:new Map()};
+  DB.ledger.forEach(x=>{const d=x.t.slice(0,10);if(d<from||d>to)return;const isO=x.type==='OUT',isW=/^WO/.test(x.type);if(!isO&&!isW)return;
+    const q=-x.qty,pp=unitPx(x),c=pp==null?0:q*pp;if(pp==null)r.noPrice++;r.lines++;
+    if(!r.byItem.has(x.ir))r.byItem.set(x.ir,{out:0,outQty:0,wo:0,woQty:0});const it=r.byItem.get(x.ir);
+    if(!r.byDay.has(d))r.byDay.set(d,{out:0,wo:0});const dy=r.byDay.get(d);
+    if(isO){r.out+=c;r.outQty+=q;it.out+=c;it.outQty+=q;dy.out+=c;}
+    else{r.wo+=c;r.woQty+=q;it.wo+=c;it.woQty+=q;dy.wo+=c;const rs=WO_REASONS[+x.type.slice(2)-1]||x.type;if(!r.woBy.has(rs))r.woBy.set(rs,{qty:0,cost:0});const w=r.woBy.get(rs);w.qty+=q;w.cost+=c;}});
+  r.out=R2(r.out);r.wo=R2(r.wo);return r;
+}
+function daysOfStock(){const since=addDays(-30),by=new Map();DB.ledger.forEach(x=>{if(x.type==='OUT'&&x.t.slice(0,10)>=since)by.set(x.ir,(by.get(x.ir)||0)-x.qty);});
+  return[...by.entries()].filter(e=>e[1]>0).map(([ir,q])=>{const it=itemOf(ir),stock=totalOf(ir),avg=q/30;return{ir,name:it?it.name:ir,unit:it?it.unit:'',loc:it?it.loc||'':'',stock,avg,days:stock/avg};}).sort((a,b)=>a.days-b.days);}
+function expiryValue(){const t=today(),soon=addDays(90);let ex=0,so=0;Object.keys(DB.stock).forEach(k=>{const q=DB.stock[k];if(!q)return;const i=k.indexOf('|'),ir=k.slice(0,i),e=k.slice(i+1);if(!e)return;const p=priceOf(ir);if(p==null)return;if(e<t)ex+=q*p;else if(e<=soon)so+=q*p;});return{ex:R2(ex),so:R2(so)};}
+const ageDays=st=>{if(!st)return null;const d=Date.parse(String(st).replace(' ','T'));return isNaN(d)?null:(Date.now()-d)/864e5;};
+
+// ---- report data (shared by the Excel and the printable page)
+function reportData(from,to,title){
+  const R=costBetween(from,to),len=daysBetween(from,to)+1,P=costBetween(isoAdd(from,-len),isoAdd(from,-1)),tot=R2(R.out+R.wo),ptot=R2(P.out+P.wo),ev=expiryValue(),t=today();
+  const ch=ptot>0?Math.round((tot-ptot)/ptot*100):null,sum=[];
+  sum.push({name:'Stock Out cost (consumption)',qty:R.outQty,val:R.out,note:''});sum.push({name:'Write Off cost',qty:R.woQty,val:R.wo,note:''});sum.push({name:'TOTAL COST',qty:R.outQty+R.woQty,val:tot,note:''});
+  sum.push({name:'Previous period of the same length ('+dmy(isoAdd(from,-len))+' to '+dmy(isoAdd(from,-1))+')',qty:P.outQty+P.woQty,val:ptot,note:ch==null?'':(ch>0?'+':'')+ch+'% change'});
+  if(/^\d{4}-\d{2}-01$/.test(from)&&to===isoOf(new Date(+from.slice(0,4),+from.slice(5,7),0,12))&&DB.settings&&+DB.settings.budget>0){const bg=+DB.settings.budget;sum.push({name:'Monthly budget',qty:'',val:bg,note:Math.round(tot/bg*100)+'% used'});}
+  sum.push({name:'Stock Out lines posted',qty:R.lines,val:'',note:''});
+  sum.push({name:'Stock value now',qty:'',val:R2(stockValue()),note:'at the time this report was made'});
+  sum.push({name:'Expired stock value now',qty:'',val:ev.ex,note:''});sum.push({name:'Stock expiring within 90 days (value)',qty:'',val:ev.so,note:''});
+  if(R.noPrice)sum.push({name:'WARNING: lines without a price (not in the totals)',qty:R.noPrice,val:'',note:'add the price in Items'});
+  const secs=[];
+  secs.push({h:'Top 10 items by cost',rows:[...R.byItem.entries()].map(([ir,o])=>({ir,o,t:o.out+o.wo})).sort((a,b)=>b.t-a.t).slice(0,10).map(x=>{const it=itemOf(x.ir);return{name:it?it.name:x.ir,ir:x.ir,qty:x.o.outQty+x.o.woQty,val:R2(x.t),note:''};})});
+  secs.push({h:'Write offs by reason',rows:[...R.woBy.entries()].map(([k,o])=>({name:k,ir:'',qty:o.qty,val:R2(o.cost),note:''}))});
+  const cnt=DB.ledger.filter(x=>x.type==='COUNT'&&x.qty!==0&&x.t.slice(0,10)>=from&&x.t.slice(0,10)<=to);let cl=0,cg=0;const cr=cnt.map(x=>{const it=itemOf(x.ir),pp=unitPx(x),v=pp==null?'':R2(x.qty*pp);if(v!==''){if(v<0)cl+=v;else cg+=v;}return{name:it?it.name:x.ir,ir:x.ir,qty:x.qty,val:v,note:x.exp?'expiry '+dmy(x.exp):''};}).sort((a,b)=>(a.val===''?0:a.val)-(b.val===''?0:b.val));
+  secs.push({h:'Inventory count differences (missing '+money(cl)+' · extra '+money(cg)+')',rows:cr.slice(0,20)});
+  const low=invRows().filter(r=>r.low).map(r=>({name:r.it.name,ir:r.it.ir,qty:r.total,val:'',note:'minimum '+r.it.min})).slice(0,25);
+  secs.push({h:'Below minimum now ('+invRows().filter(r=>r.low).length+' items)',rows:low});
+  const exl=[];Object.keys(DB.stock).forEach(k=>{const q=DB.stock[k];if(!q)return;const i=k.indexOf('|'),ir=k.slice(0,i),e=k.slice(i+1);if(!e||e>addDays(90))return;const it=itemOf(ir),pp=priceOf(ir);exl.push({name:it?it.name:ir,ir,qty:q,val:pp==null?'':R2(q*pp),note:(e<t?'EXPIRED ':'expires ')+dmy(e),_e:e});});
+  exl.sort((a,b)=>a._e.localeCompare(b._e));secs.push({h:'Expired and expiring within 90 days',rows:exl.slice(0,30)});
+  return{title,from,to,sum,secs,tot,ptot,ch,out:R.out,wo:R.wo};
+}
+function reportXlsxBytes(D){const rows=[];D.sum.forEach(x=>rows.push({sec:'Summary',name:x.name,ir:'',qty:x.qty,val:x.val,note:x.note}));D.secs.forEach(sc=>sc.rows.forEach(x=>rows.push({sec:sc.h,name:x.name,ir:x.ir,qty:x.qty,val:x.val,note:x.note})));
+  return buildXlsx('report',[['Section','sec','s',36],['Item','name','s',60],['IR','ir','s',14],['Qty','qty','n',10],['Value (QAR)','val','n',14],['Note','note','s',36]],rows,{who:ME?ME.name:'',created:new Date(),title:D.title,infoName:'Info',info:[['Unit',DB.unit],['Report',D.title],['Period',dmy(D.from)+' to '+dmy(D.to)],['Made on',nowStamp().slice(0,16)],['Tool','CCS Desk '+VERSION]]});}
+function reportHtml(D){const f=v=>v===''||v==null?'':typeof v==='number'?v.toLocaleString('en-US',{maximumFractionDigits:2}):esc(v);
+  const tab=(rows)=>'<table><tr><th>Item</th><th>IR</th><th class="n">Qty</th><th class="n">Value (QAR)</th><th>Note</th></tr>'+(rows.length?rows.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.ir||'')+'</td><td class="n">'+f(x.qty)+'</td><td class="n">'+f(x.val)+'</td><td>'+esc(x.note||'')+'</td></tr>').join(''):'<tr><td colspan="5" style="color:#667">None</td></tr>')+'</table>';
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(D.title)+'</title><style>body{font:14px Arial,sans-serif;margin:24px;color:#1b2430}h1{font-size:21px;margin:0}.sub{color:#556;margin:2px 0 14px}h2{font-size:15px;margin:22px 0 6px}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #d9dee5;padding:5px 8px;text-align:left;vertical-align:top}th{background:#f3f5f8}.n{text-align:right}.k{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0}.kp{border:1px solid #d9dee5;border-radius:8px;padding:8px 14px;min-width:150px}.kp b{display:block;font-size:19px}.foot{color:#778;font-size:12px;margin-top:22px}@media print{body{margin:10mm}}</style></head><body>'
+    +'<h1>'+esc(D.title)+'</h1><div class="sub">'+esc(DB.unit)+' · '+esc(dmy(D.from))+' to '+esc(dmy(D.to))+'</div>'
+    +'<div class="k"><div class="kp">Total cost<b>'+f(D.tot)+' QAR</b>'+(D.ch==null?'':(D.ch>0?'+':'')+D.ch+'% vs previous period')+'</div><div class="kp">Stock Out (consumption)<b>'+f(D.out)+' QAR</b></div><div class="kp">Write Off<b>'+f(D.wo)+' QAR</b></div></div>'
+    +'<h2>Summary</h2>'+tab(D.sum)+D.secs.map(sc=>'<h2>'+esc(sc.h)+'</h2>'+tab(sc.rows)).join('')
+    +'<div class="foot">Made by CCS Desk '+esc(VERSION)+' on '+esc(nowStamp().slice(0,16))+'. Costs use the unit price kept at the time of posting. Consumable stock tracking only: no patient data.</div></body></html>';}
+async function repDir(){return DIR.getDirectoryHandle('reports',{create:true});}
+async function writeReport(kind,from,to,key,title,base){
+  const D=reportData(from,to,title),d=await repDir(),files=[];
+  for(const [ext,data] of [['xlsx',reportXlsxBytes(D)],['html',reportHtml(D)]]){const nm=base+'.'+ext,h=await d.getFileHandle(nm,{create:true}),w=await h.createWritable();await w.write(data);await w.close();files.push(nm);}
+  if(!DB.reports)DB.reports=[];DB.reports=DB.reports.filter(r=>r.k!==key);DB.reports.push({k:key,kind,from,to,files,at:nowStamp(),by:ME?ME.u:'',tot:D.tot});if(DB.reports.length>200)DB.reports.splice(0,DB.reports.length-200);
+  audit('REPORT',kind+' '+from+' to '+to+' ('+D.tot+' QAR)');return D;}
+async function autoReports(){
+  if(!ME||!DIR||!canEdit()||autoReports.busy)return;autoReports.busy=true;let made=0;
+  try{const have=new Set((DB.reports||[]).map(r=>r.k)),first=DB.ledger.reduce((a,x)=>x.t.slice(0,10)<a?x.t.slice(0,10):a,'9999-99-99'),jobs=[];
+    for(let i=1;i<=4;i++){const w=weekRange(-i);jobs.push({kind:'weekly',from:w.from,to:w.to,key:'W'+w.from,title:'Weekly report',base:'CCS_Desk_weekly_'+w.from+'_to_'+w.to});}
+    for(let i=1;i<=2;i++){const m=monthRange(-i);jobs.push({kind:'monthly',from:m.from,to:m.to,key:'M'+m.from.slice(0,7),title:'Monthly report',base:'CCS_Desk_monthly_'+m.from.slice(0,7)});}
+    for(const j of jobs){if(have.has(j.key)||j.to<first||!costBetween(j.from,j.to).lines)continue;await writeReport(j.kind,j.from,j.to,j.key,j.title,j.base);made++;}
+    if(made){await save();}}
+  catch(e){autoReports.err=e.message||String(e);}
+  autoReports.busy=false;if(made&&page==='dash'&&$('dRepT'))repTable();return made;}
+function repTable(){const L=(DB.reports||[]).slice().sort((a,b)=>b.at.localeCompare(a.at)).slice(0,10);
+  $('dRepT').innerHTML='<tr><th>Report</th><th>Period</th><th style="text-align:right">Total cost</th><th>Made</th><th></th></tr>'+(L.length?L.map(r=>'<tr><td>'+esc(r.kind==='weekly'?'Weekly':r.kind==='monthly'?'Monthly':'Dates')+'</td><td>'+esc(dmy(r.from))+' to '+esc(dmy(r.to))+'</td><td class="num">'+money(r.tot)+'</td><td>'+esc(disp(r.at))+'</td><td><button class="btn alt" data-ro="'+esc(r.k)+'">Open / print</button> <button class="btn alt" data-rx="'+esc(r.k)+'">Excel</button></td></tr>').join(''):'<tr><td colspan="5" class="note">No report yet. The first one is made when a week or a month has ended.</td></tr>');}
+async function openReportFile(key,ext){const r=(DB.reports||[]).find(x=>x.k===key);if(!r)return;const nm=r.files.find(f=>f.endsWith('.'+ext));
+  try{const d=await repDir(),h=await d.getFileHandle(nm),f=await h.getFile();if(ext==='html'){const u=URL.createObjectURL(new Blob([await f.text()],{type:'text/html'}));window.open(u,'_blank');setTimeout(()=>URL.revokeObjectURL(u),60000);}else download(nm,new Uint8Array(await f.arrayBuffer()));}
+  catch(e){alert('The file '+nm+' was not found in the folder “reports”.');}}
+
+// ---- weekly count suggestion
+function suggestCount(n){const since=addDays(-30),cost=new Map(),lastC=new Map();
+  DB.ledger.forEach(x=>{if(x.type==='OUT'&&x.t.slice(0,10)>=since){const pp=unitPx(x);cost.set(x.ir,(cost.get(x.ir)||0)+(pp==null?0:-x.qty*pp)+(pp==null?-x.qty*0.001:0));}if(x.type==='COUNT')lastC.set(x.ir,x.t.slice(0,10));});
+  const c1=Object.keys(DB.flags).filter(ir=>totalOf(ir)>0).map(ir=>({ir,why:'needs a real count',last:lastC.get(ir)||''}));
+  const c2=[...cost.entries()].filter(e=>totalOf(e[0])>0&&!(lastC.get(e[0])&&lastC.get(e[0])>=since)&&!DB.flags[e[0]]).sort((a,b)=>b[1]-a[1]).map(e=>({ir:e[0],why:'high use, not counted in the last 30 days',last:lastC.get(e[0])||''}));
+  return c1.concat(c2).slice(0,n);}
+// ---- health checks
+async function healthRows(){const o=[],ok=(t)=>o.push({c:'st-ok',t}),w=(t)=>o.push({c:'st-err',t});
+  try{const b=await listBackups();if(!b.length)w('No backup yet in the folder “backups”.');else{const a=(Date.now()-b[0].t)/864e5;if(a>2)w('The newest backup is '+Math.floor(a)+' days old ('+b[0].name+').');else ok('Backup is up to date ('+b[0].name+').');}}catch(e){w('The backup folder cannot be read: '+(e.message||e.name));}
+  if(!DB.recovery)w('No recovery key yet: make one in Settings > Unit and safety.');else ok('Recovery key exists.');
+  if(!phOk()){if(window.CCSD_DEMO)ok('Demo: no phones are linked (optional).');else w('The phones are not linked (Settings > Phones).');}else{const a=ageDays(PH.stockAt);if(a==null)w('The stock was never sent to the phones.');else if(a>2)w('The stock on the phones is '+Math.floor(a)+' days old: sign in again or check the internet.');else ok('Phones linked, stock sent '+disp(PH.stockAt)+'.');if(DB.markQueue&&DB.markQueue.length)w(DB.markQueue.length+' posting(s) are waiting to be sent to the phones.');}
+  const np=DB.items.filter(i=>totalOf(i.ir)>0&&(i.price==null||i.price==='')).length;if(np)w(np+' item'+(np===1?'':'s')+' with stock have no price: costs and values are too low. Fix in Items.');else ok('All items with stock have a price.');
+  const lc=DB.ledger.filter(x=>x.type==='COUNT').pop();if(!lc)w('No inventory count was posted yet.');else{const a=daysBetween(lc.t.slice(0,10),today());if(a>35)w('The last inventory count was '+a+' days ago.');else ok('Last inventory count: '+disp(lc.t)+'.');}
+  if(autoReports.err)w('The automatic report could not be saved: '+autoReports.err);
+  return o;}
+
 // ---------------------------------------------------------------- dashboard
 PAGES.dash=async()=>{
-  const lines=Object.keys(DB.stock).length,units=Object.values(DB.stock).reduce((a,b)=>a+b,0),nf=Object.keys(DB.flags).length;
-  $('main').innerHTML='<div class="tiles">'
+  const lines=Object.keys(DB.stock).length,units=Object.values(DB.stock).reduce((a,b)=>a+b,0),nf=Object.keys(DB.flags).length,t0=today();
+  const C7=costBetween(addDays(-6),t0),C30=costBetween(addDays(-29),t0),M0=costBetween(monthRange(0).from,t0),M1=costBetween(monthRange(-1).from,monthRange(-1).to),EV=expiryValue();
+  const ctile=(k,c,sub)=>'<div class="tile" style="--c:var(--out)"><div class="k">'+k+'</div><div class="v" style="font-size:22px">'+money(c.out+c.wo)+'</div><div class="s">Stock Out '+money(c.out)+' ('+c.outQty+' units)'+(c.wo?' · Write Off '+money(c.wo):'')+(c.noPrice?' · <span class="st-err">'+c.noPrice+' no price</span>':'')+'</div></div>';
+  const bud=DB.settings&&+DB.settings.budget>0?+DB.settings.budget:0,used=M0.out+M0.wo;
+  const wk=[];for(let i=-11;i<=0;i++){const r=weekRange(i),c=costBetween(r.from,r.to);wk.push({from:r.from,out:c.out,wo:c.wo});}
+  const mx=Math.max(1,...wk.map(x=>x.out+x.wo)),bw=40,gx=8;
+  const chart='<svg viewBox="0 0 '+(wk.length*(bw+gx))+' 150" style="width:100%;max-width:760px;height:auto" role="img" aria-label="Weekly cost, last 12 weeks">'+wk.map((x,i)=>{const h1=x.out/mx*100,h2=x.wo/mx*100,X=i*(bw+gx);return '<g><title>'+esc('Week from '+dmy(x.from)+': Stock Out '+money(x.out)+', Write Off '+money(x.wo))+'</title><rect x="'+X+'" y="'+(110-h1-h2)+'" width="'+bw+'" height="'+h2+'" fill="var(--wo)"/><rect x="'+X+'" y="'+(110-h1)+'" width="'+bw+'" height="'+h1+'" fill="var(--out)"/><text x="'+(X+bw/2)+'" y="126" font-size="9" text-anchor="middle" fill="currentColor">'+esc(dmy(x.from).slice(0,5))+'</text>'+((x.out+x.wo)>0?'<text x="'+(X+bw/2)+'" y="'+(106-h1-h2)+'" font-size="8" text-anchor="middle" fill="currentColor">'+Math.round(x.out+x.wo)+'</text>':'')+'</g>';}).join('')+'</svg>';
+  const top=[...C30.byItem.entries()].map(([ir,o])=>({ir,t:o.out+o.wo,q:o.outQty+o.woQty})).sort((a,b)=>b.t-a.t).slice(0,10);
+  const run=daysOfStock().filter(r=>r.days<=14).slice(0,10);
+  const sg=suggestCount(8);
+  $('main').innerHTML=(window.CCSD_DEMO?demoCard():'')+'<div class="tiles">'
+    +ctile('Last 7 days',C7)+ctile('Last 30 days',C30)+ctile('This month',M0)+ctile('Last month',M1)+'</div>'
+    +'<div class="tiles">'
     +'<div class="tile" style="--c:var(--items)"><div class="k">Items in the master list</div><div class="v">'+DB.items.length+'</div></div>'
     +'<div class="tile" style="--c:var(--inv)"><div class="k">Stock</div><div class="v">'+units+'</div><div class="s">'+lines+' item / expiry lines'+(lines?' · value '+money(stockValue()):' · load the starting stock in Inventory')+'</div></div>'
-    +'<div class="tile" style="--c:var(--out)"><div class="k">Below minimum</div><div class="v">'+invRows().filter(r=>r.low).length+'</div></div>'
-    +'<div class="tile" style="--c:var(--cnt)"><div class="k">Expired / expiring in 90 days</div><div class="v">'+invRows().filter(r=>r.expd).length+' / '+invRows().filter(r=>r.soon).length+'</div></div>'
+    +'<div class="tile" style="--c:var(--out)"><div class="k">Below minimum</div><div class="v">'+invRows().filter(r=>r.low).length+'</div><div class="s">'+run.length+' with 14 days of stock or less</div></div>'
+    +'<div class="tile" style="--c:var(--cnt)"><div class="k">Expired / expiring in 90 days</div><div class="v">'+invRows().filter(r=>r.expd).length+' / '+invRows().filter(r=>r.soon).length+'</div><div class="s">value '+money(EV.ex)+' / '+money(EV.so)+'</div></div>'
     +'<div class="tile" style="--c:var(--cnt)"><div class="k">Needs a real count</div><div class="v">'+nf+'</div></div>'
     +'<div class="tile" style="--c:var(--users)"><div class="k">Users</div><div class="v">'+DB.users.filter(u=>u.active).length+'</div></div></div>'
-    +'<div class="card"><h3>Data</h3><table class="t"><tr><td style="width:220px">Data folder</td><td><b>'+esc(DIR.name)+'</b> · file '+DATA+'</td></tr><tr><td>Last saved</td><td>'+esc(disp(DB.savedAt))+' by '+esc(DB.savedBy||'')+'</td></tr><tr><td>Newest backup</td><td id="dBk">…</td></tr><tr><td>Data file created</td><td>'+esc(disp(DB.created))+'</td></tr><tr><td>Phones</td><td>'+(phOk()?'linked to <b>'+esc(PH.unitName||PH.unitId||'')+'</b> · stock sent '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+(DB.markQueue&&DB.markQueue.length?' · <span class="st-err">'+DB.markQueue.length+' posting(s) waiting to be sent</span>':''):'not linked (Settings > Phones)')+'</td></tr></table></div>'
-    +'<div class="card"><h3>CCS Desk '+VERSION+'</h3><p class="note" style="margin:0">Inventory (stock per item and expiry date) · Stock In, Stock Out, Write Off (by hand or from Excel) · Inventory Count (by hand, from Excel, or straight from the phones) · lists of the phones with one button · stock shown on the phones · shelf labels · Transaction Log · Reports: stock and value, expiring soon, monthly use, order list, write offs, movements · daily backups in the data folder.</p></div>';
+    +'<div class="card"><h3>Monthly budget</h3>'+(bud?'<div style="background:#e8ecf1;border-radius:8px;height:18px;overflow:hidden;max-width:560px"><div id="dBud" style="height:100%;width:'+Math.min(100,Math.round(used/bud*100))+'%;background:'+(used>bud?'var(--wo)':used>bud*0.8?'#d49a1a':'var(--out)')+'"></div></div><p style="margin:6px 0 0">'+money(used)+' of '+money(bud)+' · <b>'+Math.round(used/bud*100)+'%</b> used this month (Stock Out + Write Off)'+(used>bud?' · <span class="st-err">over the budget</span>':'')+'</p>':'<p class="note" style="margin:0">No budget set.</p>')+(ME.role==='admin'?'<div style="margin-top:8px"><button class="btn alt" id="dBudSet">'+(bud?'Change':'Set')+' the monthly budget</button></div>':'')+'</div>'
+    +'<div class="card"><h3>Cost between two dates</h3><div class="row filt"><div><label>From</label><input type="date" id="dcF" value="'+addDays(-29)+'"></div><div><label>To</label><input type="date" id="dcT" value="'+t0+'"></div><div><label>&nbsp;</label><button class="btn" id="dcGo">Calculate</button></div><div><label>&nbsp;</label><button class="btn alt" id="dcRep">Open the full report</button></div></div><div id="dcOut" style="margin-top:8px"></div></div>'
+    +'<div class="card"><h3>Cost per week, last 12 weeks</h3>'+chart+'<p class="note" style="margin:4px 0 0">Red part: Stock Out · purple part: Write Off. Weeks run Sunday to Saturday.</p></div>'
+    +'<div class="card"><h3>Top 10 items by cost, last 30 days</h3><table class="t"><tr><th>Item</th><th style="text-align:right">Qty</th><th style="text-align:right">Cost</th></tr>'+(top.length?top.map(x=>{const it=itemOf(x.ir);return '<tr><td>'+esc(it?it.name:x.ir)+'<div class="lots mono">'+esc(x.ir)+'</div></td><td class="num">'+x.q+'</td><td class="num">'+money(R2(x.t))+'</td></tr>';}).join(''):'<tr><td colspan="3" class="note">No Stock Out in the last 30 days.</td></tr>')+'</table></div>'
+    +'<div class="card"><h3>Running out soon (14 days of stock or less)</h3><table class="t"><tr><th>Item</th><th style="text-align:right">Stock</th><th style="text-align:right">Use / day</th><th style="text-align:right">Days left</th></tr>'+(run.length?run.map(r=>'<tr><td>'+esc(r.name)+'<div class="lots mono">'+esc(r.ir)+'</div></td><td class="num">'+r.stock+'</td><td class="num">'+(Math.round(r.avg*10)/10)+'</td><td class="num"><b class="'+(r.days<=3?'st-err':'')+'">'+(Math.round(r.days*10)/10)+'</b></td></tr>').join(''):'<tr><td colspan="4" class="note">Nothing is running out within 14 days.</td></tr>')+'</table><p class="note" style="margin:6px 0 0">Based on the Stock Out of the last 30 days. Full list: Reports > Days of stock.</p></div>'
+    +'<div class="card"><h3>Check these items on the shelf this week</h3><table class="t"><tr><th>Item</th><th style="text-align:right">System stock</th><th>Why</th><th>Last counted</th></tr>'+(sg.length?sg.map(x=>{const it=itemOf(x.ir);return '<tr><td>'+esc(it?it.name:x.ir)+'<div class="lots mono">'+esc(x.ir)+'</div></td><td class="num">'+totalOf(x.ir)+'</td><td>'+esc(x.why)+'</td><td>'+(x.last?esc(dmy(x.last)):'never')+'</td></tr>';}).join(''):'<tr><td colspan="4" class="note">Nothing to suggest.</td></tr>')+'</table>'+(sg.length&&canEdit()?'<div style="margin-top:8px"><button class="btn" id="dSug">Add these to the Count list</button></div>':'')+'</div>'
+    +'<div class="card"><h3>Checks</h3><div id="dHealth" class="note">…</div></div>'
+    +'<div class="card"><h3>Reports</h3><p class="note" style="margin:0 0 8px">A weekly report (Sunday to Saturday) and a monthly report are made by themselves the first time CCS Desk is opened after the week or month has ended. The files (Excel and a page to print or save as PDF) are in the folder <b>reports</b> inside the data folder. Send them by e-mail or Teams, or share the OneDrive link.</p><table class="t" id="dRepT"></table>'
+    +(canEdit()?'<div class="row filt" style="margin-top:10px"><div><label>From</label><input type="date" id="dpF" value="'+addDays(-29)+'"></div><div><label>To</label><input type="date" id="dpT" value="'+t0+'"></div><div><label>&nbsp;</label><button class="btn alt" id="dpGo">Create a report for these dates</button></div></div><div class="msg" id="dpMsg"></div>':'')+'</div>'
+    +'<div class="card"><h3>Data</h3><table class="t"><tr><td style="width:220px">Data folder</td><td><b>'+esc(DIR.name)+'</b> · file '+DATA+'</td></tr><tr><td>Last saved</td><td>'+esc(disp(DB.savedAt))+' by '+esc(DB.savedBy||'')+'</td></tr><tr><td>Newest backup</td><td id="dBk">…</td></tr><tr><td>Data file created</td><td>'+esc(disp(DB.created))+'</td></tr><tr><td>Phones</td><td>'+(phOk()?'linked to <b>'+esc(PH.unitName||PH.unitId||'')+'</b> · stock sent '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+(DB.markQueue&&DB.markQueue.length?' · <span class="st-err">'+DB.markQueue.length+' posting(s) waiting to be sent</span>':''):'not linked (Settings > Phones)')+'</td></tr></table></div>';
+  repTable();
+  const calc=()=>{const f=$('dcF').value,t=$('dcT').value;if(!f||!t||f>t){$('dcOut').innerHTML='<span class="st-err">Choose the dates: From must not be after To.</span>';return;}const R=costBetween(f,t);
+    $('dcOut').innerHTML='Stock Out <b>'+money(R.out)+'</b> ('+R.outQty+' units) · Write Off <b>'+money(R.wo)+'</b> ('+R.woQty+' units) · <b>Total '+money(R.out+R.wo)+'</b>'+(R.noPrice?' · <span class="st-err">'+R.noPrice+' line'+(R.noPrice===1?'':'s')+' without a price are not in the total</span>':'');};
+  calc();$('dcGo').onclick=calc;$('dcRep').onclick=()=>{REPF.from=$('dcF').value;REPF.to=$('dcT').value;REPF.r='cost';go('rep');};
+  if($('dBudSet'))$('dBudSet').onclick=()=>{modal('<h1>Monthly budget</h1><p class="sub">The amount for consumables of this unit per month, in QAR. The dashboard shows how much is used (Stock Out + Write Off). Empty = no budget.</p><label>Budget (QAR)</label><input type="number" id="bgV" min="0" step="1" value="'+(bud||'')+'"><div class="row" style="margin-top:12px"><button class="btn" id="bgS">Save</button><button class="btn alt" id="bgC">Cancel</button></div><div class="msg" id="mmsg"></div>');
+    $('bgC').onclick=closeModal;$('bgS').onclick=async()=>{const v=$('bgV').value.trim();if(v!==''&&!(+v>=0)){mmsg('err','Type a number.');return;}if(!DB.settings)DB.settings={};DB.settings.budget=v===''?0:+v;audit('BUDGET','monthly budget '+(v||'removed'));await save();closeModal();PAGES.dash();};};
+  if($('dSug'))$('dSug').onclick=()=>{sg.forEach(x=>{if(CDRAFT.lines.some(l=>l.ir===x.ir))return;const lots=lotsOf(x.ir);(lots.length?lots:[{exp:'',qty:0,lot:''}]).forEach(l=>CDRAFT.lines.push({ir:x.ir,exp:l.exp,qty:'',lot:l.lot||'',src:'hand'}));});go('cnt');};
+  $('dRepT').addEventListener('click',e=>{const a=e.target.closest('button[data-ro]'),b=e.target.closest('button[data-rx]');if(a)openReportFile(a.dataset.ro,'html');if(b)openReportFile(b.dataset.rx,'xlsx');});
+  if($('dpGo'))$('dpGo').onclick=async()=>{const f=$('dpF').value,t=$('dpT').value,m=$('dpMsg');if(!f||!t||f>t){m.className='msg err';m.textContent='Choose the dates: From must not be after To.';return;}
+    try{const D=await writeReport('custom',f,t,'C'+f+'_'+t,'Report',"CCS_Desk_report_"+f+"_to_"+t);await save();repTable();m.className='msg ok';m.textContent='Report saved in the folder “reports”: total cost '+money(D.tot)+'. Press Open / print in the list.';}catch(e){m.className='msg err';m.textContent='The report could not be saved: '+(e.message||e.name);}};
   try{const b=await listBackups();$('dBk').textContent=b.length?b[0].name+' ('+b.length+' backup'+(b.length===1?'':'s')+')':'none yet';}catch(e){$('dBk').textContent='-';}
+  healthRows().then(h=>{if($('dHealth'))$('dHealth').innerHTML=h.map(x=>'<div class="'+x.c+'" style="margin:3px 0">'+(x.c==='st-ok'?'✔ ':'⚠ ')+esc(x.t)+'</div>').join('');});
+  if($('dmList'))$('dmList').onclick=()=>demoRegen(true);if($('dmReset'))$('dmReset').onclick=()=>demoRegen(false);
+  autoReports();
+};
+
+// ---------------------------------------------------------------- DEMO / training unit (only when the page is opened as /demo/)
+const DEMO_USERS=[{u:'900001',name:'Demo Admin',role:'admin',pw:'DemoAdmin2026'},{u:'900002',name:'Demo Charge Nurse',role:'charge',pw:'DemoCharge2026'}],DEMO_KEY='DEMA-KEY2-3456-789A';
+const DEMO_NOTE='<div class="msg ok" style="display:block;margin-top:12px"><b>DEMO / training unit.</b> The data is made up. Sign in with:<br>Demo Admin: <b>DemoAdmin2026</b><br>Demo Charge Nurse: <b>DemoCharge2026</b><br>Recovery key: <b>'+DEMO_KEY+'</b></div>';
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function demoGenerate(D,itemsList,days){
+  days=days||365;const rnd=mulberry(20261116),ri=(a,b)=>a+Math.floor(rnd()*(b-a+1)),pick=a=>a[Math.floor(rnd()*a.length)];
+  const STAFF=['Ann','Sara','Noura','Mariam','Joseph','Leila','Omar','Fatima','Rhea'];
+  D.items=itemsList.map(x=>Object.assign({},x));
+  const okP=i=>i.price!=null&&i.price!==''&&+i.price>0,shuf=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  let ch=shuf(D.items.filter(okP)).slice(0,70);if(ch.length<45)ch=ch.concat(shuf(D.items.filter(i=>!okP(i))).slice(0,45-ch.length));
+  const P=ch.map(it=>{let lam=Math.exp(Math.log(0.15)+rnd()*(Math.log(12)-Math.log(0.15)));if(!okP(it))it.price=Math.round((1.5+rnd()*58)*4)/4;lam=lam/(1+(+it.price)/40);lam=Math.max(0.12,lam);const slow=rnd()<0.2;if(slow)lam=Math.max(0.06,lam*0.1);
+    const rise=rnd()<0.25,p0=+it.price,p1=rise?Math.round(p0*1.06*100)/100:p0;if(rise)it.price=p1;
+    const mn=Math.max(2,Math.ceil(lam*10)),mx=Math.max(mn+3,Math.ceil(lam*32));if(it.min==null||it.min==='')it.min=mn;if(it.max==null||it.max==='')it.max=mx;
+    return{it,lam,slow,p0,p1,rise,mn:+it.min,mx:Math.max(+it.max,+it.min+3),life:ri(8,30),lots:[]};});
+  const led=[],stamp=(ds,h,m,s)=>ds+' '+pad2(h)+':'+pad2(m)+':'+pad2(s||0);let seq=0;
+  const push=(o)=>{seq++;o.id=seq;led.push(o);};
+  const dayIso=n=>addDays(n-days),lotNo=ds=>'L'+ds.slice(2,4)+ds.slice(5,7)+'-'+ri(100,999);
+  const tot=p=>p.lots.reduce((a,l)=>a+l.q,0),px=(p,d)=>p.rise&&d>days*0.52?p.p1:p.p0;
+  const refOf=(ty,ds,h)=>ty+'-'+ds.replace(/-/g,'')+pad2(h)+'0000';
+  const take=(p,q,ds,d,type,by,note,reason)=>{p.lots.sort((a,b)=>a.exp.localeCompare(b.exp));let rem=q;const ref=refOf(type==='OUT'?'OUT':'WO',ds,8);
+    for(const l of p.lots){if(rem<=0)break;const u=Math.min(rem,l.q);if(u<=0)continue;l.q-=u;rem-=u;
+      push({t:stamp(ds,ri(7,9),ri(0,59),ri(0,59)),type,ir:p.it.ir,exp:l.exp,qty:-u,bal:l.q,by,posted:'900002',ref,note:note||'',pr:px(p,d),lot:l.lot,sc:d>0?stamp(dayIso(d-1),ri(14,22),ri(0,59),ri(0,59)):undefined});}
+    p.lots=p.lots.filter(l=>l.q>0);};
+  // starting stock
+  const d0=dayIso(0);P.forEach(p=>{const q=p.slow?ri(8,40):Math.max(3,Math.ceil(p.lam*25)),exp=addDaysIso(d0,p.slow?ri(80,300):ri(200,520)),lot=lotNo(d0);p.lots.push({exp,q,lot});
+    push({t:stamp(d0,7,0,0),type:'OPEN',ir:p.it.ir,exp,qty:q,bal:q,by:'Demo Admin',posted:'900001',ref:'OPEN-'+d0.replace(/-/g,'')+'0700',note:'starting stock',lot});});
+  for(let d=1;d<=days;d++){const ds=dayIso(d),dt=new Date(ds+'T12:00:00'),dow=dt.getDay(),dom=dt.getDate(),season=1+0.15*Math.sin(2*Math.PI*d/365);
+    P.forEach(p=>{
+      // expired lots, distribution of near-expiry lots, damage
+      p.lots.slice().forEach(l=>{if(l.exp<ds&&l.q>0){take1(p,l,l.q,ds,d,'WO1','');}else if(l.q>2&&l.exp<=addDaysIso(ds,30)&&rnd()<0.04){take1(p,l,ri(1,Math.ceil(l.q/2)),ds,d,'WO2','');}});
+      if(tot(p)>3&&rnd()<0.004)take(p,ri(1,3),ds,d,'WO4',pick(STAFF),'');
+      // use
+      if(rnd()<Math.min(0.95,0.25+p.lam/4)){const q=Math.max(1,Math.round(p.lam*season*(0.4+1.2*rnd())));const by=pick(STAFF);if(q>=4&&p.lam>2){const a=Math.ceil(q/2);take(p,a,ds,d,'OUT',by);take(p,q-a,ds,d,'OUT',pick(STAFF));}else take(p,q,ds,d,'OUT',by);}
+      // deliveries on Sunday and Wednesday
+      if((dow===0||dow===3)&&tot(p)<=p.mn){const q=p.mx-tot(p),exp=addDaysIso(ds,Math.round(p.life*30.4)+ri(-30,60)),lot=lotNo(ds),ex=p.lots.find(l=>l.exp===exp&&l.lot===lot);if(q>0){p.lots.push({exp,q,lot});
+        push({t:stamp(ds,10,ri(0,40)),type:'IN',ir:p.it.ir,exp,qty:q,bal:q,by:pick(STAFF),posted:'900002',ref:refOf('IN',ds,10),note:'central store',pr:px(p,d),lot});}}
+    });
+    // monthly inventory count, first day of the month
+    if(dom===1){const ref='CNT-'+ds.replace(/-/g,'')+'150000';shuf(P).slice(0,25).forEach(p=>{const s=tot(p);if(s<=0)return;let diff=0;if(rnd()>=0.65){diff=pick([-1,-1,-2,1,2,-3,-Math.ceil(s*0.05),Math.ceil(s*0.04)]);}
+        if(diff===0){push({t:stamp(ds,15,ri(0,30)),type:'COUNT',ir:p.it.ir,exp:'',qty:0,bal:s,by:pick(STAFF),posted:'900002',ref,note:'counted - same as the stock',pr:px(p,d),sc:stamp(ds,14,ri(0,59))});return;}
+        p.lots.sort((a,b)=>a.exp.localeCompare(b.exp));const l=diff<0?p.lots[0]:p.lots[p.lots.length-1],nq=Math.max(0,l.q+diff),df=nq-l.q;l.q=nq;
+        push({t:stamp(ds,15,ri(0,30)),type:'COUNT',ir:p.it.ir,exp:l.exp,qty:df,bal:nq,by:pick(STAFF),posted:'900002',ref,note:'counted '+nq+' (was '+(nq-df)+')',pr:px(p,d),lot:l.lot,sc:stamp(ds,14,ri(0,59))});p.lots=p.lots.filter(x=>x.q>0);});}
+  }
+  function take1(p,l,q,ds,d,type,by){l.q-=q;push({t:stamp(ds,ri(7,9),ri(0,59),ri(0,59)),type,ir:p.it.ir,exp:l.exp,qty:-q,bal:l.q,by:by||pick(STAFF),posted:'900002',ref:refOf('WO',ds,8),note:'',pr:px(p,d),lot:l.lot});p.lots=p.lots.filter(x=>x.q>0);}
+  D.ledger=led;D.seq=seq;D.stock={};D.lots={};P.forEach(p=>p.lots.forEach(l=>{if(l.q>0){const k=p.it.ir+'|'+l.exp;D.stock[k]=(D.stock[k]||0)+l.q;D.lots[k]=l.lot;}}));
+  D.flags={};shuf(P).slice(0,3).forEach(p=>{D.flags[p.it.ir]={reason:'taken more than the stock (adjustment)',by:'900002',at:stamp(dayIso(days-3),9,0,0)};});
+  D.pins=P.slice().sort((a,b)=>b.lam-a.lam).slice(0,8).map(p=>p.it.ir);D.stockSince=stamp(d0,0,0,0);D.imports=[];D.markQueue=[];D.reports=[];D.audit=D.audit||[];
+  return P.length;}
+function addDaysIso(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
+async function demoReports(){for(let i=1;i<=12;i++){const m=monthRange(-i);await writeReport('monthly',m.from,m.to,'M'+m.from.slice(0,7),'Monthly report','CCS_Desk_monthly_'+m.from.slice(0,7));}
+  for(let i=1;i<=8;i++){const w=weekRange(-i);await writeReport('weekly',w.from,w.to,'W'+w.from,'Weekly report','CCS_Desk_weekly_'+w.from+'_to_'+w.to);}}
+async function demoSetup(){
+  screen('<h1>DEMO unit</h1><p class="sub">Making 12 months of sample data… one moment.</p>');
+  const now=nowStamp(),users=[];
+  for(const d of DEMO_USERS){const salt=newSalt();users.push({u:d.u,name:d.name,role:d.role,corp:d.u,salt,hash:await pwHash(d.pw,salt),active:true,created:now,last:now});}
+  DB={app:'CCS Desk',fmt:1,unit:'DEMO UNIT',created:now,seq:0,users,items:[],stock:{},flags:{},pins:[],ledger:[],audit:[],settings:{idleMin:240,backupDays:7,offlineDays:3650,v15:true,selfJoin:false,budget:0}};
+  const rs=newSalt();DB.recovery={salt:rs,hash:await pwHash(normKey(DEMO_KEY),rs),made:now,by:'900001'};
+  demoGenerate(DB,BUILTIN.map(a=>({ir:a[0],name:a[1],unit:a[2]||'',loc:a[3]||'',price:a[4],max:a[5],min:a[6],alias:a[7]||''})));
+  FILEH=await DIR.getFileHandle(DATA,{create:true});lastMod=0;ME=DB.users[0];
+  const bud=costBetween(monthRange(-1).from,monthRange(-1).to);DB.settings.budget=Math.ceil((bud.out+bud.wo)*1.05/100)*100;
+  audit('SETUP','DEMO data file created');await save(true);
+  try{await demoReports();}catch(e){}
+  await save();ME=null;loginScreen('ok','Demo data is ready.');
+}
+async function demoRegen(fromList){
+  if(!confirm((fromList?'Make 12 months of sample data from the CURRENT master list ('+DB.items.length+' items)?':'Reset the demo to the original list and sample data?')+'\n\nThe stock, all movements and all reports of this DEMO unit are replaced. Users and passwords stay.'))return;
+  const keep=fromList?DB.items.map(x=>Object.assign({},x)):BUILTIN.map(a=>({ir:a[0],name:a[1],unit:a[2]||'',loc:a[3]||'',price:a[4],max:a[5],min:a[6],alias:a[7]||''}));
+  if(!keep.length){alert('The master list is empty. Load a list in Items first.');return;}
+  $('main').innerHTML='<div class="card"><h3>Making the sample data…</h3><p class="note">12 months of Stock In, Stock Out, Write Off, counts and the reports. One moment.</p></div>';
+  await new Promise(r=>setTimeout(r,50));
+  try{const rd=await DIR.getDirectoryHandle('reports');for await(const [n] of rd.entries())await rd.removeEntry(n);}catch(e){}
+  const n=demoGenerate(DB,keep);audit('DEMO','sample data made: '+n+' items, '+DB.ledger.length+' lines');
+  const bud=costBetween(monthRange(-1).from,monthRange(-1).to);DB.settings.budget=Math.ceil((bud.out+bud.wo)*1.05/100)*100;
+  try{await demoReports();}catch(e){}
+  await save();go('dash');}
+function demoCard(){return '<div class="card" style="border:2px solid #d49a1a"><h3>DEMO unit: made-up data for training and for showing managers</h3><p class="note" style="margin:0 0 8px">12 months of Stock In, Stock Out, Write Off, LOT numbers, counts and prices. Nothing here is real and nothing is sent to the real phones. Everything works as in the real CCS Desk.</p><ol class="note" style="margin:0 0 10px 18px;padding:0"><li>Dashboard: cost cards, budget, 12-week chart, top items, running out, checks.</li><li>Reports: monthly and weekly reports (Open / print), Cost by item and per day, Days of stock, Count differences.</li><li>Inventory and Transaction Log: LOT, expiry dates, search, Excel.</li><li>Stock Out / Write Off / Inventory Count: try posting, not enough stock, duplicates.</li><li>Items > Print labels.</li></ol>'+(ME.role==='admin'?'<div class="row"><button class="btn" id="dmList">Make sample data from the current master list</button><button class="btn alt" id="dmReset">Reset the demo</button></div><p class="note" style="margin:6px 0 0">Load your own list with prices first (Items > Load master list), then press the first button.</p>':'<p class="note" style="margin:0">Sign in as Demo Admin to reset the demo.</p>')+'</div>';}
+
+// ---------------------------------------------------------------- help
+const HELP=[
+ ['Every day: from the phones to CCS Desk',['On the phones the staff scan items. In CCS Desk open <b>Stock In</b>, <b>Stock Out</b> or <b>Write Off</b> and press <b>From phones</b>.','Check the lines (expiry, qty, LOT) and the Check column, then press <b>Post</b>. The phones are told these lines are done.','Press <b>Excel for CCS</b> (Last postings) and import that file in the hospital CCS if you still keep CCS up to date.','A line you remove with ✕ or Clear list does not come back with From phones. The link “Bring back the lines I removed” brings them back.']],
+ ['Not enough stock in the Check column',['CCS Desk never goes below zero. For the item, type what is on the shelf now (after this posting): quantity and expiry date, and use <b>+</b> for more expiry dates, then <b>Set</b>.','It is saved as an inventory count of that item, with the time.','If you do not count it, Post asks once and writes an adjustment; the item is marked “needs a real count”.']],
+ ['Inventory Count',['Add items, type the counted quantity per expiry date (0 if none). “＋ another expiry date” adds a line.','The count REPLACES the stock of the item. Big differences (over 20% and 3 units) ask for a second look.','<b>Counts from phones</b> loads the counts made on the phones. Counts older than the starting stock are not offered.','A full count: tick “Full count”; items not in the list become 0.']],
+ ['LOT number',['Optional. Type it in Stock In, Stock Out, Write Off and Inventory Count, or use a column LOT in the Excel file.','CCS Desk remembers the LOT of each item and expiry date and shows it in Inventory and the Transaction Log.']],
+ ['Cost, dashboard and reports',['The dashboard shows the cost of the last 7 and 30 days, this month and last month, a 12-week chart, the top 10 items, items running out and the budget.','<b>Cost between two dates</b> gives any period; <b>Open the full report</b> shows it by item. Reports has Cost by item, Cost per day, Days of stock and Count differences.','Cost = Stock Out (and Write Off) quantity × the unit price kept at the time of posting. Items without a price are counted and warned about: fill the price in Items.','The weekly (Sunday to Saturday) and monthly reports are made by themselves when CCS Desk is opened after the period ends. They are in the folder <b>reports</b> of the data folder. Send them from OneDrive, e-mail or Teams.']],
+ ['Labels',['Items > <b>Print labels</b>. Choose all, only items with stock, or selected items (search and tick).','Paper: narrow lab sticker (type width and height) or an A4 label sheet (3 × 10). “Start at label number” uses a partly used sheet.','Printing uses the printers installed on the computer. Add a network (IP) printer once in Windows, then choose it in the print window. Scale 100%, margins none.']],
+ ['Sign in, lock, forgot password',['Sign in with your CCS Scan Helper account (Corp No. and app password). The screen locks after 60 minutes; your work stays.','Forgot the app password: delete your row in the Users sheet of the unit Google Sheet and make the account again in the app.','Nobody can sign in: Forgot password? on the sign-in screen, with the 16-character recovery key (Settings > Unit and safety).']],
+ ['Backups and restore',['A backup of the data file is made every day in the folder <b>backups</b> (the last 30 are kept). Keep the data folder inside the hospital OneDrive.','Settings > Data folder and backups: restore a backup. Do not work on the same data folder on two computers at the same time.']],
+ ['Messages and what to do',['<b>No available batch found for expiry</b> (in CCS): CCS has no stock with that exact expiry date. Fix the expiry in CCS Desk or add the stock in CCS first.','<b>Item not found</b>: the IR number is not in the CCS item list.','<b>already in CCS</b>: the line was imported in CCS on the phone SHARED tab; it is in the list for CCS Desk stock only and not in the Excel for CCS.','Duplicate lines (same item, expiry, quantity and scan time) are not listed twice.']],
+ ['Good habits',['Post every day. Count a few fast-moving items every week (the dashboard suggests them).','Keep prices in Items up to date. Check the “Checks” card on the dashboard.','No patient data in CCS Desk: only items, quantities, expiry dates, LOT and staff.']]];
+PAGES.help=()=>{
+  $('main').innerHTML='<div class="card"><div class="row"><div class="search"><input type="text" id="hQ" placeholder="Search the help, e.g. label, LOT, backup, expiry"></div></div><p class="note" style="margin:6px 0 0">CCS Desk '+VERSION+'</p></div><div id="hList"></div>';
+  const draw=()=>{const q=$('hQ').value.trim().toLowerCase();$('hList').innerHTML=HELP.filter(h=>!q||(h[0]+' '+h[1].join(' ')).toLowerCase().includes(q)).map((h,i)=>'<div class="card"><details'+(q||i===0?' open':'')+'><summary style="cursor:pointer;font-weight:700;font-size:15px">'+esc(h[0])+'</summary><ul style="margin:8px 0 0 18px;padding:0">'+h[1].map(x=>'<li style="margin:5px 0">'+x+'</li>').join('')+'</ul></details></div>').join('')||'<div class="card note">Nothing found.</div>';};
+  draw();$('hQ').addEventListener('input',draw);
 };
 
 // ---------------------------------------------------------------- inventory (stock per item + expiry date)
@@ -1178,7 +1400,7 @@ async function postMov(kind,draw){
   let plan=planPost(entries,pre,preX);
   if(plan.short){const r=await askShelf(plan.short);if(!r){$('pmsg').className='msg warn';$('pmsg').textContent='Cancelled - nothing was posted.';return;}plan=planPost(entries,Object.assign({},pre,r),preX);}
   const ref=MOV[kind].type+'-'+plan.now.replace(/\D/g,'').slice(0,14);
-  plan.led.forEach(x=>{DB.seq++;x.id=DB.seq;x.t=plan.now;x.by=x.by||ME.name;x.posted=ME.u;x.ref=ref;x.note=x.note||'';DB.ledger.push(x);});
+  plan.led.forEach(x=>{{const pp=priceOf(x.ir);if(pp!=null)x.pr=pp;}DB.seq++;x.id=DB.seq;x.t=plan.now;x.by=x.by||ME.name;x.posted=ME.u;x.ref=ref;x.note=x.note||'';DB.ledger.push(x);});
   plan.flags.forEach(f=>{DB.flags[f.ir]={reason:f.reason,by:ME.u,at:plan.now};});
   (plan.counted||[]).forEach(ir=>{delete DB.flags[ir];});
   DB.stock=plan.stock;if(!DB.lots)DB.lots={};Object.assign(DB.lots,plan.lotSet||{});pruneLots();
@@ -1304,7 +1526,7 @@ async function postCount(draw){
     if(!any)led.push({type:'COUNT',ir,exp:'',qty:0,bal:[...nw.values()].reduce((a,b)=>a+b,0),by,sc,note:(note?note+' · ':'')+'counted - same as the stock'});};
   ok.forEach(ir=>{const L=byIr.get(ir);apply(ir,L,(L.find(l=>l.by)||{}).by||ME.name);});
   zero.forEach(ir=>apply(ir,[],ME.name));
-  led.forEach(x=>{DB.seq++;x.id=DB.seq;x.t=now;x.posted=ME.u;x.ref=ref;DB.ledger.push(x);});
+  led.forEach(x=>{{const pp=priceOf(x.ir);if(pp!=null)x.pr=pp;}DB.seq++;x.id=DB.seq;x.t=now;x.posted=ME.u;x.ref=ref;DB.ledger.push(x);});
   [...ok,...zero].forEach(ir=>{delete DB.flags[ir];});DB.stock=st;pruneLots();
   if(!DB.imports)DB.imports=[];const seen=new Set();CDRAFT.lines.forEach(l=>{if(l.hash&&!l.err&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind:'cnt',t:now,u:ME.u,ref});}});
   const diff=led.reduce((a,x)=>a+x.qty,0);
@@ -1342,7 +1564,7 @@ PAGES.log=()=>{
 };
 
 // ---------------------------------------------------------------- STEP 5: REPORTS
-const REPS=[['stock','Stock on hand (with value)'],['exp','Expiring soon'],['use','Monthly use (Stock Out)'],['order','Order list (below minimum)'],['wo','Write offs'],['mov','Movements summary']];
+const REPS=[['stock','Stock on hand (with value)'],['exp','Expiring soon'],['use','Monthly use (Stock Out)'],['order','Order list (below minimum)'],['wo','Write offs'],['mov','Movements summary'],['cost','Cost by item'],['costd','Cost per day'],['days','Days of stock'],['diff','Count differences']];
 const REPF={r:'stock',win:90,old:true,months:6,from:'',to:''};
 PAGES.rep=()=>{
   if(!REPF.from){REPF.from=addDays(-30);REPF.to=today();}
@@ -1364,6 +1586,15 @@ const inRange=x=>{const d=x.t.slice(0,10);return(!REPF.from||d>=REPF.from)&&(!RE
 const priceOf=ir=>{const it=itemOf(ir);return it&&it.price!=null&&it.price!==''?+it.price:null;};
 function monthlyOut(ir,months){const since=addDays(-30*months);return DB.ledger.filter(x=>x.type==='OUT'&&x.ir===ir&&x.t>=since).reduce((a,x)=>a-x.qty,0)/months;}
 const REP={
+  cost:{par:dateRange,rows(){const R=costBetween(REPF.from,REPF.to),rows=[...R.byItem.entries()].map(([ir,o])=>{const it=itemOf(ir);return{ir,name:it?it.name:ir,unit:it?it.unit:'',outq:o.outQty,out:R2(o.out),woq:o.woQty,wo:R2(o.wo),tot:R2(o.out+o.wo)};}).sort((a,b)=>b.tot-a.tot);
+    return{title:'COST BY ITEM '+REPF.from+' TO '+REPF.to,info:'Stock Out <b>'+money(R.out)+'</b> ('+R.outQty+' units) · Write Off <b>'+money(R.wo)+'</b> ('+R.woQty+' units) · total <b>'+money(R.out+R.wo)+'</b>'+(R.noPrice?' · <span class="st-err">'+R.noPrice+' line'+(R.noPrice===1?'':'s')+' without a price are not in the total</span>':''),
+      cols:[['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10],['Stock Out qty','outq','n',12],['Stock Out cost','out','n',14],['Write Off qty','woq','n',12],['Write Off cost','wo','n',14],['Total cost','tot','n',14]],rows};}},
+  costd:{par:dateRange,rows(){const R=costBetween(REPF.from,REPF.to),rows=[...R.byDay.entries()].sort((a,b)=>a[0].localeCompare(b[0])).map(([d,o])=>({day:dmy(d),out:R2(o.out),wo:R2(o.wo),tot:R2(o.out+o.wo)}));
+    return{title:'COST PER DAY '+REPF.from+' TO '+REPF.to,info:rows.length+' days with movements · total <b>'+money(R.out+R.wo)+'</b>',cols:[['Date','day','s',14],['Stock Out cost','out','n',15],['Write Off cost','wo','n',15],['Total cost','tot','n',15]],rows};}},
+  days:{par:()=>'',rows(){const rows=daysOfStock().map(r=>({ir:r.ir,name:r.name,unit:r.unit,stock:r.stock,avg:Math.round(r.avg*10)/10,days:Math.round(r.days*10)/10,loc:r.loc}));
+    return{title:'DAYS OF STOCK',info:rows.length+' items used in the last 30 days · “Days left” = stock now ÷ average use per day (Stock Out, last 30 days). Shortest first.',cols:[['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10],['Location','loc','s',30],['Stock now','stock','n',10],['Use per day','avg','n',11],['Days left','days','n',10]],rows};}},
+  diff:{par:dateRange,rows(){let loss=0,gain=0;const rows=DB.ledger.filter(x=>x.type==='COUNT'&&x.qty!==0&&inRange(x)).map(x=>{const it=itemOf(x.ir),p=unitPx(x),v=p==null?'':R2(x.qty*p);if(v!==''){if(v<0)loss+=v;else gain+=v;}return{t:disp(x.t),ir:x.ir,name:it?it.name:x.ir,exp:x.exp?dmy(x.exp):'',qty:x.qty,val:v,by:x.by||'',ref:x.ref||''};}).reverse();
+    return{title:'COUNT DIFFERENCES '+REPF.from+' TO '+REPF.to,info:rows.length+' difference lines · missing <b class="st-err">'+money(loss)+'</b> · extra <b>'+money(gain)+'</b>',cols:[['When','t','s',17],['ir_number','ir','s',14],['item name','name','s',55],['Expiry','exp','s',12],['Difference (units)','qty','n',12],['Value (QAR)','val','n',12],['Counted by','by','s',16],['Reference','ref','s',20]],rows};}},
   stock:{par:()=>'',rows(){const rows=[];DB.items.forEach(it=>lotsOf(it.ir).forEach(l=>{const p=priceOf(it.ir);rows.push({ir:it.ir,name:it.name,unit:it.unit,loc:it.loc||'',exp:l.exp?dmy(l.exp):'',qty:l.qty,price:p==null?'':p,val:p==null?'':Math.round(l.qty*p*100)/100});}));
     const v=rows.reduce((a,r)=>a+(+r.val||0),0);return{title:'STOCK ON HAND',info:rows.length+' item / expiry lines · '+rows.reduce((a,r)=>a+r.qty,0)+' units · value <b>'+money(v)+'</b>',
       cols:[['ir_number','ir','s',14],['item name','name','s',60],['Qty_type','unit','s',10],['Location','loc','s',30],['Expiry','exp','s',12],['Qty','qty','n',8],['Unit Price','price','n',10],['Value (QAR)','val','n',12]],rows};}},
@@ -1416,6 +1647,7 @@ async function phInit(){try{PH=(await kvGet('phones'))||null;}catch(e){PH=null;}
 async function phSave(){try{await kvSet('phones',PH);}catch(e){}}
 const phOk=()=>!!(PH&&PH.url&&PH.token);
 async function phPost(action,extra,ms){
+  if(window.CCSD_DEMO&&!(PH&&/^demo/i.test(PH.unitId||'')))throw new Error('DEMO: it can be linked only to a demo unit.');
   if(!PH||!PH.url)throw new Error('CCS Desk is not linked to the phones yet (Settings > Phones).');
   const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),ms||30000);
   try{const body=Object.assign({},extra||{},{action},PH.token&&!('code' in (extra||{}))?{code:PH.token}:{},PH.unitId?{hubUnit:PH.unitId}:{});
@@ -1479,8 +1711,9 @@ async function phPullCount(draw){
 }
 // ---- Settings > Phones
 async function phSettings(box){
-  let units=[];if(location.protocol==='https:'){try{const r=await fetch('../config.json',{cache:'no-store'});const c=await r.json();units=(c.units||[]).filter(u=>u.id&&u.syncUrl);}catch(e){}}
+  let units=[];if(location.protocol==='https:'){try{const r=await fetch('../config.json',{cache:'no-store'});const c=await r.json();units=(c.units||[]).filter(u=>u.id&&u.syncUrl&&(!window.CCSD_DEMO||/^demo/i.test(u.id)));}catch(e){}}
   const draw=()=>{
+    if(window.CCSD_DEMO&&!units.length&&!phOk()){box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p class="note">The DEMO can be linked only to a demo unit of the phone app (a unit whose id starts with <b>demo</b> in config.json). No demo unit is set up yet, so the demo works without phones. It can never be linked to a real unit.</p>';return;}
     if(phOk()){box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p>Linked to <b>'+esc(PH.unitName||PH.unitId||'the unit')+'</b> as <b>'+esc(PH.name||'')+'</b> ('+esc(PH.corp||'')+', charge nurse). Last stock sent: '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+'.'+(DB.markQueue&&DB.markQueue.length?' <span class="st-err">'+DB.markQueue.length+' posting(s) not yet sent to the phones.</span>':'')+'</p>'
         +'<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="phAuto"'+(PH.auto===false?'':' checked')+'> Send the stock to the phones after every posting</label>'
         +'<p class="note">Photos and second names from the phones: '+Object.keys(MEDIA.ph).length+' photos, '+Object.keys(MEDIA.sn).length+' second names (updated every 30 minutes).</p>'+'<div class="row" style="margin-top:10px"><button class="btn" id="phSend">Send the stock now</button><button class="btn alt" id="phMedia">Get photos and names now</button><button class="btn alt" id="phOut">Unlink</button></div><div class="msg" id="phMsg"></div>';
