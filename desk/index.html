@@ -104,7 +104,7 @@ tr.errrow td{background:#fff5f5}
 body.locked #modal{display:none!important}
 #uTab .pill{white-space:nowrap}
 #printArea{display:none}@media print{body.printkey>*{display:none!important}body.printkey>#printArea{display:block!important;padding:30px;font-size:15px}body.printkey .keybox{font-size:30px}}
-#mTab select.ms{min-width:230px}#mTab input.me{min-width:170px}#mTab input.mq{width:76px}#mTab td.stc{min-width:190px}
+#mTab select.ms{min-width:230px}#mTab input.me{min-width:170px}#mTab input.mq{width:76px}#mTab td.stc{min-width:190px}.shrows{display:flex;flex-direction:column;gap:4px}.shr{display:flex;gap:6px}.shelf input.shl{width:96px!important}.shelf .shp{font-weight:700;padding:4px 12px}
 #nav button svg{width:18px;height:18px;flex:0 0 18px;stroke:var(--c);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .shelf{margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--ink)}.shelf input{width:74px!important}.shelf input.she{width:118px!important}.shelf .btn{padding:4px 10px}.shelf a{cursor:pointer;text-decoration:underline}
 .drafthead{display:flex;align-items:center;gap:10px;margin-bottom:8px}.drafthead h3{margin:0}
@@ -135,7 +135,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='1.7';
+const VERSION='1.9';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -848,6 +848,13 @@ async function dailyBackup(){
 const tmTxt=(a,t)=>t?a+' '+disp(t):'';
 const fpOf=(ir,e,q,t,by)=>t?[ir,e||'',q,t,by||''].join('|'):'';
 const fpSet=()=>new Set((DB.phoneDone&&DB.phoneDone.fps)||[]);
+const lotAt=k=>(DB.lots&&DB.lots[k])||undefined;
+function pruneLots(){if(!DB.lots)return;Object.keys(DB.lots).forEach(k=>{if(!DB.stock[k])delete DB.lots[k];});}
+const disSet=()=>new Set((DB.phoneDone&&DB.phoneDone.dis)||[]);
+const disIds=r=>[r.fp,r.src==='phone'?'k|'+r.key+'|'+r.ir+'|'+(r.pexp||''):r.lineId?'l|'+r.lineId:''].filter(Boolean);
+function dismissRows(rows){const r=rows.filter(x=>x.src==='phone'||x.src==='phonex');if(!r.length)return;if(!DB.phoneDone)DB.phoneDone={lines:[],refs:[]};if(!DB.phoneDone.dis)DB.phoneDone.dis=[];
+  r.forEach(x=>disIds(x).forEach(i=>{if(!DB.phoneDone.dis.includes(i))DB.phoneDone.dis.push(i);}));if(DB.phoneDone.dis.length>6000)DB.phoneDone.dis.splice(0,DB.phoneDone.dis.length-6000);save();updRes();}
+function updRes(){const a=document.getElementById('mRes');if(a)a.classList.toggle('hidden',!((DB&&DB.phoneDone&&DB.phoneDone.dis)||[]).length);}
 const scanLine=x=>(x.sc||x.imp)?'<div class="lots">'+esc([tmTxt(x.type==='COUNT'?'counted':'scanned',x.sc),tmTxt('imported in CCS',x.imp)].filter(Boolean).join(' · '))+'</div>':'';
 // ---------------------------------------------------------------- application shell
 const ICO={dash:'<rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/>',
@@ -901,13 +908,13 @@ PAGES.dash=async()=>{
 // ---------------------------------------------------------------- inventory (stock per item + expiry date)
 const money=v=>Number(v||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})+' QAR';
 function addDays(n){const d=new Date(Date.now()+n*86400000);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
-function lotsOf(ir){return Object.keys(DB.stock).filter(k=>k.startsWith(ir+'|')&&DB.stock[k]).map(k=>({exp:k.slice(ir.length+1),qty:DB.stock[k]})).sort((a,b)=>(a.exp||'9999').localeCompare(b.exp||'9999'));}
+function lotsOf(ir){return Object.keys(DB.stock).filter(k=>k.startsWith(ir+'|')&&DB.stock[k]).map(k=>({exp:k.slice(ir.length+1),qty:DB.stock[k],lot:lotAt(k)})).sort((a,b)=>(a.exp||'9999').localeCompare(b.exp||'9999'));}
 function stockValue(){const pr=new Map(DB.items.map(i=>[i.ir,+i.price||0]));return Object.keys(DB.stock).reduce((a,k)=>a+DB.stock[k]*(pr.get(k.split('|')[0])||0),0);}
 // frequently used = most taken (STOCK OUT) in the last 30 days + pinned by a charge nurse
 function frequent(){const since=addDays(-30),by=new Map();DB.ledger.forEach(x=>{if(x.type==='OUT'&&x.t>=since)by.set(x.ir,(by.get(x.ir)||0)-x.qty);});
   const top=[...by.entries()].sort((a,b)=>b[1]-a[1]).slice(0,30).map(e=>e[0]);return new Set([...DB.pins,...top]);}
 function invRows(){
-  const t=today(),soon=addDays(90),by=new Map();Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])return;const ir=k.split('|')[0];if(!by.has(ir))by.set(ir,[]);by.get(ir).push({exp:k.slice(ir.length+1),qty:DB.stock[k]});});
+  const t=today(),soon=addDays(90),by=new Map();Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])return;const ir=k.split('|')[0];if(!by.has(ir))by.set(ir,[]);by.get(ir).push({exp:k.slice(ir.length+1),qty:DB.stock[k],lot:lotAt(k)});});
   const freq=frequent();
   return DB.items.map((it,i)=>{const lots=(by.get(it.ir)||[]).sort((a,b)=>(a.exp||'9999').localeCompare(b.exp||'9999')),total=lots.reduce((a,l)=>a+l.qty,0),dated=lots.filter(l=>l.exp);
     return {it,i,lots,total,expd:dated.some(l=>l.exp<t),soon:dated.some(l=>l.exp>=t&&l.exp<=soon),low:it.min!=null&&it.min!==''&&total<+it.min,flag:DB.flags[it.ir],freq:freq.has(it.ir),pin:DB.pins.includes(it.ir),key:(it.name+' '+altOf(it)).toLowerCase()};});
@@ -934,7 +941,7 @@ PAGES.inv=()=>{
     $('vTab').innerHTML='<tr><th style="width:34px"></th><th>Item</th><th>Location</th><th>Expiry dates</th><th style="text-align:right">Stock</th><th style="text-align:right">Min / Max</th></tr>'
       +L.slice(0,300).map(r=>'<tr class="click" data-ir="'+esc(r.it.ir)+'"><td><button type="button" class="star'+(r.pin?' on':'')+'" data-pin="'+esc(r.it.ir)+'" title="'+(r.pin?'Unpin from':'Pin to')+' frequently used">★</button></td>'
         +'<td>'+thumb(r.it.ir)+'<b>'+esc(r.it.name)+'</b>'+altHtml(r.it)+'<div class="lots"><span class="mono">'+esc(r.it.ir)+'</span>'+(r.flag?'<span class="flag">needs a real count</span>':'')+(r.low?'<span class="low">below minimum</span>':'')+'</div></td>'
-        +'<td>'+esc(r.it.loc)+'</td><td>'+(r.lots.length?r.lots.map(l=>'<span class="lot'+(l.exp&&l.exp<t?' exp':l.exp&&l.exp<=soon?' soon':'')+'">'+l.qty+' × '+(l.exp?dmy(l.exp):'no expiry')+'</span>').join(''):'<span class="note">-</span>')+'</td>'
+        +'<td>'+esc(r.it.loc)+'</td><td>'+(r.lots.length?r.lots.map(l=>'<span class="lot'+(l.exp&&l.exp<t?' exp':l.exp&&l.exp<=soon?' soon':'')+'">'+l.qty+' × '+(l.exp?dmy(l.exp):'no expiry')+(l.lot?' · LOT '+esc(l.lot):'')+'</span>').join(''):'<span class="note">-</span>')+'</td>'
         +'<td class="qty">'+r.total+' <span class="note" style="font-weight:400">'+esc(r.it.unit)+'</span></td><td class="num">'+(r.it.min==null?'-':r.it.min)+' / '+(r.it.max==null?'-':r.it.max)+'</td></tr>').join('');};
   draw();$('vQ').addEventListener('input',draw);$('vQ').focus();
   $('vF').addEventListener('click',e=>{const b=e.target.closest('button[data-f]');if(b){invF=b.dataset.f;draw();}});
@@ -943,15 +950,15 @@ PAGES.inv=()=>{
     const tr=e.target.closest('tr[data-ir]');if(tr)invDialog(tr.dataset.ir);});
   if($('vLoad'))$('vLoad').onclick=()=>{$('vFile').value='';$('vFile').click();};
   $('vFile').onchange=loadStartStock;
-  $('vXlsx').onclick=()=>{const rows=[];invRows().filter(r=>r.total>0).forEach(r=>r.lots.forEach(l=>buildRows([{ir:r.it.ir,name:r.it.name,expiry:l.exp,qty:l.qty}],DB.items,false).forEach(x=>{x.flag=r.flag?'yes':'';rows.push(x);})));
+  $('vXlsx').onclick=()=>{const rows=[];invRows().filter(r=>r.total>0).forEach(r=>r.lots.forEach(l=>buildRows([{ir:r.it.ir,name:r.it.name,expiry:l.exp,qty:l.qty}],DB.items,false).forEach(x=>{x.flag=r.flag?'yes':'';x.lot=l.lot||'';rows.push(x);})));
     if(!rows.length){alert('There is no stock yet.');return;}
-    download('CCS_Desk_stock_'+today()+'.xlsx',buildXlsx('inventory list',TEMPLATE_COLS.concat([['Needs count','flag','s',12]]),rows,{who:ME.name,created:new Date(),title:'Stock',infoName:'Info',info:[['Report','Stock of '+DB.unit+' (CCS Desk)'],['Saved on',nowStamp().slice(0,16)],['Lines',rows.length],['Total units',rows.reduce((a,x)=>a+x.qty,0)],['Value',money(stockValue())],['Prepared by',ME.name]]}));};
+    download('CCS_Desk_stock_'+today()+'.xlsx',buildXlsx('inventory list',TEMPLATE_COLS.concat([['Needs count','flag','s',12],['LOT','lot','s',16]]),rows,{who:ME.name,created:new Date(),title:'Stock',infoName:'Info',info:[['Report','Stock of '+DB.unit+' (CCS Desk)'],['Saved on',nowStamp().slice(0,16)],['Lines',rows.length],['Total units',rows.reduce((a,x)=>a+x.qty,0)],['Value',money(stockValue())],['Prepared by',ME.name]]}));};
 };
 function invDialog(ir){
   const it=DB.items.find(i=>i.ir===ir);if(!it)return;const lots=lotsOf(ir),t=today(),total=lots.reduce((a,l)=>a+l.qty,0),f=DB.flags[ir],mv=DB.ledger.filter(x=>x.ir===ir).slice(-12).reverse();
   modal('<h1>'+esc(it.name)+'</h1><p class="sub"><span class="mono">'+esc(ir)+'</span> · '+esc(it.unit)+' · '+esc(it.loc||'no location')+altHtml(it)+'</p>'+(MEDIA.ph[ir]?'<img class="bigph" src="'+MEDIA.ph[ir].d+'" alt="">':'')
     +(f?'<div class="msg warn" style="display:block">Needs a real count: '+esc(f.reason)+' ('+esc(disp(f.at))+', '+esc(f.by)+')</div>':'')
-    +'<h3 style="margin:14px 0 6px">Stock: '+total+' '+esc(it.unit)+'</h3><table class="t"><tr><th>Expiry date</th><th style="text-align:right">Qty</th></tr>'+(lots.length?lots.map(l=>'<tr><td>'+(l.exp?dmy(l.exp)+(l.exp<t?' <span class="low">expired</span>':''):'no expiry')+'</td><td class="num"><b>'+l.qty+'</b></td></tr>').join(''):'<tr><td colspan="2" class="note">No stock</td></tr>')+'</table>'
+    +'<h3 style="margin:14px 0 6px">Stock: '+total+' '+esc(it.unit)+'</h3><table class="t"><tr><th>Expiry date</th><th>LOT</th><th style="text-align:right">Qty</th></tr>'+(lots.length?lots.map(l=>'<tr><td>'+(l.exp?dmy(l.exp)+(l.exp<t?' <span class="low">expired</span>':''):'no expiry')+'</td><td>'+esc(l.lot||'')+'</td><td class="num"><b>'+l.qty+'</b></td></tr>').join(''):'<tr><td colspan="3" class="note">No stock</td></tr>')+'</table>'
     +'<h3 style="margin:16px 0 6px">Last movements</h3><table class="t"><tr><th>When</th><th>Type</th><th>Expiry</th><th style="text-align:right">Qty</th><th>By</th></tr>'+(mv.length?mv.map(x=>'<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(typeName(x.type))+'</td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+'</td></tr>').join(''):'<tr><td colspan="5" class="note">None yet</td></tr>')+'</table>'
     +'<div class="row" style="margin-top:16px"><button class="btn alt" id="dClose">Close</button></div>');
   $('dClose').onclick=closeModal;
@@ -971,10 +978,10 @@ function stockRowsFrom(rows){
   for(let i=0;i<rows.length&&i<40;i++){const r=(rows[i]||[]).map(norm);
     const irC=r.findIndex(v=>/^(ir|ir number|ir no|irnumber|ir code)$/.test(v)),qC=(()=>{let k=r.findIndex(v=>/^(qty|quantity|balance|stock|on hand|current stock|qty on hand|available)$/.test(v));if(k<0)k=r.findIndex(v=>/(quantity|balance|on hand)/.test(v)&&!/(type|max|min|price)/.test(v));return k;})();
     if(irC<0||qC<0)continue;
-    const eC=r.findIndex(v=>/^(expiry|expiry date|exp|exp date|expiration|expiration date)$/.test(v)),nC=r.findIndex(v=>/^(item name|name|item|description)$/.test(v)),out=[];
+    const eC=r.findIndex(v=>/^(expiry|expiry date|exp|exp date|expiration|expiration date)$/.test(v)),nC=r.findIndex(v=>/^(item name|name|item|description)$/.test(v)),lC=r.findIndex(v=>/^(lot|lot no|lot number|lot nr|lot num|batch|batch no|batch number)$/.test(v.trim())),out=[];
     for(let j=i+1;j<rows.length;j++){const x=rows[j];if(!x)continue;let ir=x[irC];if(typeof ir==='number')ir=String(Math.round(ir));ir=String(ir==null?'':ir).trim();if(!/^\d{10}$/.test(ir))continue;
       const q=Math.floor(+x[qC]);if(!(q>=0))continue;let e='';const ev=eC>=0?x[eC]:'';if(typeof ev==='number'&&ev>20000&&ev<80000)e=serialToIso(ev);else if(typeof ev==='string'&&ev.trim())e=parseExpiry(ev.trim())||'';
-      out.push({ir,exp:/^\d{4}-\d{2}-\d{2}$/.test(e)?e:'',qty:q,name:nC>=0?String(x[nC]||'').slice(0,150):''});}
+      out.push({ir,exp:/^\d{4}-\d{2}-\d{2}$/.test(e)?e:'',qty:q,name:nC>=0?String(x[nC]||'').slice(0,150):'',lot:lC>=0?String(x[lC]==null?'':x[lC]).trim().slice(0,40):''});}
     return out;}
   return null;
 }
@@ -986,7 +993,7 @@ async function loadStartStock(){
     if(!confirm('LOAD STARTING STOCK\n\n'+f.name+' (sheet “'+sn+'”)\n'+rows.length+' lines · '+items+' items · '+units+' units'+(noExp?'\n'+noExp+' lines without an expiry date':'')+(unknown.length?'\n'+unknown.length+' IR numbers are not in the master list: they are added as new items (rename them later)':'')+'\n\nThis REPLACES the whole stock of CCS Desk.\nUse the CCS inventory list of TODAY.\n\nContinue?'))return;
     const now=nowStamp(),ref='OPEN-'+now.replace(/\D/g,'').slice(0,12);
     unknown.forEach(ir=>{const r=rows.find(x=>x.ir===ir);DB.items.push({ir,name:(r&&r.name)||ir,unit:'',loc:'',price:null,max:null,min:null,alias:''});});
-    DB.stock={};rows.forEach(r=>{const k=r.ir+'|'+r.exp;DB.stock[k]=(DB.stock[k]||0)+r.qty;});Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])delete DB.stock[k];});
+    DB.stock={};rows.forEach(r=>{const k=r.ir+'|'+r.exp;DB.stock[k]=(DB.stock[k]||0)+r.qty;});Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])delete DB.stock[k];});DB.lots={};rows.forEach(r=>{if(r.lot&&DB.stock[r.ir+'|'+r.exp])DB.lots[r.ir+'|'+r.exp]=r.lot;});
     DB.flags={};Object.keys(DB.stock).forEach(k=>{const ir=k.split('|')[0];DB.seq++;DB.ledger.push({id:DB.seq,t:now,type:'OPEN',ir,exp:k.slice(ir.length+1),qty:DB.stock[k],bal:DB.stock[k],by:ME.u,ref,note:'Starting stock ('+f.name+')'});});
     DB.stockSince=now;audit('STOCK_START',f.name+': '+Object.keys(DB.stock).length+' lines, '+units+' units');await save();phStockSoon();invF='stock';go('inv');
     pm('ok','Starting stock loaded: '+items+' items, '+Object.keys(DB.stock).length+' item / expiry lines, '+units+' units.');}
@@ -1004,16 +1011,16 @@ function draftStatus(kind,list){
   if(kind==='in')return list.map(l=>l.err?{c:'st-err',t:l.err}:{c:'st-ok',t:'ok'});
   const need=new Map(),own=new Map();list.forEach(l=>{if(l.err)return;need.set(l.ir,(need.get(l.ir)||0)+l.qty);const k=l.ir+'|'+l.exp;own.set(k,(own.get(k)||0)+l.qty);});
   return list.map((l,j)=>{if(l.err)return{c:'st-err',t:l.err};const tot=lotsOf(l.ir).reduce((a,x)=>a+x.qty,0),k=l.ir+'|'+l.exp;
-    if(need.get(l.ir)>tot){const sh=SHELF[kind][l.ir];if(sh)return{c:'st-mv',t:'approximate count: '+sh.n+' left on the shelf'+(sh.exp?' (expiry '+dmy(sh.exp)+')':''),ir:l.ir,done:1,first:firstOf.has(j)};return{c:'st-short',t:'not enough stock ('+tot+')',ir:l.ir,ask:1,first:firstOf.has(j),exp:l.exp};}
+    if(need.get(l.ir)>tot){const sh=SHELF[kind][l.ir];if(sh)return{c:'st-mv',t:'counted on the shelf now: '+sh.map(x=>x.n+(x.exp?' (expiry '+dmy(x.exp)+')':'')+(x.lot?' LOT '+x.lot:'')).join(' + '),ir:l.ir,done:1,first:firstOf.has(j)};return{c:'st-short',t:'not enough stock ('+tot+')',ir:l.ir,ask:1,first:firstOf.has(j),exp:l.exp};}
     if(own.get(k)>(DB.stock[k]||0))return{c:'st-mv',t:'part from another expiry date'};return{c:'st-ok',t:'ok'};});
 }
 PAGES.in=()=>movPage('in');PAGES.out=()=>movPage('out');PAGES.wo=()=>movPage('wo');
-const stHtml=(s,l)=>s.ask&&s.first?esc(s.t)+'<div class="shelf" data-ir="'+esc(s.ir)+'"><span>Count on the shelf now:</span><input type="number" min="0" class="shq" placeholder="qty"><input type="text" class="she" placeholder="expiry" value="'+esc(s.exp?dmy(s.exp):'')+'"><button type="button" class="btn alt shb">Set</button></div>':s.ask?esc(s.t):s.done&&s.first?esc(s.t)+' <a class="shundo" data-ir="'+esc(s.ir)+'">change</a>':esc(s.t);
+const stHtml=(s,l)=>s.ask&&s.first?esc(s.t)+'<div class="shelf" data-ir="'+esc(s.ir)+'"><span>Count on the shelf now:</span><div class="shrows"><span class="shr"><input type="number" min="0" class="shq" placeholder="qty"><input type="text" class="she" placeholder="expiry" value="'+esc(s.exp?dmy(s.exp):'')+'"><input type="text" class="shl" placeholder="LOT" maxlength="40"></span></div><button type="button" class="btn alt shp" title="Add a row for another expiry date">+</button><button type="button" class="btn alt shb">Set</button></div>':s.ask?esc(s.t):s.done&&s.first?esc(s.t)+' <a class="shundo" data-ir="'+esc(s.ir)+'">change</a>':esc(s.t);
 function movPage(kind){
   const M=MOV[kind];
   $('main').innerHTML='<div class="card"><div class="row"><div class="search" style="position:relative"><input type="text" id="mQ" autocomplete="off" placeholder="Add an item: last digits of the IR, or part of the name"><div class="sugg hidden" id="mSug"></div></div>'
     +(kind==='wo'?'<label style="margin:0">Reason</label><select id="mWo" style="width:auto">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===woDefault?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select>':'')
-    +'<button class="btn alt" id="mImp">Import from Excel…</button>'+phBtn('mPh','⬇ From phones')+'</div><input type="file" id="mFile" accept=".xlsx" class="hidden"><div class="msg" id="pmsg"></div></div>'
+    +'<button class="btn alt" id="mImp">Import from Excel…</button>'+phBtn('mPh','⬇ From phones')+'</div><input type="file" id="mFile" accept=".xlsx" class="hidden"><div class="msg" id="pmsg"></div><a id="mRes" class="note hidden" style="cursor:pointer;text-decoration:underline">Bring back the lines I removed from the list</a></div>'
     +'<div class="card"><div class="drafthead"><h3 id="mHead"></h3><button class="btn alt" id="mClear" style="margin-left:auto">Clear list</button></div><div style="max-height:52vh;overflow:auto"><table class="t" id="mTab"></table></div>'
     +'<div class="sumbar"><input type="text" id="mNote" placeholder="Reference / note (optional), e.g. store issue number" style="flex:1;min-width:240px"><span id="mSum" class="note"></span><button class="btn" id="mPost">Post</button></div></div>'
     +'<div class="card"><div class="drafthead"><h3>Last '+esc(M.name)+' postings</h3><select id="mRef" style="width:auto;margin-left:auto"></select><button class="btn alt" id="mCcs">⬇ Excel for CCS</button></div><table class="t" id="mLast"></table></div>';
@@ -1033,41 +1040,47 @@ function movPage(kind){
   $('mSug').addEventListener('click',e=>{const d=e.target.closest('div[data-j]');if(d)add(res[+d.dataset.j].it);});
   const draw=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L),ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0);
     $('mHead').textContent=M.name+' list: '+L.length+' line'+(L.length===1?'':'s');
-    $('mTab').innerHTML='<tr><th>Item</th><th style="min-width:240px">Expiry date</th><th style="width:96px">Qty</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th>Check</th><th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
+    $('mTab').innerHTML='<tr><th>Item</th><th style="min-width:240px">Expiry date</th><th style="width:96px">Qty</th><th>LOT (optional)</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th>Check</th><th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
       let ex;if(l.err&&!it)ex=esc(l.exp?dmy(l.exp):'');else if(kind==='in')ex='<input type="text" class="me" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="DD/MM/YYYY or empty" style="width:150px">';
-      else ex='<select class="ms" data-j="'+j+'">'+lots.map(x=>'<option value="'+x.exp+'"'+(x.exp===l.exp?' selected':'')+'>'+(x.exp?dmy(x.exp):'no expiry')+' (stock '+x.qty+')</option>').join('')+(lots.some(x=>x.exp===l.exp)?'':'<option value="'+esc(l.exp)+'" selected>'+(l.exp?dmy(l.exp):'no expiry')+' (stock 0)</option>')+'</select>';
+      else ex='<select class="ms" data-j="'+j+'">'+lots.map(x=>'<option value="'+x.exp+'"'+(x.exp===l.exp?' selected':'')+'>'+(x.exp?dmy(x.exp):'no expiry')+' (stock '+x.qty+(x.lot?' · LOT '+esc(x.lot):'')+')</option>').join('')+(lots.some(x=>x.exp===l.exp)?'':'<option value="'+esc(l.exp)+'" selected>'+(l.exp?dmy(l.exp):'no expiry')+' (stock 0)</option>')+'</select>';
       return '<tr'+(l.err?' class="errrow"':'')+'><td>'+thumb(l.ir)+'<b>'+esc(it?it.name:(l.name||l.ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.sc?' <b>'+esc(disp(l.sc))+'</b>':'')+(l.src==='file'?' · from file (row '+l.line+')':'')+(l.src==='phonex'?' · <b>already in CCS</b> (imported on the SHARED tab '+esc(disp(l.impAt||''))+')':'')+'</div></td><td>'+ex+'</td>'
-        +'<td>'+(l.err&&!it?esc(l.qty):'<input type="number" min="1" class="mq" data-j="'+j+'" value="'+esc(l.qty)+'">')+'</td>'
+        +'<td>'+(l.err&&!it?esc(l.qty):'<input type="number" min="1" class="mq" data-j="'+j+'" value="'+esc(l.qty)+'">')+'</td><td>'+(l.err&&!it?esc(l.lot||''):'<input type="text" class="ml" data-j="'+j+'" value="'+esc(l.lot||'')+'" placeholder="'+esc(kind==='in'?'optional':(lotAt(l.ir+'|'+l.exp)||'optional'))+'" maxlength="40" style="width:130px">')+'</td>'
         +(kind==='wo'?'<td><select class="mw" data-j="'+j+'">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===l.wo?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select></td>':'')
-        +'<td class="stc '+stt[j].c+'" data-j="'+j+'">'+stHtml(stt[j],l)+'</td><td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>';}).join(''):'<tr><td colspan="6" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
+        +'<td class="stc '+stt[j].c+'" data-j="'+j+'">'+stHtml(stt[j],l)+'</td><td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>';}).join(''):'<tr><td colspan="7" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
     sumUp(L,stt);};
   // after a change in a box: update the checks and totals only (the table is not rebuilt, so the cursor stays where the user clicked)
   const sumUp=(L,stt)=>{const ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0),nErr=L.filter(l=>l.err).length,nShort=stt.filter(x=>x.c==='st-short').length;
     $('mSum').innerHTML=ok.length+' line'+(ok.length===1?'':'s')+' · '+units+' units'+(nErr?' · <span class="st-err">'+nErr+' with errors (not posted)</span>':'')+(nShort?' · <span class="st-short">'+nShort+' not enough stock</span>':'');
     $('mPost').disabled=!ok.length;$('mPost').textContent='Post '+ok.length+' line'+(ok.length===1?'':'s');};
-  const refresh=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L);$('mTab').querySelectorAll('td.stc').forEach(td=>{const j=+td.dataset.j;if(!stt[j])return;td.className='stc '+stt[j].c;if(td.querySelector('input:focus'))return;td.innerHTML=stHtml(stt[j],L[j]);const tr=td.parentElement;tr.classList.toggle('errrow',!!L[j].err);});sumUp(L,stt);};
+  const refresh=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L);$('mTab').querySelectorAll('td.stc').forEach(td=>{const j=+td.dataset.j;if(!stt[j])return;td.className='stc '+stt[j].c;if(td.querySelector('input:focus'))return;const sig=stt[j].c+'|'+stt[j].t+'|'+(stt[j].first?1:0);if(td.dataset.sig===sig)return;td.dataset.sig=sig;td.innerHTML=stHtml(stt[j],L[j]);const tr=td.parentElement;tr.classList.toggle('errrow',!!L[j].err);});sumUp(L,stt);};
   $('mTab').addEventListener('change',e=>{const t=e.target,j=+t.dataset.j,l=DRAFT[kind][j];if(!l)return;
     if(t.classList.contains('mq')){const q=Math.floor(+t.value);if(q>0){l.qty=q;if(/quantity/.test(l.err||''))delete l.err;}else{t.value=l.qty;}}
     if(t.classList.contains('me')){const v=t.value.trim();if(!v){l.exp='';if(/expiry/.test(l.err||''))delete l.err;}else{const e2=parseExpiry(v);if(e2){l.exp=e2;if(/expiry/.test(l.err||''))delete l.err;}else{alert('Expiry date not understood: '+v+'\nUse 31/12/2030 or 12/2030, or leave it empty (no expiry).');t.value=l.exp?dmy(l.exp):'';}}}
-    if(t.classList.contains('ms'))l.exp=t.value;if(t.classList.contains('mw'))l.wo=+t.value;refresh();});
+    if(t.classList.contains('ml')){l.lot=t.value.trim().slice(0,40);return;}
+    if(t.classList.contains('ms')){l.exp=t.value;const lb=t.closest('tr').querySelector('input.ml');if(lb&&kind!=='in')lb.placeholder=lotAt(l.ir+'|'+l.exp)||'optional';}if(t.classList.contains('mw'))l.wo=+t.value;refresh();});
   $('mTab').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('input')){e.preventDefault();$('mQ').focus();}});   // leaving the box saves the change (one change event)
-  $('mTab').addEventListener('click',e=>{const b=e.target.closest('button[data-x]');if(b){DRAFT[kind].splice(+b.dataset.x,1);draw();return;}
+  $('mTab').addEventListener('click',e=>{const b=e.target.closest('button[data-x]');if(b){dismissRows(DRAFT[kind].splice(+b.dataset.x,1));draw();return;}
     const u=e.target.closest('a.shundo');if(u){delete SHELF[kind][u.dataset.ir];draw();return;}
-    const sb=e.target.closest('button.shb');if(sb){const box=sb.closest('.shelf'),ir=box.dataset.ir,v=box.querySelector('.shq').value.trim(),ev=box.querySelector('.she').value.trim();
-      if(v===''||!(+v>=0)||Math.floor(+v)!==+v){alert('Type how many are on the shelf now (a whole number, 0 or more).');return;}
-      let ex='';if(ev){ex=parseExpiry(ev);if(!ex){alert('Expiry date not understood: '+ev+'\nUse 31/12/2030 or 12/2030, or leave it empty.');return;}}
-      SHELF[kind][ir]={n:+v,exp:ex};draw();}});
-  $('mClear').onclick=()=>{if(DRAFT[kind].length&&confirm('Clear the whole list? Nothing is posted.')){DRAFT[kind]=[];SHELF[kind]={};draw();}};
+    const sp=e.target.closest('button.shp');if(sp){const rows=sp.closest('.shelf').querySelector('.shrows'),r=document.createElement('span');r.className='shr';r.innerHTML='<input type="number" min="0" class="shq" placeholder="qty"><input type="text" class="she" placeholder="expiry"><input type="text" class="shl" placeholder="LOT" maxlength="40">';rows.appendChild(r);r.querySelector('.shq').focus();return;}
+    const sb=e.target.closest('button.shb');if(sb){const box=sb.closest('.shelf'),ir=box.dataset.ir,lots=[];
+      for(const r of box.querySelectorAll('.shr')){const v=r.querySelector('.shq').value.trim(),ev=r.querySelector('.she').value.trim();if(v===''&&ev==='')continue;
+        if(v===''||!(+v>=0)||Math.floor(+v)!==+v){alert('Type how many are on the shelf now (a whole number, 0 or more).');return;}
+        let ex='';if(ev){ex=parseExpiry(ev);if(!ex){alert('Expiry date not understood: '+ev+'\nUse 31/12/2030 or 12/2030, or leave it empty.');return;}}
+        lots.push({n:+v,exp:ex,lot:(r.querySelector('.shl')||{value:''}).value.trim().slice(0,40)});}
+      if(!lots.length){alert('Type how many are on the shelf now.');return;}
+      SHELF[kind][ir]=lots;draw();}});
+  $('mClear').onclick=()=>{if(DRAFT[kind].length&&confirm('Clear the whole list? Nothing is posted.\nLines from the phones will not come back with "From phones" (you can bring them back with the link under the buttons).')){dismissRows(DRAFT[kind]);DRAFT[kind]=[];SHELF[kind]={};draw();}};
+  $('mRes').onclick=()=>{if(DB.phoneDone)DB.phoneDone.dis=[];save();updRes();$('pmsg').className='msg ok';$('pmsg').textContent='Done. The removed lines will be listed again the next time you press From phones.';};
   $('mImp').onclick=()=>{$('mFile').value='';$('mFile').click();};
   $('mFile').onchange=()=>importMov(kind,draw);
   if($('mPh'))$('mPh').onclick=()=>phPullMov(kind,draw);
   $('mPost').onclick=()=>postMov(kind,draw);
   const last=()=>{const L=DB.ledger.filter(x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type).slice(-15).reverse();
-    $('mLast').innerHTML='<tr><th>When</th><th>Item</th><th>Expiry</th><th style="text-align:right">Qty</th><th>Scanned / entered by</th><th>Posted by</th><th>Note</th></tr>'+(L.length?L.map(x=>{const it=DB.items.find(i=>i.ir===x.ir);return '<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(it?it.name:x.ir)+(kind==='wo'?'<div class="lots">'+esc(typeName(x.type))+'</div>':'')+'</td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+scanLine(x)+'</td><td>'+esc(x.posted||'')+'</td><td>'+esc(x.note||'')+'</td></tr>';}).join(''):'<tr><td colspan="7" class="note">Nothing yet</td></tr>');};
+    $('mLast').innerHTML='<tr><th>When</th><th>Item</th><th>Expiry</th><th style="text-align:right">Qty</th><th>Scanned / entered by</th><th>Posted by</th><th>Note</th></tr>'+(L.length?L.map(x=>{const it=DB.items.find(i=>i.ir===x.ir);return '<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(it?it.name:x.ir)+(kind==='wo'?'<div class="lots">'+esc(typeName(x.type))+'</div>':'')+'</td><td>'+(x.exp?dmy(x.exp):'-')+(x.lot?'<div class="lots">LOT '+esc(x.lot)+'</div>':'')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+scanLine(x)+'</td><td>'+esc(x.posted||'')+'</td><td>'+esc(x.note||'')+'</td></tr>';}).join(''):'<tr><td colspan="7" class="note">Nothing yet</td></tr>');};
   const refs=()=>{const seen=[],typ=x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type;for(let i=DB.ledger.length-1;i>=0&&seen.length<20;i--){const x=DB.ledger[i];if(typ(x)&&x.ref&&!x.pre&&!seen.includes(x.ref))seen.push(x.ref);}
     $('mRef').innerHTML=seen.length?seen.map(r=>{const x=DB.ledger.find(y=>y.ref===r);return '<option value="'+esc(r)+'">'+esc(disp(x.t))+' · '+esc(x.posted||'')+'</option>';}).join(''):'<option value="">no posting yet</option>';$('mCcs').disabled=!seen.length;};
   $('mCcs').onclick=()=>{if($('mRef').value)ccsExcel($('mRef').value);};
-  const last0=last;movPage.last=()=>{last0();refs();};draw();last0();refs();$('mQ').focus();
+  const last0=last;movPage.last=()=>{last0();refs();};draw();last0();refs();updRes();$('mQ').focus();
 }
 // ---- Excel import into the list (nothing changes until "Post")
 function movRowsFrom(rows,kind){
@@ -1075,10 +1088,10 @@ function movRowsFrom(rows,kind){
   for(let i=0;i<rows.length&&i<40;i++){const r=(rows[i]||[]).map(norm);
     const irC=r.findIndex(v=>/^(ir|ir number|ir no|irnumber|ir code)$/.test(v)),qC=(()=>{let k=r.findIndex(v=>/^(qty|quantity|issued qty|received qty|qty issued|qty received)$/.test(v));if(k<0)k=r.findIndex(v=>/(quantity|qty)/.test(v)&&!/(type|max|min|price|balance)/.test(v));return k;})();
     if(irC<0||qC<0)continue;
-    const eC=r.findIndex(v=>/^(expiry|expiry date|exp|exp date|expiration|expiration date)$/.test(v)),nC=r.findIndex(v=>/^(item name|name|item|description)$/.test(v)),bC=r.findIndex(v=>/^(scanned by|by|user|staff)$/.test(v)),rC=r.findIndex(v=>/^(reason|write off reason)$/.test(v)),out=[];
+    const eC=r.findIndex(v=>/^(expiry|expiry date|exp|exp date|expiration|expiration date)$/.test(v)),nC=r.findIndex(v=>/^(item name|name|item|description)$/.test(v)),bC=r.findIndex(v=>/^(scanned by|by|user|staff)$/.test(v)),rC=r.findIndex(v=>/^(reason|write off reason)$/.test(v)),lC=r.findIndex(v=>/^(lot|lot no|lot number|lot nr|lot num|batch|batch no|batch number)$/.test(v.trim())),out=[];
     for(let j=i+1;j<rows.length;j++){const x=rows[j];if(!x||!x.some(v=>v!==undefined&&v!==null&&String(v).trim()!==''))continue;
       let ir=x[irC];if(typeof ir==='number')ir=String(Math.round(ir));ir=String(ir==null?'':ir).trim();const nm=nC>=0?String(x[nC]||'').slice(0,150):'';
-      const row={ir,exp:'',qty:0,name:nm,by:bC>=0?String(x[bC]||'').trim().slice(0,40):'',wo:0,src:'file',line:j+1};
+      const row={ir,exp:'',qty:0,name:nm,by:bC>=0?String(x[bC]||'').trim().slice(0,40):'',wo:0,lot:lC>=0?String(x[lC]==null?'':x[lC]).trim().slice(0,40):'',src:'file',line:j+1};
       if(!/^\d{10}$/.test(ir)){row.qty=x[qC]==null?'':x[qC];row.err='IR number is not 10 digits';out.push(row);continue;}
       const q=+x[qC];if(!(q>0)||Math.floor(q)!==q){row.qty=x[qC]==null?'':x[qC];row.err='quantity is not a whole number above 0';out.push(row);continue;}row.qty=q;
       const ev=eC>=0?x[eC]:'';if(typeof ev==='number'&&ev>20000&&ev<80000)row.exp=serialToIso(ev);else if(typeof ev==='string'&&ev.trim()){const e2=parseExpiry(ev.trim());if(e2)row.exp=e2;else row.err='expiry date not understood: '+ev;}
@@ -1131,41 +1144,48 @@ function planPost(entries,resolve,rexp){
   const tot=ir=>Object.keys(st).filter(k=>k.startsWith(ir+'|')).reduce((a,k)=>a+st[k],0);
   const short=[];order.forEach(ir=>{const p=per.get(ir),have=tot(ir);p.after=have+p.ins-p.outs;if(p.after<0&&!(resolve&&ir in resolve)){const it=DB.items.find(i=>i.ir===ir);short.push({ir,name:it?it.name:ir,have,take:p.outs-p.ins});}});
   if(short.length)return{short};
-  const led=[],flags=[],now=nowStamp();let moved=0;
+  const led=[],flags=[],now=nowStamp(),lotSet={};let moved=0;
   const lot=(ir,e)=>{const k=ir+'|'+(e||'');if(!(k in st))st[k]=0;return k;};
-  order.forEach(ir=>{const p=per.get(ir);if(p.after>=0)return;const v=resolve[ir],shelf=v>=0?v:0,adj=shelf-p.after,ax=(rexp&&rexp[ir]!=null&&rexp[ir]!=='')?rexp[ir]:p.firstExp,k=lot(ir,ax);
+  order.forEach(ir=>{const p=per.get(ir);if(p.after>=0||Array.isArray(resolve[ir]))return;const v=resolve[ir],shelf=v>=0?v:0,adj=shelf-p.after,ax=(rexp&&rexp[ir]!=null&&rexp[ir]!=='')?rexp[ir]:p.firstExp,k=lot(ir,ax);
     st[k]+=adj;led.push({type:'ADJ',ir,exp:ax||'',qty:adj,bal:st[k],note:v>=0?'Approximate count when posting: '+shelf+' left on the shelf':'Could not count when posting: stock set to 0'});
     flags.push({ir,reason:v>=0?'Approximate count ('+shelf+' on the shelf) when a list was posted':'Stock was not enough and set to 0 when a list was posted'});});
   entries.forEach(e=>{
-    if(e.type==='IN'){const k=lot(e.ir,e.exp);st[k]+=e.qty;led.push({type:'IN',ir:e.ir,exp:e.exp,qty:e.qty,bal:st[k],by:e.by,note:e.note,pre:e.pre,sc:e.sc,imp:e.imp});return;}
+    if(e.type==='IN'){const k=lot(e.ir,e.exp);st[k]+=e.qty;if(e.lot)lotSet[k]=e.lot;led.push({type:'IN',ir:e.ir,exp:e.exp,qty:e.qty,bal:st[k],by:e.by,note:e.note,lot:e.lot||undefined,pre:e.pre,sc:e.sc,imp:e.imp});return;}
     let rem=e.qty;const k0=lot(e.ir,e.exp),t0=Math.min(rem,Math.max(st[k0],0));
-    if(t0>0){st[k0]-=t0;rem-=t0;led.push({type:e.type,ir:e.ir,exp:e.exp,qty:-t0,bal:st[k0],by:e.by,note:e.note,pre:e.pre,sc:e.sc,imp:e.imp});}
+    if(t0>0){st[k0]-=t0;rem-=t0;led.push({type:e.type,ir:e.ir,exp:e.exp,qty:-t0,bal:st[k0],by:e.by,note:e.note,lot:e.lot||lotAt(k0),pre:e.pre,sc:e.sc,imp:e.imp});}
     Object.keys(st).filter(k=>k.startsWith(e.ir+'|')&&k!==k0&&st[k]>0).sort((a,b)=>(a.split('|')[1]||'9999').localeCompare(b.split('|')[1]||'9999')).forEach(k=>{
       if(rem<=0)return;const u=Math.min(rem,st[k]);st[k]-=u;rem-=u;moved++;
-      led.push({type:e.type,ir:e.ir,exp:k.split('|')[1],qty:-u,bal:st[k],by:e.by,pre:e.pre,sc:e.sc,imp:e.imp,note:((e.note?e.note+' · ':'')+'taken from this expiry date (the line said '+(e.exp?dmy(e.exp):'no expiry')+')')});});
-    if(rem>0)throw new Error('stock calculation error for '+e.ir);
+      led.push({type:e.type,ir:e.ir,exp:k.split('|')[1],qty:-u,bal:st[k],by:e.by,lot:lotAt(k),pre:e.pre,sc:e.sc,imp:e.imp,note:((e.note?e.note+' · ':'')+'taken from this expiry date (the line said '+(e.exp?dmy(e.exp):'no expiry')+')')});});
+    if(rem>0&&!(resolve&&Array.isArray(resolve[e.ir])))throw new Error('stock calculation error for '+e.ir);
   });
+  const counted=[];
+  order.forEach(ir=>{const v=resolve&&resolve[ir];if(!Array.isArray(v)||per.get(ir).after>=0)return;
+    const nw=new Map(),nl=new Map();v.forEach(x=>{nw.set(x.exp||'',(nw.get(x.exp||'')||0)+x.n);if(x.lot)nl.set(x.exp||'',x.lot);});
+    const olds=Object.keys(st).filter(k=>k.startsWith(ir+'|')).map(k=>k.slice(ir.length+1)),t0=entries.find(e=>e.ir===ir).type,what=/^WO/.test(t0)?'Write Off':'Stock Out';
+    new Set([...olds,...nw.keys()]).forEach(e=>{const k=ir+'|'+e,o=st[k]||0,nn=nw.get(e)||0;st[k]=nn;if(nn!==o||nw.has(e))if(nl.get(e)&&nn)lotSet[k]=nl.get(e);led.push({type:'COUNT',ir,exp:e,qty:nn-o,bal:nn,sc:now,lot:nl.get(e)||lotAt(k),note:'counted on the shelf when posting '+what+': '+nn+(o?' (was '+o+')':'')});});
+    counted.push(ir);});
   Object.keys(st).forEach(k=>{if(!st[k])delete st[k];});
-  return{stock:st,led,flags,moved,now};
+  return{stock:st,led,flags,moved,now,counted,lotSet};
 }
 async function postMov(kind,draw){
   const fpd=fpSet(),again=DRAFT[kind].filter(l=>l.fp&&fpd.has(l.fp));
   if(again.length){DRAFT[kind]=DRAFT[kind].filter(l=>!again.includes(l));draw();$('pmsg').className='msg warn';$('pmsg').textContent=again.length+' line'+(again.length===1?' was':'s were')+' posted before (same item, expiry, quantity and scan time) and '+(again.length===1?'was':'were')+' taken out of the list, so nothing is posted twice. Check the list and press Post again.';return;}
   const L=DRAFT[kind].filter(l=>!l.err);if(!L.length)return;const note=$('mNote').value.trim().slice(0,120);
-  const entries=L.map(l=>({type:kind==='in'?'IN':kind==='out'?'OUT':'WO'+(l.wo||1),ir:l.ir,exp:l.exp||'',qty:l.qty,by:l.by||ME.name,note,pre:l.src==='phonex'||undefined,sc:l.sc||undefined,imp:l.src==='phonex'?l.impAt||undefined:undefined}));
+  const entries=L.map(l=>({type:kind==='in'?'IN':kind==='out'?'OUT':'WO'+(l.wo||1),ir:l.ir,exp:l.exp||'',qty:l.qty,by:l.by||ME.name,note,lot:l.lot||undefined,pre:l.src==='phonex'||undefined,sc:l.sc||undefined,imp:l.src==='phonex'?l.impAt||undefined:undefined}));
   const nErr=DRAFT[kind].length-L.length;
   if(!confirm('POST '+MOV[kind].name.toUpperCase()+'\n\n'+L.length+' line'+(L.length===1?'':'s')+' · '+L.reduce((a,l)=>a+l.qty,0)+' units'+(nErr?'\n'+nErr+' line'+(nErr===1?'':'s')+' with errors stay in the list (not posted)':'')+'\n\nThe stock changes now. Continue?'))return;
-  const pre={},preX={};Object.keys(SHELF[kind]).forEach(ir=>{pre[ir]=SHELF[kind][ir].n;preX[ir]=SHELF[kind][ir].exp;});
+  const pre={},preX={};Object.keys(SHELF[kind]).forEach(ir=>{pre[ir]=SHELF[kind][ir];});
   let plan=planPost(entries,pre,preX);
   if(plan.short){const r=await askShelf(plan.short);if(!r){$('pmsg').className='msg warn';$('pmsg').textContent='Cancelled - nothing was posted.';return;}plan=planPost(entries,Object.assign({},pre,r),preX);}
   const ref=MOV[kind].type+'-'+plan.now.replace(/\D/g,'').slice(0,14);
   plan.led.forEach(x=>{DB.seq++;x.id=DB.seq;x.t=plan.now;x.by=x.by||ME.name;x.posted=ME.u;x.ref=ref;x.note=x.note||'';DB.ledger.push(x);});
   plan.flags.forEach(f=>{DB.flags[f.ir]={reason:f.reason,by:ME.u,at:plan.now};});
-  DB.stock=plan.stock;
+  (plan.counted||[]).forEach(ir=>{delete DB.flags[ir];});
+  DB.stock=plan.stock;if(!DB.lots)DB.lots={};Object.assign(DB.lots,plan.lotSet||{});pruneLots();
   if(!DB.imports)DB.imports=[];const seen=new Set();L.forEach(l=>{if(l.hash&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind,t:plan.now,u:ME.u,ref});}});
-  audit('POST_'+kind.toUpperCase(),ref+': '+L.length+' lines'+(plan.moved?', '+plan.moved+' from another expiry date':'')+(plan.flags.length?', '+plan.flags.length+' corrected':''));
+  audit('POST_'+kind.toUpperCase(),ref+': '+L.length+' lines'+(plan.moved?', '+plan.moved+' from another expiry date':'')+(plan.flags.length?', '+plan.flags.length+' corrected':'')+(plan.counted&&plan.counted.length?', '+plan.counted.length+' counted':''));
   await save();phAfterPost(L,ref);phStockSoon();DRAFT[kind]=DRAFT[kind].filter(l=>l.err);SHELF[kind]={};$('mNote').value='';draw();movPage.last();
-  ccsExcel.quiet=true;const nx=ccsExcel(ref);ccsExcel.quiet=false;const npre=L.filter(l=>l.src==='phonex').length;$('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+').'+(nx?' Excel for CCS saved ('+nx+' line'+(nx===1?'':'s')+') - see your Downloads.':'')+(npre?' '+npre+' line'+(npre===1?' was':'s were')+' already imported into CCS from the SHARED tab: not in the Excel.':'')+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
+  ccsExcel.quiet=true;const nx=ccsExcel(ref);ccsExcel.quiet=false;const npre=L.filter(l=>l.src==='phonex').length;$('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+').'+(nx?' Excel for CCS saved ('+nx+' line'+(nx===1?'':'s')+') - see your Downloads.':'')+(npre?' '+npre+' line'+(npre===1?' was':'s were')+' already imported into CCS from the SHARED tab: not in the Excel.':'')+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.counted&&plan.counted.length?'  '+plan.counted.length+' item'+(plan.counted.length===1?'':'s')+' counted on the shelf: also recorded as an inventory count.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
 }
 
 // ---------------------------------------------------------------- shared: item search box (last digits of the IR, or part of the name / other name)
@@ -1201,7 +1221,7 @@ PAGES.cnt=()=>{
     +'<div class="card"><h3>Last counts</h3><table class="t" id="cLast"></table></div>';
   itemSearch('cQ','cSug',it=>{const lots=lotsOf(it.ir);
     if(CDRAFT.lines.some(l=>l.ir===it.ir)){const q=[...$('cTab').querySelectorAll('input.cq')].find(x=>CDRAFT.lines[+x.dataset.j].ir===it.ir);if(q){q.focus();q.select();}return;}
-    (lots.length?lots:[{exp:'',qty:0}]).forEach(x=>CDRAFT.lines.push({ir:it.ir,exp:x.exp,qty:'',src:'hand'}));draw();
+    (lots.length?lots:[{exp:'',qty:0}]).forEach(x=>CDRAFT.lines.push({ir:it.ir,exp:x.exp,qty:'',lot:lotAt(it.ir+'|'+x.exp)||'',src:'hand'}));draw();
     const q=[...$('cTab').querySelectorAll('input.cq')].find(x=>CDRAFT.lines[+x.dataset.j].ir===it.ir);if(q)q.focus();});
   const groups=()=>{const g=new Map();CDRAFT.lines.forEach((l,j)=>{if(!g.has(l.ir))g.set(l.ir,[]);g.get(l.ir).push(j);});return g;};
   const itemCheck=ir=>{const L=CDRAFT.lines.filter(l=>l.ir===ir);if(L.some(l=>l.err))return{c:'st-err',t:L.find(l=>l.err).err};
@@ -1210,14 +1230,14 @@ PAGES.cnt=()=>{
     return bigDiff(sys,cnt)?{c:'st-err',t:'BIG difference: system '+sys+' → counted '+cnt+' ('+(d>0?'+':'')+d+')',big:1}:{c:d?'st-mv':'st-ok',t:'system '+sys+' → counted '+cnt+(d?' ('+(d>0?'+':'')+d+')':' (same)')};};
   const draw=()=>{
     const g=groups();$('cHead').textContent='Count list: '+g.size+' item'+(g.size===1?'':'s');
-    let h='<tr><th>Item</th><th>Expiry date</th><th style="width:110px">Counted</th><th>Check (whole item)</th><th></th></tr>';
-    if(!CDRAFT.lines.length)h+='<tr><td colspan="5" class="note">Empty. Add items with the search box, or import the count Excel.</td></tr>';
+    let h='<tr><th>Item</th><th>Expiry date</th><th>LOT (optional)</th><th style="width:110px">Counted</th><th>Check (whole item)</th><th></th></tr>';
+    if(!CDRAFT.lines.length)h+='<tr><td colspan="6" class="note">Empty. Add items with the search box, or import the count Excel.</td></tr>';
     g.forEach((js,ir)=>{const it=itemOf(ir),ck=itemCheck(ir);js.forEach((j,k)=>{const l=CDRAFT.lines[j],lot=DB.stock[ir+'|'+l.exp]||0;
       h+='<tr'+(l.err?' class="errrow"':'')+'>'+(k===0?'<td rowspan="'+(js.length+1)+'">'+thumb(ir)+'<b>'+esc(it?it.name:(l.name||ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(ir)+'</span>'+(it&&it.loc?' · '+esc(it.loc):'')+(l.by?' · counted by '+esc(l.by):'')+(l.sc?' · <b>'+esc(disp(l.sc))+'</b>':'')+(l.src==='file'?' · from file':'')+'</div></td>':'')
         +'<td>'+(l.err&&!it?esc(l.exp?dmy(l.exp):''):'<input type="text" class="ce" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="no expiry" style="width:130px">')+'<div class="lots">system: '+lot+'</div></td>'
-        +'<td><input type="number" min="0" class="cq" data-j="'+j+'" value="'+esc(l.qty)+'" placeholder="qty"></td>'
+        +'<td><input type="text" class="cl" data-j="'+j+'" value="'+esc(l.lot||'')+'" placeholder="optional" maxlength="40" style="width:120px"></td><td><input type="number" min="0" class="cq" data-j="'+j+'" value="'+esc(l.qty)+'" placeholder="qty"></td>'
         +(k===0?'<td rowspan="'+(js.length+1)+'" class="stc '+ck.c+'" data-ir="'+esc(ir)+'">'+esc(ck.t)+'</td>':'')+'<td><button class="btn alt" data-x="'+j+'" title="Remove this line">✕</button></td></tr>';});
-      h+='<tr><td colspan="2"><button class="btn alt" data-add="'+esc(ir)+'" style="padding:4px 10px">＋ another expiry date</button></td><td></td></tr>';});
+      h+='<tr><td colspan="3"><button class="btn alt" data-add="'+esc(ir)+'" style="padding:4px 10px">＋ another expiry date</button></td><td></td></tr>';});
     $('cTab').innerHTML=h;sum();};
   const sum=()=>{const g=groups();let big=0,miss=0,err=0;g.forEach((js,ir)=>{const c=itemCheck(ir);if(c.big)big++;if(c.c==='st-short')miss++;if(c.c==='st-err'&&!c.big)err++;});
     const zero=CDRAFT.full?DB.items.filter(i=>!g.has(i.ir)&&totalOf(i.ir)>0).length:0;
@@ -1225,6 +1245,7 @@ PAGES.cnt=()=>{
     $('cPost').disabled=!g.size||!canEdit();};
   const refresh=()=>{$('cTab').querySelectorAll('td.stc').forEach(td=>{const c=itemCheck(td.dataset.ir);td.className='stc '+c.c;td.textContent=c.t;});sum();};
   $('cTab').addEventListener('change',e=>{const t=e.target,l=CDRAFT.lines[+t.dataset.j];if(!l)return;
+    if(t.classList.contains('cl')){l.lot=t.value.trim().slice(0,40);return;}
     if(t.classList.contains('cq')){const v=t.value.trim();if(v===''){l.qty='';}else{const q=+v;if(q>=0&&Math.floor(q)===q){l.qty=q;if(/quantity/.test(l.err||''))delete l.err;}else{alert('The counted qty must be a whole number (0 or more).');t.value=l.qty;}}}
     if(t.classList.contains('ce')){const v=t.value.trim();if(!v)l.exp='';else{const e2=parseExpiry(v);if(e2)l.exp=e2;else{alert('Expiry date not understood: '+v+'\nUse 31/12/2030 or 12/2030, or leave it empty (no expiry).');t.value=l.exp?dmy(l.exp):'';}}draw();return;}
     refresh();});
@@ -1257,7 +1278,7 @@ async function importCount(draw){
     const merged=new Map();rows.forEach(r=>{const k=r.ir+'|'+r.exp;if(merged.has(k))merged.get(k).qty+=r.qty;else merged.set(k,Object.assign({},r));});
     const irs=new Set([...merged.values()].map(r=>r.ir));
     irs.forEach(ir=>{if(CDRAFT.lines.some(l=>l.ir===ir)){CDRAFT.lines=CDRAFT.lines.filter(l=>l.ir!==ir);repl++;}});
-    merged.forEach(r=>{const l={ir:r.ir,exp:r.exp,qty:r.qty,name:r.name,by:r.by||'',src:'file',file:f.name,hash};if(!known.has(r.ir)){l.err='not in the master list (add it in Items first)';unk++;}CDRAFT.lines.push(l);added++;});
+    merged.forEach(r=>{const l={ir:r.ir,exp:r.exp,qty:r.qty,lot:r.lot||'',name:r.name,by:r.by||'',src:'file',file:f.name,hash};if(!known.has(r.ir)){l.err='not in the master list (add it in Items first)';unk++;}CDRAFT.lines.push(l);added++;});
     draw();pm(unk?'warn':'ok','Added '+irs.size+' item'+(irs.size===1?'':'s')+' ('+added+' expiry lines) from '+f.name+' (sheet “'+sn+'”)'+(repl?', '+repl+' item'+(repl===1?'':'s')+' replaced the lines already in the list':'')+(unk?'. '+unk+' line'+(unk===1?'':'s')+' not in the master list (red, not posted)':'')+'. Check the differences, then press Post count.');}
   catch(e){pm('err','Could not read '+f.name+': '+(e.message||e.name));}
 }
@@ -1277,14 +1298,14 @@ async function postCount(draw){
   const units=ok.reduce((a,ir)=>a+byIr.get(ir).reduce((b,l)=>b+l.qty,0),0);
   if(!confirm('POST INVENTORY COUNT\n\n'+ok.length+' counted item'+(ok.length===1?'':'s')+' · '+units+' units counted'+(bad.length?'\n'+bad.length+' item'+(bad.length===1?'':'s')+' with errors stay in the list (not posted)':'')+(zero.length?'\n\nFULL COUNT: '+zero.length+' other item'+(zero.length===1?'':'s')+' with stock become 0!':'')+'\n\nThe stock of these items is REPLACED by the count. Continue?'))return;
   const now=nowStamp(),ref='CNT-'+now.replace(/\D/g,'').slice(0,14),note=$('cNote').value.trim().slice(0,120),st=Object.assign({},DB.stock),led=[];
-  const apply=(ir,lots,by)=>{const sc=(lots.find(l=>l.sc)||{}).sc||undefined,nw=new Map();lots.forEach(l=>nw.set(l.exp||'',(nw.get(l.exp||'')||0)+l.qty));
+  const apply=(ir,lots,by)=>{const sc=(lots.find(l=>l.sc)||{}).sc||undefined,nw=new Map();lots.forEach(l=>nw.set(l.exp||'',(nw.get(l.exp||'')||0)+l.qty));const nl=new Map();lots.forEach(l=>{if(l.lot)nl.set(l.exp||'',l.lot);});
     const old=new Map(Object.keys(st).filter(k=>k.startsWith(ir+'|')).map(k=>[k.slice(ir.length+1),st[k]]));let any=false;
-    new Set([...old.keys(),...nw.keys()]).forEach(e=>{const o=old.get(e)||0,n=nw.get(e)||0,k=ir+'|'+e;if(n)st[k]=n;else delete st[k];if(n!==o){any=true;led.push({type:'COUNT',ir,exp:e,qty:n-o,bal:n,by,sc,note:(note?note+' · ':'')+'counted '+n+(o?' (was '+o+')':'')});}});
+    new Set([...old.keys(),...nw.keys()]).forEach(e=>{const o=old.get(e)||0,n=nw.get(e)||0,k=ir+'|'+e;if(n)st[k]=n;else delete st[k];if(n&&nl.get(e)){if(!DB.lots)DB.lots={};DB.lots[k]=nl.get(e);}if(n!==o){any=true;led.push({type:'COUNT',ir,exp:e,qty:n-o,bal:n,by,sc,lot:nl.get(e)||lotAt(k),note:(note?note+' · ':'')+'counted '+n+(o?' (was '+o+')':'')});}});
     if(!any)led.push({type:'COUNT',ir,exp:'',qty:0,bal:[...nw.values()].reduce((a,b)=>a+b,0),by,sc,note:(note?note+' · ':'')+'counted - same as the stock'});};
   ok.forEach(ir=>{const L=byIr.get(ir);apply(ir,L,(L.find(l=>l.by)||{}).by||ME.name);});
   zero.forEach(ir=>apply(ir,[],ME.name));
   led.forEach(x=>{DB.seq++;x.id=DB.seq;x.t=now;x.posted=ME.u;x.ref=ref;DB.ledger.push(x);});
-  [...ok,...zero].forEach(ir=>{delete DB.flags[ir];});DB.stock=st;
+  [...ok,...zero].forEach(ir=>{delete DB.flags[ir];});DB.stock=st;pruneLots();
   if(!DB.imports)DB.imports=[];const seen=new Set();CDRAFT.lines.forEach(l=>{if(l.hash&&!l.err&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind:'cnt',t:now,u:ME.u,ref});}});
   const diff=led.reduce((a,x)=>a+x.qty,0);
   audit('POST_COUNT',ref+': '+ok.length+' items'+(zero.length?', '+zero.length+' set to 0 (full count)':'')+', difference '+(diff>0?'+':'')+diff);
@@ -1311,12 +1332,12 @@ PAGES.log=()=>{
   const draw=()=>{const L=rows(),inU=L.filter(x=>x.qty>0).reduce((a,x)=>a+x.qty,0),outU=L.filter(x=>x.qty<0).reduce((a,x)=>a-x.qty,0);
     $('lInfo').textContent=L.length+' movement'+(L.length===1?'':'s')+' · +'+inU+' / −'+outU+' units'+(L.length>500?' · showing the newest 500 (the Excel has all)':'');
     $('lTab').innerHTML='<tr><th>When</th><th>Type</th><th>Item</th><th>Expiry</th><th style="text-align:right">Qty</th><th style="text-align:right">Balance</th><th>Scanned / counted by</th><th>Posted by</th><th>Reference / note</th></tr>'
-      +(L.length?L.slice(0,500).map(x=>{const it=itemOf(x.ir);return '<tr class="click" data-ir="'+esc(x.ir)+'"><td>'+esc(disp(x.t))+'</td><td>'+esc(typeName(x.type))+'</td><td>'+esc(it?it.name:x.ir)+'<div class="lots mono">'+esc(x.ir)+'</div></td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num '+(x.qty<0?'st-err':x.qty>0?'st-ok':'')+'"><b>'+(x.qty>0?'+':'')+x.qty+'</b></td><td class="num">'+(x.bal==null?'':x.bal)+'</td><td>'+esc(x.by||'')+scanLine(x)+'</td><td>'+esc(x.posted||'')+'</td><td><span class="mono">'+esc(x.ref||'')+'</span>'+(x.note?'<div class="lots">'+esc(x.note)+'</div>':'')+'</td></tr>';}).join(''):'<tr><td colspan="9" class="note">No movement with these filters.</td></tr>');};
+      +(L.length?L.slice(0,500).map(x=>{const it=itemOf(x.ir);return '<tr class="click" data-ir="'+esc(x.ir)+'"><td>'+esc(disp(x.t))+'</td><td>'+esc(typeName(x.type))+'</td><td>'+esc(it?it.name:x.ir)+'<div class="lots mono">'+esc(x.ir)+(x.lot?' · LOT '+esc(x.lot):'')+'</div></td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num '+(x.qty<0?'st-err':x.qty>0?'st-ok':'')+'"><b>'+(x.qty>0?'+':'')+x.qty+'</b></td><td class="num">'+(x.bal==null?'':x.bal)+'</td><td>'+esc(x.by||'')+scanLine(x)+'</td><td>'+esc(x.posted||'')+'</td><td><span class="mono">'+esc(x.ref||'')+'</span>'+(x.note?'<div class="lots">'+esc(x.note)+'</div>':'')+'</td></tr>';}).join(''):'<tr><td colspan="9" class="note">No movement with these filters.</td></tr>');};
   ['lFrom','lTo','lType','lUser'].forEach(id=>$(id).onchange=()=>{LOGF.from=$('lFrom').value;LOGF.to=$('lTo').value;LOGF.type=$('lType').value;LOGF.user=$('lUser').value;draw();});
   $('lQ').oninput=()=>{LOGF.q=$('lQ').value;draw();};
   $('lTab').addEventListener('click',e=>{const tr=e.target.closest('tr[data-ir]');if(tr&&itemOf(tr.dataset.ir))invDialog(tr.dataset.ir);});
-  $('lX').onclick=()=>{const L=rows(),out=L.map(x=>{const it=itemOf(x.ir);return{t:disp(x.t),type:typeName(x.type),ir:x.ir,name:it?it.name:'',exp:x.exp?dmy(x.exp):'',qty:x.qty,bal:x.bal,by:x.by||'',scanned:x.sc?disp(x.sc):'',imported:x.imp?disp(x.imp):'',posted:x.posted||'',ref:x.ref||'',note:x.note||'',val:it&&it.price!=null?Math.round(x.qty*it.price*100)/100:''};});
-    xlsxOut('CCS_Desk_log_'+(LOGF.from||'start')+'_to_'+(LOGF.to||today())+'.xlsx','transaction log',[['When','t','s',17],['Type','type','s',26],['ir_number','ir','s',14],['item name','name','s',60],['Expiry','exp','s',12],['Qty','qty','n',8],['Balance','bal','n',9],['Scanned / counted by','by','s',18],['Scanned at','scanned','s',17],['Imported in CCS at','imported','s',17],['Posted by','posted','s',14],['Reference','ref','s',20],['Note','note','s',40],['Value (QAR)','val','n',12]],out,'TRANSACTION LOG');};
+  $('lX').onclick=()=>{const L=rows(),out=L.map(x=>{const it=itemOf(x.ir);return{t:disp(x.t),type:typeName(x.type),ir:x.ir,name:it?it.name:'',exp:x.exp?dmy(x.exp):'',lot:x.lot||'',qty:x.qty,bal:x.bal,by:x.by||'',scanned:x.sc?disp(x.sc):'',imported:x.imp?disp(x.imp):'',posted:x.posted||'',ref:x.ref||'',note:x.note||'',val:it&&it.price!=null?Math.round(x.qty*it.price*100)/100:''};});
+    xlsxOut('CCS_Desk_log_'+(LOGF.from||'start')+'_to_'+(LOGF.to||today())+'.xlsx','transaction log',[['When','t','s',17],['Type','type','s',26],['ir_number','ir','s',14],['item name','name','s',60],['Expiry','exp','s',12],['LOT','lot','s',16],['Qty','qty','n',8],['Balance','bal','n',9],['Scanned / counted by','by','s',18],['Scanned at','scanned','s',17],['Imported in CCS at','imported','s',17],['Posted by','posted','s',14],['Reference','ref','s',20],['Note','note','s',40],['Value (QAR)','val','n',12]],out,'TRANSACTION LOG');};
   draw();
 };
 
@@ -1427,21 +1448,21 @@ async function phSendStock(show){
 }
 // ---- Stock In / Stock Out / Write Off: take the open lists of the phones
 async function phPullMov(kind,draw){
-  const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};pm('warn','Getting the lists of the phones…');
-  try{const j=await phPost('list',{mode:kind==='in'?'IN':kind==='out'?'OUT':'WO'});const known=new Set(DB.items.map(i=>i.ir)),fpd=fpSet();let n=0,skip=0,bad=0,dup=0;const who=new Set();
+  let dn=0;const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t+(dn?' '+dn+' line'+(dn===1?'':'s')+' you removed earlier '+(dn===1?'was':'were')+' not listed again.':'');updRes();};pm('warn','Getting the lists of the phones…');
+  try{const j=await phPost('list',{mode:kind==='in'?'IN':kind==='out'?'OUT':'WO'});const known=new Set(DB.items.map(i=>i.ir)),fpd=fpSet(),dsm=disSet();let n=0,skip=0,bad=0,dup=0,dis=0;const who=new Set();
     (j.batches||[]).forEach(b=>(b.lines||[]).forEach(l=>{
-      const fp=fpOf(l.ir,l.expiry,l.qty,l.scanned,b.by);if(fp&&(fpd.has(fp)||DRAFT[kind].some(x=>x.fp===fp))){dup++;return;}
+      const fp=fpOf(l.ir,l.expiry,l.qty,l.scanned,b.by);if([fp,'k|'+b.key+'|'+l.ir+'|'+(l.expiry||'')].some(z=>z&&dsm.has(z))){dis++;return;}if(fp&&(fpd.has(fp)||DRAFT[kind].some(x=>x.fp===fp))){dup++;return;}
       if(DRAFT[kind].some(x=>x.src==='phone'&&x.key===b.key&&x.ir===l.ir&&x.pexp===(l.expiry||''))){skip++;return;}
       const row={ir:l.ir,exp:l.expiry||'',pexp:l.expiry||'',qty:l.qty,pqty:l.qty,name:l.name||'',by:b.by||'',sc:l.scanned||'',fp:fpOf(l.ir,l.expiry,l.qty,l.scanned,b.by),src:'phone',key:b.key,wo:kind==='wo'?(+String(b.mode).slice(2)||woDefault):0};
       if(!known.has(l.ir)){row.err='not in the master list (add it in Items first)';bad++;}
       DRAFT[kind].push(row);n++;if(b.by)who.add(b.by);}));
     let nx=0;try{const since=[DB.stockSince||'',PH.linkedAt||''].sort().pop()||addDays(-14),done=DB.phoneDone||{lines:[],refs:[]},dl=new Set(done.lines),dr=new Set(done.refs),want=kind==='in'?m=>m==='IN':kind==='out'?m=>m==='OUT':m=>/^WO[1-5]$/.test(m);
-      const x=await phPost('imported',{since});(x.exports||[]).forEach(g=>{if(dr.has(g.exportId))return;g.lines.forEach(l=>{if(!want(l.mode)||dl.has(l.lineId)||DRAFT[kind].some(y=>y.lineId===l.lineId))return;const fp=fpOf(l.ir,l.expiry,l.qty,l.scanned,l.by);if(fp&&(fpd.has(fp)||DRAFT[kind].some(y=>y.fp===fp))){dup++;return;}
+      const x=await phPost('imported',{since});(x.exports||[]).forEach(g=>{if(dr.has(g.exportId))return;g.lines.forEach(l=>{if(!want(l.mode)||dl.has(l.lineId)||DRAFT[kind].some(y=>y.lineId===l.lineId))return;const fp=fpOf(l.ir,l.expiry,l.qty,l.scanned,l.by);if([fp,'l|'+l.lineId].some(z=>z&&dsm.has(z))){dis++;return;}if(fp&&(fpd.has(fp)||DRAFT[kind].some(y=>y.fp===fp))){dup++;return;}
         const row={ir:l.ir,exp:l.expiry||'',qty:l.qty,name:l.name||'',by:l.by||'',sc:l.scanned||'',fp:fpOf(l.ir,l.expiry,l.qty,l.scanned,l.by),src:'phonex',lineId:l.lineId,exportId:g.exportId,impAt:g.imported,wo:kind==='wo'?(+String(l.mode).slice(2)||woDefault):0};
         if(!known.has(l.ir)){row.err='not in the master list (add it in Items first)';bad++;}DRAFT[kind].push(row);nx++;if(l.by)who.add(l.by);});});}
     catch(e){if(!/unknown action/i.test(e.message||''))throw e;}
     n+=nx;
-    draw();pm(n?(bad?'warn':'ok'):'warn',n?'Added '+n+' line'+(n===1?'':'s')+' from the phones'+(nx?' ('+nx+' already imported into CCS from the SHARED tab: they change the stock here, but are not put in the Excel for CCS again)':'')+(who.size?' ('+[...who].join(', ')+')':'')+(skip?', '+skip+' already in the list':'')+(bad?'. '+bad+' not in the master list (red)':'')+'. Check, then Post: the phones are told that these lines are done.':'No new lines on the phones'+(skip?' ('+skip+' already in the list)':'')+'.'+(dup?' '+dup+' line'+(dup===1?' was':'s were')+' not listed again: same item, expiry, quantity and scan time as a line already in the list or posted before.':''));}
+    draw();dn=dis;pm(n?(bad?'warn':'ok'):'warn',n?'Added '+n+' line'+(n===1?'':'s')+' from the phones'+(nx?' ('+nx+' already imported into CCS from the SHARED tab: they change the stock here, but are not put in the Excel for CCS again)':'')+(who.size?' ('+[...who].join(', ')+')':'')+(skip?', '+skip+' already in the list':'')+(bad?'. '+bad+' not in the master list (red)':'')+'. Check, then Post: the phones are told that these lines are done.':'No new lines on the phones'+(skip?' ('+skip+' already in the list)':'')+'.'+(dup?' '+dup+' line'+(dup===1?' was':'s were')+' not listed again: same item, expiry, quantity and scan time as a line already in the list or posted before.':''));}
   catch(e){pm('err','Could not get the lists of the phones: '+(e.message||e.name));}
 }
 // ---- Inventory Count: take the counts of the phones newer than the last count posted here
@@ -1508,18 +1529,62 @@ setInterval(()=>{if(ME&&!document.hidden)mediaSync(false);},30*60000);
 
 // ---------------------------------------------------------------- shelf labels (Code 128 barcode of the IR number)
 const C128=['212222','222122','222221','121223','121322','131222','122213','122312','132212','221213','221312','231212','112232','122132','122231','113222','123122','123221','223211','221132','221231','213212','223112','312131','311222','321122','321221','312212','322112','322211','212123','212321','232121','111323','131123','131321','112313','132113','132311','211313','231113','231311','112133','112331','132131','113123','113321','133121','313121','211331','231131','213113','213311','213131','311123','311321','331121','312113','312311','332111','314111','221411','431111','111224','111422','121124','121421','141122','141221','112214','112412','122114','122411','142112','142211','241211','221114','413111','241112','134111','111242','121142','121241','114212','124112','124211','411212','421112','421211','212141','214121','412121','111143','111341','131141','114113','114311','411113','411311','113141','114131','311141','411131','211412','211214','211232','2331112'];
-function code128Svg(txt){
+function code128Svg(txt,hmm){
   const v=[104];for(const ch of txt){const c=ch.charCodeAt(0)-32;if(c<0||c>94)continue;v.push(c);}
   let sum=v[0];for(let i=1;i<v.length;i++)sum+=v[i]*i;v.push(sum%103,106);
   let x=10,bars='';v.forEach(k=>{const p=C128[k];for(let i=0;i<p.length;i++){const w=+p[i];if(i%2===0)bars+='<rect x="'+x+'" y="0" width="'+w+'" height="50"/>';x+=w;}});
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+(x+10)+' 50" preserveAspectRatio="none" style="width:100%;height:13mm">'+bars+'</svg>';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+(x+10)+' 50" preserveAspectRatio="none" style="width:100%;height:'+(hmm||13)+'mm">'+bars+'</svg>';
 }
-function printLabels(list){
-  if(!list.length){alert('No item to print.');return;}if(list.length>240&&!confirm(list.length+' labels. Print all of them?'))return;
+const LBLSEL=new Set();
+function printLabels(list,cfg){
+  if(!list.length){alert('No item to print.');return;}
+  const copies=Math.max(1,Math.min(50,Math.floor(+cfg.copies)||1)),all=[];list.forEach(it=>{for(let c=0;c<copies;c++)all.push(it);});
+  if(all.length>240&&!confirm(all.length+' labels. Print all of them?'))return;
   const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for CCS Desk and try again.');return;}
-  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Shelf labels</title><style>@page{size:A4;margin:8mm}body{margin:0;font-family:Arial,sans-serif}.g{display:grid;grid-template-columns:repeat(3,1fr);gap:3mm}.l{border:1px dashed #999;padding:2.5mm 3mm;height:36mm;box-sizing:border-box;overflow:hidden;break-inside:avoid;display:flex;flex-direction:column}.n{font-size:9pt;font-weight:700;line-height:1.15;max-height:3.5em;overflow:hidden}.i{font:700 11pt monospace;letter-spacing:1px;text-align:center}.o{font-size:7.5pt;color:#333;margin-top:auto}svg rect{fill:#000}.tip{font:12px Arial;padding:8px;background:#fff4d6;margin-bottom:6px}@media print{.tip{display:none}}</style></head><body><div class="tip">'+list.length+' labels · A4, 3 per row · use “Print” of the browser (Ctrl+P), scale 100%.</div><div class="g">'
-    +list.map(it=>'<div class="l"><div class="n">'+esc(it.name)+'</div>'+code128Svg(it.ir)+'<div class="i">'+esc(it.ir)+'</div><div class="o">'+esc([it.unit,it.loc].filter(Boolean).join(' · '))+'</div></div>').join('')+'</div></body></html>');
+  const a4=cfg.paper==='a4',W=a4?(210-2*cfg.ml)/cfg.cols:cfg.w,H=a4?(297-2*cfg.mt)/cfg.rows:cfg.h,fs=Math.max(5.5,Math.min(9,H*0.27)).toFixed(1),ifs=Math.max(6.5,Math.min(11,H*0.3)).toFixed(1),bh=Math.max(6,Math.min(16,H*0.36)).toFixed(1);
+  const lab=it=>'<div class="l"><div class="n">'+esc(it.name)+'</div>'+code128Svg(it.ir,bh)+'<div class="i">'+esc(it.ir)+'</div>'+(H>=22?'<div class="o">'+esc([it.unit,it.loc].filter(Boolean).join(' · '))+'</div>':'')+'</div>';
+  const css='body{margin:0;font-family:Arial,sans-serif}.l{box-sizing:border-box;overflow:hidden;padding:1.2mm 2mm;display:flex;flex-direction:column;justify-content:space-between;'+(cfg.border?'outline:1px dashed #999;outline-offset:-1px;':'')+'}.n{font-size:'+fs+'pt;font-weight:700;line-height:1.12;max-height:'+(H>=22?'3.4':'2.3')+'em;overflow:hidden}.i{font:700 '+ifs+'pt monospace;letter-spacing:1px;text-align:center;line-height:1.1}.o{font-size:6.5pt;color:#333;white-space:nowrap;overflow:hidden}svg rect{fill:#000}.tip{font:12px Arial;padding:8px;background:#fff4d6;margin-bottom:6px}@media print{.tip{display:none}}';
+  let body,tip;
+  if(a4){const per=cfg.cols*cfg.rows,slots=[];for(let i=1;i<cfg.start;i++)slots.push('<div class="l"></div>');all.forEach(it=>slots.push(lab(it)));
+    const pages=[];for(let i=0;i<slots.length;i+=per)pages.push(slots.slice(i,i+per));
+    body='<style>@page{size:A4;margin:0}'+css+'.pg{width:210mm;height:296.5mm;box-sizing:border-box;padding:'+cfg.mt+'mm '+cfg.ml+'mm;display:grid;grid-template-columns:repeat('+cfg.cols+','+W.toFixed(2)+'mm);grid-template-rows:repeat('+cfg.rows+','+H.toFixed(2)+'mm);overflow:hidden;page-break-after:always}.pg:last-child{page-break-after:auto}</style>'+pages.map(pg=>'<div class="pg">'+pg.join('')+'</div>').join('');
+    tip=all.length+' labels on '+pages.length+' A4 sheet'+(pages.length===1?'':'s')+' ('+cfg.cols+' × '+cfg.rows+', each label '+W.toFixed(1)+' × '+H.toFixed(1)+' mm). In the print window choose the printer of the unit, paper A4, scale 100% (not "fit to page"), margins none.';}
+  else{body='<style>@page{size:'+cfg.w+'mm '+cfg.h+'mm;margin:0}'+css+'.l{width:'+cfg.w+'mm;height:'+cfg.h+'mm;page-break-after:always}.l:last-child{page-break-after:auto}</style>'+all.map(lab).join('');
+    tip=all.length+' labels, one per page, '+cfg.w+' × '+cfg.h+' mm. In the print window choose the label printer, scale 100%, margins none.';}
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Shelf labels</title></head><body><div class="tip">'+esc(tip)+'</div>'+body+'</body></html>');
   w.document.close();setTimeout(()=>{try{w.focus();w.print();}catch(e){}},400);
+}
+const LBLD={paper:'roll',w:50,h:25,cols:3,rows:10,mt:0,ml:0,copies:1,start:1,border:false};
+function labelDialog(shown){
+  const C=Object.assign({},LBLD,(DB.settings&&DB.settings.lbl)||{});let mode='list';
+  const withStock=shown.filter(it=>totalOf(it.ir)>0);
+  modal('<h1>Print labels</h1><p class="sub">Shelf label: item name, barcode and IR number.</p>'
+    +'<label>Which labels</label><select id="lbMode"><option value="list">All items of the list now ('+shown.length+')</option><option value="stock">Only items with stock ('+withStock.length+')</option><option value="sel">Only selected items (search and tick)</option></select>'
+    +'<p class="note" style="margin:4px 0 0" id="lbNote">The first two follow the search box of the Items page.</p>'
+    +'<div id="lbSel" class="hidden"><input type="text" id="lbQ" placeholder="Search: last digits of the IR, or part of the name" style="margin-top:8px"><div class="row" style="margin:6px 0"><span class="note" id="lbCnt"></span><button class="btn alt" id="lbAll" style="padding:4px 10px">Tick all shown</button><button class="btn alt" id="lbNone" style="padding:4px 10px">Clear ticks</button></div><div id="lbList" style="max-height:230px;overflow:auto;border:1px solid var(--line,#d8dee6);border-radius:8px"></div></div>'
+    +'<label>Paper</label><select id="lbPaper"><option value="roll"'+(C.paper==='roll'?' selected':'')+'>Narrow lab sticker (one label per page)</option><option value="a4"'+(C.paper==='a4'?' selected':'')+'>A4 label sheet (patient label sheet: columns × rows)</option></select>'
+    +'<div id="lbRoll" class="grid2"><div><label>Label width (mm)</label><input type="number" id="lbW" min="20" max="200" value="'+C.w+'"></div><div><label>Label height (mm)</label><input type="number" id="lbH" min="10" max="150" value="'+C.h+'"></div></div>'
+    +'<div id="lbA4" class="hidden"><div class="grid2"><div><label>Columns</label><input type="number" id="lbC" min="1" max="6" value="'+C.cols+'"></div><div><label>Rows</label><input type="number" id="lbR" min="1" max="20" value="'+C.rows+'"></div></div>'
+    +'<div class="grid2"><div><label>Margin top and bottom (mm)</label><input type="number" id="lbMT" min="0" max="30" step="0.5" value="'+C.mt+'"></div><div><label>Margin left and right (mm)</label><input type="number" id="lbML" min="0" max="30" step="0.5" value="'+C.ml+'"></div></div>'
+    +'<label>Start at label number (to use a sheet that is already partly used)</label><input type="number" id="lbS" min="1" value="1" style="width:100px"></div>'
+    +'<div class="grid2"><div><label>Copies of each label</label><input type="number" id="lbCo" min="1" max="50" value="'+C.copies+'"></div><div><label style="display:flex;gap:8px;align-items:center;margin-top:28px;font-weight:400"><input type="checkbox" id="lbB"'+(C.border?' checked':'')+'> Thin dashed border (for a test on plain paper)</label></div></div>'
+    +'<p class="note">Printing goes through the printers installed on this computer (the same list as Ctrl+P). A network printer with an IP address is added once in Windows (Printers &amp; scanners > Add), then it appears in the list. CCS Desk cannot send to an IP address by itself.</p>'
+    +'<div class="row" style="margin-top:12px"><button class="btn" id="lbGo">Print</button><button class="btn alt" id="lbX">Cancel</button></div><div class="msg" id="mmsg"></div>');
+  const paperUi=()=>{const a=$('lbPaper').value==='a4';$('lbA4').classList.toggle('hidden',!a);$('lbRoll').classList.toggle('hidden',a);};paperUi();$('lbPaper').onchange=paperUi;
+  const selList=()=>{const q=$('lbQ').value.trim().toLowerCase(),all=itemsKeyed();let L=q?all.filter(i=>q.split(/\s+/).every(w=>i.key.includes(w)||i.ir.endsWith(w)||i.ir.startsWith(w))):all;L=L.slice(0,200);selList.shown=L;
+    $('lbList').innerHTML=L.length?L.map(i=>'<label style="display:flex;gap:8px;align-items:flex-start;font-weight:400;margin:0;padding:5px 8px;border-bottom:1px solid #eef1f5"><input type="checkbox" data-ir="'+esc(i.ir)+'"'+(LBLSEL.has(i.ir)?' checked':'')+' style="margin-top:3px"><span>'+esc(i.name)+' <span class="mono note">'+esc(i.ir)+'</span></span></label>').join(''):'<div class="note" style="padding:8px">No item found</div>';cnt();};
+  const cnt=()=>{$('lbCnt').textContent=LBLSEL.size+' selected'+(selList.shown&&selList.shown.length>=200?' · showing the first 200, type more to narrow':'');};
+  $('lbMode').onchange=()=>{mode=$('lbMode').value;$('lbSel').classList.toggle('hidden',mode!=='sel');$('lbNote').classList.toggle('hidden',mode==='sel');if(mode==='sel'){selList();$('lbQ').focus();}};
+  $('lbQ').oninput=selList;
+  $('lbList').addEventListener('change',e=>{const c=e.target;if(c.dataset.ir){if(c.checked)LBLSEL.add(c.dataset.ir);else LBLSEL.delete(c.dataset.ir);cnt();}});
+  $('lbAll').onclick=()=>{(selList.shown||[]).forEach(i=>LBLSEL.add(i.ir));selList();};$('lbNone').onclick=()=>{LBLSEL.clear();selList();};
+  $('lbX').onclick=closeModal;
+  $('lbGo').onclick=()=>{const num=(id,lo,hi,d)=>{const v=+$(id).value;return v>=lo&&v<=hi?v:d;};
+    const cfg={paper:$('lbPaper').value,w:num('lbW',20,200,50),h:num('lbH',10,150,25),cols:Math.floor(num('lbC',1,6,3)),rows:Math.floor(num('lbR',1,20,10)),mt:num('lbMT',0,30,0),ml:num('lbML',0,30,0),copies:Math.floor(num('lbCo',1,50,1)),start:Math.floor(num('lbS',1,9999,1)),border:$('lbB').checked};
+    const L=mode==='list'?shown:mode==='stock'?withStock:DB.items.filter(i=>LBLSEL.has(i.ir));
+    if(!L.length){mmsg('err',mode==='sel'?'Tick at least one item.':'No item to print with this choice.');return;}
+    if(!DB.settings)DB.settings={};DB.settings.lbl={paper:cfg.paper,w:cfg.w,h:cfg.h,cols:cfg.cols,rows:cfg.rows,mt:cfg.mt,ml:cfg.ml,copies:cfg.copies,border:cfg.border};save();
+    closeModal();printLabels(L,cfg);};
 }
 
 // ---------------------------------------------------------------- items (master list)
@@ -1539,7 +1604,7 @@ PAGES.items=()=>{
   if($('iNew'))$('iNew').onclick=()=>itemDialog(null);
   if($('iLoad'))$('iLoad').onclick=()=>{$('iFile').value='';$('iFile').click();};
   $('iFile').onchange=loadMaster;
-  $('iLbl').onclick=()=>printLabels(PAGES.items.L||[]);
+  $('iLbl').onclick=()=>labelDialog(PAGES.items.L||[]);
   $('iXlsx').onclick=()=>{const rows=DB.items.map(i=>({ir:i.ir,name:i.name,alias:i.alias||'',unit:i.unit,loc:i.loc,max:i.max,min:i.min,price:i.price,expiry:'',qty:''}));
     const cols=[['ir_number','ir','s',14],['item name','name','s',70],['other names','alias','s',30],['Qty_type','unit','s',10],['Location','loc','s',40],['max_stock','max','n',10],['min_stock','min','n',10],['Unit Price','price','n',11]];
     download('CCS_Desk_master_list_'+today()+'.xlsx',buildXlsx('inventory list',cols,rows,null));};
