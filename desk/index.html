@@ -105,6 +105,7 @@ tr.errrow td{background:#fff5f5}
 body.locked #modal{display:none!important}
 #uTab .pill{white-space:nowrap}
 #printArea{display:none}@media print{body.printkey>*{display:none!important}body.printkey>#printArea{display:block!important;padding:30px;font-size:15px}body.printkey .keybox{font-size:30px}}
+#mTab td.item{min-width:330px;width:42%}#mTab tr.chkrow>td{padding-top:0;border-top:0;background:#fbfcfe}#mTab tr.chkrow .shelf{margin:0}#mTab tr.chkrow td.stc{min-width:0}.btn:disabled{opacity:.38;cursor:not-allowed}
 #mTab select.ms{min-width:230px}#mTab input.me{min-width:170px}#mTab input.mq{width:76px}#mTab td.stc{min-width:190px}.shrows{display:flex;flex-direction:column;gap:4px}.shr{display:flex;gap:6px}.shelf input.shl{width:96px!important}.shelf .shp{font-weight:700;padding:4px 12px}
 #nav button svg{width:18px;height:18px;flex:0 0 18px;stroke:var(--c);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .shelf{margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--ink)}.shelf input{width:74px!important}.shelf input.she{width:118px!important}.shelf .btn{padding:4px 10px}.shelf a{cursor:pointer;text-decoration:underline}
@@ -136,7 +137,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='2.1';
+const VERSION='2.4';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -542,7 +543,7 @@ async function unitList(){
   if(UNITS)return UNITS;if(location.protocol==='file:')return [];
   const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),6000);
   try{const r=await fetch('../config.json',{cache:'no-store',signal:ctl.signal}),c=await r.json();
-    UNITS=(c.units||[]).filter(u=>u.id&&u.name&&/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(u.syncUrl||'')&&(!window.CCSD_DEMO||/^demo/i.test(u.id)));return UNITS;}
+    UNITS=(c.units||[]).filter(u=>u.id&&u.name&&/^https:\/\/[^\s\/]+\.[^\s\/]+(\/[^\s?#]*)?$/.test(u.syncUrl||'')&&(!window.CCSD_DEMO||/^demo/i.test(u.id)));return UNITS;}
   catch(e){return [];}finally{clearTimeout(to);}
 }
 async function unitLink(){
@@ -876,7 +877,7 @@ function startApp(){
   $('sideUnit').textContent=DB.unit;$('sideVer').textContent='version '+VERSION;
   $('sideWho').innerHTML='Signed in as <b>'+esc(ME.name)+'</b><br>'+esc(signName(ME))+' · '+(ME.role==='admin'?'admin':'charge nurse');
   $('nav').innerHTML=NAV.filter(n=>!(n[4]==='admin'&&ME.role!=='admin')).map(n=>n[0]==='grp'?'<div class="grp">'+esc(n[1])+'</div>':'<button type="button" data-p="'+n[0]+'" class="'+(n[3]?'soon':'')+'">'+ico(n[0],n[2])+esc(n[1])+'</button>').join('');
-  saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();phInit().then(()=>{if(page==='dash'||page==='set'||MOV[page]||page==='cnt')go(page);mediaInit();});
+  saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();phInit().then(()=>{phSumMaybe();if(page==='dash'||page==='set'||MOV[page]||page==='cnt')go(page);mediaInit();});
 }
 $('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(b)go(b.dataset.p);});
 ['mousemove','keydown','click','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{if(ME)idle();},{passive:true}));
@@ -1076,6 +1077,8 @@ function demoGenerate(D,itemsList,days){
         push({t:stamp(ds,15,ri(0,30)),type:'COUNT',ir:p.it.ir,exp:l.exp,qty:df,bal:nq,by:pick(STAFF),posted:'900002',ref,note:'counted '+nq+' (was '+(nq-df)+')',pr:px(p,d),lot:l.lot,sc:stamp(ds,14,ri(0,59))});p.lots=p.lots.filter(x=>x.q>0);});}
   }
   function take1(p,l,q,ds,d,type,by){l.q-=q;push({t:stamp(ds,ri(7,9),ri(0,59),ri(0,59)),type,ir:p.it.ir,exp:l.exp,qty:-q,bal:l.q,by:by||pick(STAFF),posted:'900002',ref:refOf('WO',ds,8),note:'',pr:px(p,d),lot:l.lot});p.lots=p.lots.filter(x=>x.q>0);}
+  {const t0=dayIso(days),cand=[];P.forEach(p=>{if(!p.slow)p.lots.forEach(l=>{if(l.q>0)cand.push([p,l]);});});     // some stock that expires soon (to show the expiry warnings)
+   for(let n=0;n<14&&cand.length;n++){const j=ri(0,cand.length-1),pl=cand.splice(j,1)[0],p=pl[0],l=pl[1],oe=l.exp,ne=addDaysIso(t0,n===3?-ri(3,20):n<3?ri(8,28):ri(35,88));led.forEach(x=>{if(x.ir===p.it.ir&&x.exp===oe&&x.lot===l.lot)x.exp=ne;});l.exp=ne;}}
   D.ledger=led;D.seq=seq;D.stock={};D.lots={};P.forEach(p=>p.lots.forEach(l=>{if(l.q>0){const k=p.it.ir+'|'+l.exp;D.stock[k]=(D.stock[k]||0)+l.q;D.lots[k]=l.lot;}}));
   D.flags={};shuf(P).slice(0,3).forEach(p=>{D.flags[p.it.ir]={reason:'taken more than the stock (adjustment)',by:'900002',at:stamp(dayIso(days-3),9,0,0)};});
   D.pins=P.slice().sort((a,b)=>b.lam-a.lam).slice(0,8).map(p=>p.it.ir);D.stockSince=stamp(d0,0,0,0);D.imports=[];D.markQueue=[];D.reports=[];D.audit=D.audit||[];
@@ -1233,11 +1236,11 @@ function draftStatus(kind,list){
   if(kind==='in')return list.map(l=>l.err?{c:'st-err',t:l.err}:{c:'st-ok',t:'ok'});
   const need=new Map(),own=new Map();list.forEach(l=>{if(l.err)return;need.set(l.ir,(need.get(l.ir)||0)+l.qty);const k=l.ir+'|'+l.exp;own.set(k,(own.get(k)||0)+l.qty);});
   return list.map((l,j)=>{if(l.err)return{c:'st-err',t:l.err};const tot=lotsOf(l.ir).reduce((a,x)=>a+x.qty,0),k=l.ir+'|'+l.exp;
-    if(need.get(l.ir)>tot){const sh=SHELF[kind][l.ir];if(sh)return{c:'st-mv',t:'counted on the shelf now: '+sh.map(x=>x.n+(x.exp?' (expiry '+dmy(x.exp)+')':'')+(x.lot?' LOT '+x.lot:'')).join(' + '),ir:l.ir,done:1,first:firstOf.has(j)};return{c:'st-short',t:'not enough stock ('+tot+')',ir:l.ir,ask:1,first:firstOf.has(j),exp:l.exp};}
+    if(need.get(l.ir)>tot){const sh=SHELF[kind][l.ir];if(sh)return{c:'st-mv',t:'approximate count on the shelf now: '+sh.map(x=>x.n+(x.exp?' (expiry '+dmy(x.exp)+')':'')+(x.lot?' LOT '+x.lot:'')).join(' + '),ir:l.ir,done:1,first:firstOf.has(j)};return{c:'st-short',t:'not enough stock ('+tot+')',ir:l.ir,ask:1,first:firstOf.has(j),exp:l.exp};}
     if(own.get(k)>(DB.stock[k]||0))return{c:'st-mv',t:'part from another expiry date'};return{c:'st-ok',t:'ok'};});
 }
 PAGES.in=()=>movPage('in');PAGES.out=()=>movPage('out');PAGES.wo=()=>movPage('wo');
-const stHtml=(s,l)=>s.ask&&s.first?esc(s.t)+'<div class="shelf" data-ir="'+esc(s.ir)+'"><span>Count on the shelf now:</span><div class="shrows"><span class="shr"><input type="number" min="0" class="shq" placeholder="qty"><input type="text" class="she" placeholder="expiry" value="'+esc(s.exp?dmy(s.exp):'')+'"><input type="text" class="shl" placeholder="LOT" maxlength="40"></span></div><button type="button" class="btn alt shp" title="Add a row for another expiry date">+</button><button type="button" class="btn alt shb">Set</button></div>':s.ask?esc(s.t):s.done&&s.first?esc(s.t)+' <a class="shundo" data-ir="'+esc(s.ir)+'">change</a>':esc(s.t);
+const stHtml=(s,l)=>s.ask&&s.first?esc(s.t)+'<div class="shelf" data-ir="'+esc(s.ir)+'"><span>Approximate count on the shelf now:</span><div class="shrows"><span class="shr"><input type="number" min="0" class="shq" placeholder="qty"><input type="text" class="she" placeholder="expiry" value="'+esc(s.exp?dmy(s.exp):'')+'"><input type="text" class="shl" placeholder="LOT" maxlength="40"></span></div><button type="button" class="btn alt shp" title="Add a row for another expiry date">+</button><button type="button" class="btn alt shb">Set</button></div>':s.ask?esc(s.t):s.done&&s.first?esc(s.t)+' <a class="shundo" data-ir="'+esc(s.ir)+'">change</a>':esc(s.t);
 function movPage(kind){
   const M=MOV[kind];
   $('main').innerHTML='<div class="card"><div class="row"><div class="search" style="position:relative"><input type="text" id="mQ" autocomplete="off" placeholder="Add an item: last digits of the IR, or part of the name"><div class="sugg hidden" id="mSug"></div></div>'
@@ -1262,19 +1265,20 @@ function movPage(kind){
   $('mSug').addEventListener('click',e=>{const d=e.target.closest('div[data-j]');if(d)add(res[+d.dataset.j].it);});
   const draw=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L),ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0);
     $('mHead').textContent=M.name+' list: '+L.length+' line'+(L.length===1?'':'s');
-    $('mTab').innerHTML='<tr><th>Item</th><th style="min-width:240px">Expiry date</th><th style="width:96px">Qty</th><th>LOT (optional)</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th>Check</th><th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
+    $('mTab').innerHTML='<tr><th>Item</th><th style="min-width:240px">Expiry date</th><th style="width:96px">Qty</th><th>LOT (optional)</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
       let ex;if(l.err&&!it)ex=esc(l.exp?dmy(l.exp):'');else if(kind==='in')ex='<input type="text" class="me" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="DD/MM/YYYY or empty" style="width:150px">';
       else ex='<select class="ms" data-j="'+j+'">'+lots.map(x=>'<option value="'+x.exp+'"'+(x.exp===l.exp?' selected':'')+'>'+(x.exp?dmy(x.exp):'no expiry')+' (stock '+x.qty+(x.lot?' · LOT '+esc(x.lot):'')+')</option>').join('')+(lots.some(x=>x.exp===l.exp)?'':'<option value="'+esc(l.exp)+'" selected>'+(l.exp?dmy(l.exp):'no expiry')+' (stock 0)</option>')+'</select>';
-      return '<tr'+(l.err?' class="errrow"':'')+'><td>'+thumb(l.ir)+'<b>'+esc(it?it.name:(l.name||l.ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.sc?' <b>'+esc(disp(l.sc))+'</b>':'')+(l.src==='file'?' · from file (row '+l.line+')':'')+(l.src==='phonex'?' · <b>already in CCS</b> (imported on the SHARED tab '+esc(disp(l.impAt||''))+')':'')+'</div></td><td>'+ex+'</td>'
+      return '<tr'+(l.err?' class="errrow"':'')+'><td class="item">'+thumb(l.ir)+'<b>'+esc(it?it.name:(l.name||l.ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.sc?' <b>'+esc(disp(l.sc))+'</b>':'')+(l.src==='file'?' · from file (row '+l.line+')':'')+(l.src==='phonex'?' · <b>already in CCS</b> (imported on the SHARED tab '+esc(disp(l.impAt||''))+')':'')+'</div></td><td>'+ex+'</td>'
         +'<td>'+(l.err&&!it?esc(l.qty):'<input type="number" min="1" class="mq" data-j="'+j+'" value="'+esc(l.qty)+'">')+'</td><td>'+(l.err&&!it?esc(l.lot||''):'<input type="text" class="ml" data-j="'+j+'" value="'+esc(l.lot||'')+'" placeholder="'+esc(kind==='in'?'optional':(lotAt(l.ir+'|'+l.exp)||'optional'))+'" maxlength="40" style="width:130px">')+'</td>'
         +(kind==='wo'?'<td><select class="mw" data-j="'+j+'">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===l.wo?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select></td>':'')
-        +'<td class="stc '+stt[j].c+'" data-j="'+j+'">'+stHtml(stt[j],l)+'</td><td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>';}).join(''):'<tr><td colspan="7" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
+        +'<td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>'
+        +'<tr class="chkrow'+(l.err?' errrow':'')+'"'+(stt[j].c==='st-ok'?' style="display:none"':'')+'><td colspan="'+(kind==='wo'?5:4)+'" class="stc '+stt[j].c+'" data-j="'+j+'">'+stHtml(stt[j],l)+'</td></tr>';}).join(''):'<tr><td colspan="6" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
     sumUp(L,stt);};
   // after a change in a box: update the checks and totals only (the table is not rebuilt, so the cursor stays where the user clicked)
-  const sumUp=(L,stt)=>{const ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0),nErr=L.filter(l=>l.err).length,nShort=stt.filter(x=>x.c==='st-short').length;
-    $('mSum').innerHTML=ok.length+' line'+(ok.length===1?'':'s')+' · '+units+' units'+(nErr?' · <span class="st-err">'+nErr+' with errors (not posted)</span>':'')+(nShort?' · <span class="st-short">'+nShort+' not enough stock</span>':'');
+  const sumUp=(L,stt)=>{const ok=L.filter((l,j)=>!l.err&&stt[j].c!=='st-short'),units=ok.reduce((a,l)=>a+l.qty,0),nErr=L.filter(l=>l.err).length,nShort=stt.filter(x=>x.c==='st-short').length;
+    $('mSum').innerHTML=ok.length+' line'+(ok.length===1?'':'s')+' · '+units+' units'+(nErr?' · <span class="st-err">'+nErr+' with errors (not posted)</span>':'')+(nShort?' · <span class="st-short">'+nShort+' not enough stock (stay in the list, not posted)</span>':'');
     $('mPost').disabled=!ok.length;$('mPost').textContent='Post '+ok.length+' line'+(ok.length===1?'':'s');};
-  const refresh=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L);$('mTab').querySelectorAll('td.stc').forEach(td=>{const j=+td.dataset.j;if(!stt[j])return;td.className='stc '+stt[j].c;if(td.querySelector('input:focus'))return;const sig=stt[j].c+'|'+stt[j].t+'|'+(stt[j].first?1:0);if(td.dataset.sig===sig)return;td.dataset.sig=sig;td.innerHTML=stHtml(stt[j],L[j]);const tr=td.parentElement;tr.classList.toggle('errrow',!!L[j].err);});sumUp(L,stt);};
+  const refresh=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L);$('mTab').querySelectorAll('td.stc').forEach(td=>{const j=+td.dataset.j;if(!stt[j])return;td.className='stc '+stt[j].c;if(td.querySelector('input:focus'))return;const sig=stt[j].c+'|'+stt[j].t+'|'+(stt[j].first?1:0);if(td.dataset.sig===sig)return;td.dataset.sig=sig;td.innerHTML=stHtml(stt[j],L[j]);const tr=td.parentElement;tr.classList.toggle('errrow',!!L[j].err);tr.style.display=stt[j].c==='st-ok'?'none':'';const pr=tr.previousElementSibling;if(pr)pr.classList.toggle('errrow',!!L[j].err);});sumUp(L,stt);};
   $('mTab').addEventListener('change',e=>{const t=e.target,j=+t.dataset.j,l=DRAFT[kind][j];if(!l)return;
     if(t.classList.contains('mq')){const q=Math.floor(+t.value);if(q>0){l.qty=q;if(/quantity/.test(l.err||''))delete l.err;}else{t.value=l.qty;}}
     if(t.classList.contains('me')){const v=t.value.trim();if(!v){l.exp='';if(/expiry/.test(l.err||''))delete l.err;}else{const e2=parseExpiry(v);if(e2){l.exp=e2;if(/expiry/.test(l.err||''))delete l.err;}else{alert('Expiry date not understood: '+v+'\nUse 31/12/2030 or 12/2030, or leave it empty (no expiry).');t.value=l.exp?dmy(l.exp):'';}}}
@@ -1356,7 +1360,7 @@ function askShelf(short){return new Promise(res=>{
   modal('<h1>Not enough stock</h1><p class="sub">Nothing is posted yet. For each item, type how many are on the shelf <b>now</b> (after this posting). A rough count is OK. Leave it empty if you cannot count now: the stock becomes 0.</p>'
     +'<table class="t"><tr><th>Item</th><th style="text-align:right">Stock in CCS Desk</th><th style="text-align:right">This posting</th><th style="width:150px">On the shelf now</th></tr>'
     +short.map((s,j)=>'<tr><td><b>'+esc(s.name)+'</b><div class="lots mono">'+esc(s.ir)+'</div></td><td class="num">'+s.have+'</td><td class="num">'+s.take+'</td><td><input type="number" min="0" id="sh'+j+'" placeholder="empty = 0"></td></tr>').join('')+'</table>'
-    +'<p class="note">These items will be marked “needs a real count”.</p><div class="row" style="margin-top:14px"><button class="btn" id="shOk">Post</button><button class="btn alt" id="shNo">Cancel - post nothing</button></div><div class="msg" id="mmsg"></div>');
+    +'<p class="note">These items will be marked “needs a real count” (priority list for the next count).</p><div class="row" style="margin-top:14px"><button class="btn" id="shOk">Post</button><button class="btn alt" id="shNo">Cancel - post nothing</button></div><div class="msg" id="mmsg"></div>');
   $('shNo').onclick=()=>{closeModal();res(null);};
   $('shOk').onclick=()=>{const out={};for(let j=0;j<short.length;j++){const v=$('sh'+j).value.trim();if(v===''){out[short[j].ir]=-1;continue;}const n=+v;if(!(n>=0)||Math.floor(n)!==n){mmsg('err','“'+v+'” is not a whole number.');return;}out[short[j].ir]=n;}closeModal();res(out);};
   setTimeout(()=>$('sh0')&&$('sh0').focus(),50);});}
@@ -1392,21 +1396,21 @@ function planPost(entries,resolve,rexp){
 async function postMov(kind,draw){
   const fpd=fpSet(),again=DRAFT[kind].filter(l=>l.fp&&fpd.has(l.fp));
   if(again.length){DRAFT[kind]=DRAFT[kind].filter(l=>!again.includes(l));draw();$('pmsg').className='msg warn';$('pmsg').textContent=again.length+' line'+(again.length===1?' was':'s were')+' posted before (same item, expiry, quantity and scan time) and '+(again.length===1?'was':'were')+' taken out of the list, so nothing is posted twice. Check the list and press Post again.';return;}
-  const L=DRAFT[kind].filter(l=>!l.err);if(!L.length)return;const note=$('mNote').value.trim().slice(0,120);
+  const stt0=draftStatus(kind,DRAFT[kind]),L=DRAFT[kind].filter((l,j)=>!l.err&&stt0[j].c!=='st-short');if(!L.length)return;const note=$('mNote').value.trim().slice(0,120);
   const entries=L.map(l=>({type:kind==='in'?'IN':kind==='out'?'OUT':'WO'+(l.wo||1),ir:l.ir,exp:l.exp||'',qty:l.qty,by:l.by||ME.name,note,lot:l.lot||undefined,pre:l.src==='phonex'||undefined,sc:l.sc||undefined,imp:l.src==='phonex'?l.impAt||undefined:undefined}));
   const nErr=DRAFT[kind].length-L.length;
-  if(!confirm('POST '+MOV[kind].name.toUpperCase()+'\n\n'+L.length+' line'+(L.length===1?'':'s')+' · '+L.reduce((a,l)=>a+l.qty,0)+' units'+(nErr?'\n'+nErr+' line'+(nErr===1?'':'s')+' with errors stay in the list (not posted)':'')+'\n\nThe stock changes now. Continue?'))return;
+  if(!confirm('POST '+MOV[kind].name.toUpperCase()+'\n\n'+L.length+' line'+(L.length===1?'':'s')+' · '+L.reduce((a,l)=>a+l.qty,0)+' units'+(nErr?'\n'+nErr+' line'+(nErr===1?'':'s')+' with errors or not enough stock stay in the list (not posted)':'')+'\n\nThe stock changes now. Continue?'))return;
   const pre={},preX={};Object.keys(SHELF[kind]).forEach(ir=>{pre[ir]=SHELF[kind][ir];});
   let plan=planPost(entries,pre,preX);
   if(plan.short){const r=await askShelf(plan.short);if(!r){$('pmsg').className='msg warn';$('pmsg').textContent='Cancelled - nothing was posted.';return;}plan=planPost(entries,Object.assign({},pre,r),preX);}
   const ref=MOV[kind].type+'-'+plan.now.replace(/\D/g,'').slice(0,14);
   plan.led.forEach(x=>{{const pp=priceOf(x.ir);if(pp!=null)x.pr=pp;}DB.seq++;x.id=DB.seq;x.t=plan.now;x.by=x.by||ME.name;x.posted=ME.u;x.ref=ref;x.note=x.note||'';DB.ledger.push(x);});
   plan.flags.forEach(f=>{DB.flags[f.ir]={reason:f.reason,by:ME.u,at:plan.now};});
-  (plan.counted||[]).forEach(ir=>{delete DB.flags[ir];});
+  (plan.counted||[]).forEach(ir=>{DB.flags[ir]={reason:'Approximate count on the shelf when a list was posted',by:ME.u,at:plan.now};});
   DB.stock=plan.stock;if(!DB.lots)DB.lots={};Object.assign(DB.lots,plan.lotSet||{});pruneLots();
   if(!DB.imports)DB.imports=[];const seen=new Set();L.forEach(l=>{if(l.hash&&!seen.has(l.hash)){seen.add(l.hash);DB.imports.push({hash:l.hash,file:l.file,kind,t:plan.now,u:ME.u,ref});}});
   audit('POST_'+kind.toUpperCase(),ref+': '+L.length+' lines'+(plan.moved?', '+plan.moved+' from another expiry date':'')+(plan.flags.length?', '+plan.flags.length+' corrected':'')+(plan.counted&&plan.counted.length?', '+plan.counted.length+' counted':''));
-  await save();phAfterPost(L,ref);phStockSoon();DRAFT[kind]=DRAFT[kind].filter(l=>l.err);SHELF[kind]={};$('mNote').value='';draw();movPage.last();
+  await save();phAfterPost(L,ref);phStockSoon();DRAFT[kind]=DRAFT[kind].filter(l=>!L.includes(l));SHELF[kind]={};$('mNote').value='';draw();movPage.last();
   ccsExcel.quiet=true;const nx=ccsExcel(ref);ccsExcel.quiet=false;const npre=L.filter(l=>l.src==='phonex').length;$('pmsg').className='msg ok';$('pmsg').textContent='Posted '+L.length+' line'+(L.length===1?'':'s')+' ('+ref+').'+(nx?' Excel for CCS saved ('+nx+' line'+(nx===1?'':'s')+') - see your Downloads.':'')+(npre?' '+npre+' line'+(npre===1?' was':'s were')+' already imported into CCS from the SHARED tab: not in the Excel.':'')+(plan.moved?'  '+plan.moved+' taken from another expiry date.':'')+(plan.counted&&plan.counted.length?'  '+plan.counted.length+' item'+(plan.counted.length===1?'':'s')+' counted on the shelf: also recorded as an inventory count.':'')+(plan.flags.length?'  '+plan.flags.length+' item'+(plan.flags.length===1?'':'s')+' corrected and marked “needs a real count”.':'');
 }
 
@@ -1671,11 +1675,27 @@ async function phRetryMarks(){
   for(const m of DB.markQueue.slice()){try{await phPost('mark',{status:'EXPORTED',exportId:m.ref,items:m.items});DB.markQueue=DB.markQueue.filter(x=>x!==m);await save();}
     catch(e){saveState('err','Phones not updated: '+(e.message||e.name));return;}}
 }
+// ---- v2.2: daily totals (only numbers: quantity and cost per day, no names, no patients) for the central page of the hospital
+function summaryPayload(){
+  const from=addDays(-399),by=new Map();let n=0;
+  DB.ledger.forEach(x=>{const d=x.t.slice(0,10);if(d<from)return;const isO=x.type==='OUT',isW=/^WO/.test(x.type);if(!isO&&!isW)return;
+    const q=-x.qty,pp=unitPx(x),c=pp==null?0:q*pp;let r=by.get(d);if(!r){r={d,oq:0,oc:0,wq:0,wc:0,n:0};by.set(d,r);}
+    r.n++;if(isO){r.oq+=q;r.oc+=c;}else{r.wq+=q;r.wc+=c;}});
+  const days=[...by.values()].map(r=>({d:r.d,oq:r.oq,oc:R2(r.oc),wq:r.wq,wc:R2(r.wc),n:r.n})).sort((a,b)=>a.d<b.d?-1:1);
+  const ev=expiryValue();
+  return{days,meta:{stockValue:R2(stockValue()),expiredValue:ev.ex,soonValue:ev.so,budget:+((DB.settings&&DB.settings.budget)||0)||0,items:Object.keys(DB.stock).filter(k=>DB.stock[k]).length}};
+}
+async function phSendSummary(show){
+  if(!phOk()||PH.sum===false)return;
+  try{const j=await phPost('summarySet',summaryPayload(),60000);PH.sumAt=j.at||nowStamp();phSave();if(show)return j;}
+  catch(e){if(show)throw e;}      // the old script (before 6.2) does not know it: nothing is shown, the stock still works
+}
+function phSumMaybe(){if(!phOk()||PH.sum===false)return;const a=ageDays(PH.sumAt);if(a===null||a>0.25)phSendSummary(false);}
 // ---- the stock goes to the phones (they show "In the store: …")
 function phStockSoon(){if(!phOk()||PH.auto===false)return;clearTimeout(phStockT);phStockT=setTimeout(()=>phSendStock(false),3000);}
 async function phSendStock(show){
   const st={};Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])return;const i=k.indexOf('|'),ir=k.slice(0,i);(st[ir]=st[ir]||{lots:[]}).lots.push({exp:k.slice(i+1),qty:DB.stock[k]});});
-  try{const j=await phPost('stockSet',{stock:st},60000);PH.stockAt=j.at;phSave();if(show)return j;}
+  try{const j=await phPost('stockSet',{stock:st},60000);PH.stockAt=j.at;phSave();phSendSummary(false);if(show)return j;}
   catch(e){saveState('err','Stock not sent to the phones: '+(e.message||e.name));if(show)throw e;}
 }
 // ---- Stock In / Stock Out / Write Off: take the open lists of the phones
@@ -1716,9 +1736,12 @@ async function phSettings(box){
     if(window.CCSD_DEMO&&!units.length&&!phOk()){box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p class="note">The DEMO can be linked only to a demo unit of the phone app (a unit whose id starts with <b>demo</b> in config.json). No demo unit is set up yet, so the demo works without phones. It can never be linked to a real unit.</p>';return;}
     if(phOk()){box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p>Linked to <b>'+esc(PH.unitName||PH.unitId||'the unit')+'</b> as <b>'+esc(PH.name||'')+'</b> ('+esc(PH.corp||'')+', charge nurse). Last stock sent: '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+'.'+(DB.markQueue&&DB.markQueue.length?' <span class="st-err">'+DB.markQueue.length+' posting(s) not yet sent to the phones.</span>':'')+'</p>'
         +'<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="phAuto"'+(PH.auto===false?'':' checked')+'> Send the stock to the phones after every posting</label>'
+        +'<label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="phSum"'+(PH.sum===false?'':' checked')+'> Send the daily totals (only quantity and cost per day, no names) to the central page of the hospital</label>'
+        +'<p class="note">Totals last sent: '+esc(PH.sumAt?disp(PH.sumAt):'not yet')+'.</p>'
         +'<p class="note">Photos and second names from the phones: '+Object.keys(MEDIA.ph).length+' photos, '+Object.keys(MEDIA.sn).length+' second names (updated every 30 minutes).</p>'+'<div class="row" style="margin-top:10px"><button class="btn" id="phSend">Send the stock now</button><button class="btn alt" id="phMedia">Get photos and names now</button><button class="btn alt" id="phOut">Unlink</button></div><div class="msg" id="phMsg"></div>';
       $('phAuto').onchange=()=>{PH.auto=$('phAuto').checked;phSave();};
-      $('phSend').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Sending…';try{const j=await phSendStock(true);m.className='msg ok';m.textContent='Sent: '+j.items+' items. The phones show it within 5 minutes.';await phRetryMarks();draw();}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
+      $('phSum').onchange=()=>{PH.sum=$('phSum').checked;phSave();if(PH.sum)phSendSummary(false);};
+      $('phSend').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Sending…';try{const j=await phSendStock(true);m.className='msg ok';m.textContent='Sent: '+j.items+' items. The phones show it within 5 minutes.';phSendSummary(false);await phRetryMarks();draw();}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
       $('phMedia').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Getting photos and names… (the first time can take a minute)';try{MEDIA.at=0;const r=await mediaSync(true);m.className='msg ok';m.textContent='Done: '+r.photos+' photos, '+r.names+' second names.';}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
       $('phOut').onclick=()=>{if(confirm('Unlink CCS Desk from the phones on this computer?')){PH=null;phSave();draw();}};return;}
     box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p class="note">Link CCS Desk to the Google Sheet of the unit: then Stock Out, Stock In, Write Off and Inventory Count get the phones\' lists with one button, the phones are told what was posted, and the phones show the stock of CCS Desk. Use a <b>charge nurse</b> account of the app.</p>'
@@ -1727,7 +1750,7 @@ async function phSettings(box){
       +'<div class="row" style="margin-top:10px"><button class="btn" id="phGo">Link</button></div><div class="msg" id="phMsg"></div>';
     $('phGo').onclick=async()=>{const m=$('phMsg'),corp=$('phC').value.trim().toUpperCase(),pw=$('phP').value;let url,id='',nm='';
       if(units.length){const u=units.find(x=>x.id===$('phU').value);url=u.syncUrl;id=u.id;nm=u.name;}else{url=$('phL').value.trim();id=$('phId').value.trim().toLowerCase();nm=DB.unit;}
-      if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url||'')){m.className='msg err';m.textContent='Paste the web app link (https://script.google.com/macros/s/…/exec).';return;}
+      if(!/^https:\/\/[^\s\/]+\.[^\s\/]+(\/[^\s?#]*)?$/.test(url||'')){m.className='msg err';m.textContent='Paste the server link (https://…).';return;}
       if(!corp||!pw){m.className='msg err';m.textContent='Type the Corp No. and the password of the app.';return;}
       m.className='msg warn';m.textContent='Signing in…';PH={url,unitId:id,unitName:nm,auto:true};
       try{const j=await phPost('login',{corp,password:pw,device:'ccsdesk'+Math.random().toString(36).slice(2,8),unit:nm,code:''});

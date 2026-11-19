@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CCS Central: all units</title>
+<meta name="robots" content="noindex">
+<link rel="icon" href="icon-192.png">
+<style>
+:root{--bg:#f3f5f9;--card:#fff;--ink:#1b2430;--muted:#5b6675;--line:#e1e6ee;--blue:#1f4e78;--out:#2f6fb0;--wo:#7b3fa0;--ok:#1e7a3c;--okbg:#e7f5ec;--warn:#9a5b00;--warnbg:#fff4e0;--bad:#b3261e;--badbg:#fdecea}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#11161d;--card:#1b222c;--ink:#e8edf3;--muted:#a3adba;--line:#2c3542;--blue:#4c8fd0;--out:#6aa7e6;--wo:#c08be0;--okbg:#14301f;--warnbg:#3a2a0d;--badbg:#3d1714;--ok:#5fd38d;--warn:#f0b35a;--bad:#ff8a80}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 "Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif}
+header{background:#1f4e78;color:#fff;padding:14px 16px;display:flex;align-items:center;gap:12px}header h1{font-size:19px;margin:0}header .s{opacity:.8;font-size:13px;margin-left:auto}
+main{max-width:1250px;margin:0 auto;padding:16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:14px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}.row>div{display:flex;flex-direction:column;gap:4px;flex:1;min-width:170px}
+label{font-weight:600;font-size:13px;color:var(--muted)}input{font:inherit;padding:9px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink)}
+.btn{font:inherit;font-weight:700;padding:9px 16px;border-radius:8px;border:0;background:var(--blue);color:#fff;cursor:pointer}.btn.alt{background:transparent;color:var(--ink);border:1px solid var(--line)}.btn.sm{padding:8px 12px;font-size:13px;white-space:nowrap}.row>div.bt{flex:0 1 auto;min-width:0;max-width:100%;flex-direction:row;flex-wrap:wrap;gap:6px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px;margin-bottom:14px}.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px;border-left:4px solid var(--blue)}.tile .k{font-size:12px;color:var(--muted);font-weight:600}.tile .v{font-size:22px;font-weight:800}.tile .d{font-size:12px;color:var(--muted)}
+.wrap{overflow-x:auto}table{border-collapse:collapse;width:100%;min-width:980px}th,td{text-align:left;padding:8px;border-bottom:1px solid var(--line);font-size:13.5px;vertical-align:top}th{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.03em;cursor:pointer;white-space:nowrap;user-select:none}td.n,th.n{text-align:right;font-variant-numeric:tabular-nums}
+.pill{display:inline-block;border-radius:20px;padding:2px 10px;font-weight:700;font-size:12px}.ok{background:var(--okbg);color:var(--ok)}.warn{background:var(--warnbg);color:var(--warn)}.bad{background:var(--badbg);color:var(--bad)}
+.bar{height:8px;border-radius:4px;background:var(--line);overflow:hidden;min-width:60px}.bar i{display:block;height:100%;background:var(--out)}.bar.over i{background:var(--bad)}
+.msg{margin-top:8px;font-weight:600}.msg.err{color:var(--bad)}.note{color:var(--muted);font-size:13px}.why{font-size:12px;color:var(--muted)}
+svg text{fill:var(--muted);font-size:11px}.leg{display:flex;gap:14px;font-size:12px;color:var(--muted);margin:4px 0 0}.leg b{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
+@media(max-width:640px){main{padding:10px}header .s{display:none}}
+</style>
+</head>
+<body>
+<header><h1>CCS Central: all units</h1><span class="s" id="when"></span></header>
+<main>
+  <div class="card" id="login">
+    <div class="row">
+      <div style="flex:2"><label for="url">Central script link</label><input id="url" type="text" placeholder="https://script.google.com/macros/s/…/exec"></div>
+      <div style="max-width:260px"><label for="key">Status key</label><input id="key" type="password" autocomplete="off"></div>
+      <div class="bt"><button class="btn" id="go" type="button">Show</button><button class="btn alt" id="demoBtn" type="button" title="30 units with made-up numbers, for training and for showing managers">Demo (made-up units)</button></div>
+    </div>
+    <div class="msg" id="msg"></div>
+    <p class="note" style="margin:8px 0 0">Same link and key as the status page (central sheet: menu Shared list &gt; 7. Status page key). Only totals are shown here: quantity and cost per day. No names, no patients.</p>
+  </div>
+  <div id="out" style="display:none">
+    <div class="tiles" id="tiles"></div>
+    <div class="card">
+      <div class="row" style="align-items:flex-end">
+        <div style="max-width:170px"><label for="from">From</label><input type="date" id="from"></div>
+        <div style="max-width:170px"><label for="to">To</label><input type="date" id="to"></div>
+        <div class="bt"><button class="btn alt sm" data-r="week">Last 7 days</button><button class="btn alt sm" data-r="month">This month</button><button class="btn alt sm" data-r="last">Last month</button><button class="btn alt sm" data-r="year">Last 12 months</button></div>
+        <div class="bt"><button class="btn alt sm" id="csv" type="button">⬇ CSV</button><button class="btn sm" id="again" type="button">↻ Refresh</button></div>
+      </div>
+      <p class="note" id="rangeNote" style="margin:8px 0 0"></p>
+    </div>
+    <div class="card"><b>Hospital cost per month (last 12 months)</b><div id="chart"></div><div class="leg"><span><b style="background:var(--out)"></b>Stock Out</span><span><b style="background:var(--wo)"></b>Write Off</span></div></div>
+    <div class="card"><div class="wrap"><table id="tab"></table></div>
+      <p class="note">Cost = quantity × price of the item at the time of the posting. "Budget" is the monthly budget set in the unit's CCS Desk; the bar shows the cost of the current month. Amber: no totals from the unit for more than 2 days. Click a column to sort. Click a unit to see its months.</p></div>
+    <div class="card" id="detail" style="display:none"></div>
+  </div>
+</main>
+<script>
+(()=>{
+const $=id=>document.getElementById(id),esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const nf=v=>(Math.round(v*100)/100).toLocaleString('en-US',{minimumFractionDigits:0,maximumFractionDigits:2}),qa=v=>nf(v)+' QAR';
+let U=[],stamp='',sortK='tot',sortD=-1;
+const iso=d=>d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const addD=(s,n)=>{const d=new Date(s+'T12:00:00');d.setDate(d.getDate()+n);return iso(d);},today=()=>iso(new Date());
+const dd=(a,b)=>Math.round((new Date(b+'T12:00:00')-new Date(a+'T12:00:00'))/864e5);
+const mStart=(off)=>{const d=new Date();return iso(new Date(d.getFullYear(),d.getMonth()+off,1,12));},mEnd=(off)=>{const d=new Date();return iso(new Date(d.getFullYear(),d.getMonth()+off+1,0,12));};
+try{const k=sessionStorage.getItem('ccsStatusKey');if(k)$('key').value=k;const u=localStorage.getItem('ccsStatusUrl');if(u)$('url').value=u;}catch(e){}
+fetch('config.json',{cache:'no-store'}).then(r=>r.json()).then(c=>{const u=(c.units||[]).map(x=>x.syncUrl).filter(Boolean);if(!$('url').value&&u.length&&u.every(x=>x===u[0]))$('url').value=u[0];if($('url').value&&$('key').value)load();}).catch(()=>{});
+const ageD=t=>{if(!t)return null;const d=new Date(String(t).replace(' ','T'));return isNaN(d)?null:(Date.now()-d.getTime())/864e5;};
+const show=t=>t?String(t).slice(8,10)+'/'+String(t).slice(5,7)+' '+String(t).slice(11,16):'-';
+function sum(u,from,to){const r={out:0,wo:0,oq:0,wq:0,n:0};(u.days||[]).forEach(x=>{if(x[0]<from||x[0]>to)return;r.oq+=x[1];r.out+=x[2];r.wq+=x[3];r.wo+=x[4];r.n+=x[5];});r.tot=r.out+r.wo;return r;}
+async function load(){
+  const url=$('url').value.trim(),key=$('key').value.trim();if(!/^https:\/\/script\.google\.com\/macros\/s\/[A-Za-z0-9_-]+\/exec$/.test(url)){$('msg').className='msg err';$('msg').textContent='Paste the link of the central script.';return;}
+  if(!key){$('msg').className='msg err';$('msg').textContent='Type the status key.';return;}
+  $('msg').className='msg';$('msg').textContent='Loading all units… (can take up to a minute)';$('go').disabled=true;
+  try{const r=await fetch(url,{method:'POST',body:JSON.stringify({action:'central',key}),redirect:'follow'}),j=await r.json();if(!j.ok)throw new Error(/Unknown action|not understood|No such/i.test(j.error||'')?'The central script is older than 6.2: update it first.':(j.error||'refused'));
+    try{sessionStorage.setItem('ccsStatusKey',key);localStorage.setItem('ccsStatusUrl',url);}catch(e){}
+    U=j.units||[];stamp=j.now;if(!$('from').value)setRange('month');$('msg').textContent='';$('login').style.display='none';$('out').style.display='';render();}
+  catch(e){$('msg').className='msg err';$('msg').textContent='Could not load: '+(e.message||e.name);}
+  finally{$('go').disabled=false;}
+}
+function demoUnits(){let seed=7;const rnd=()=>{seed=(seed*16807)%2147483647;return seed/2147483647;};
+  const names=['PLTCU-1','PLTCU-2','PLTCU-3','PED INP','NICU','PICU','ER Adult','ER Pediatric','ICU 1','ICU 2','Ward 3A','Ward 3B','Ward 4A','Ward 4B','Ward 5','Dialysis','OR 1','OR 2','Recovery','Cath Lab','Oncology','Medical 1','Medical 2','Surgical 1','Surgical 2','Ortho','Neuro','Burn','Maternity','Nursery'];
+  const day=n=>iso(new Date(Date.now()-n*864e5)),f=d=>iso(d)+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':00';
+  return names.map((nm,i)=>{const scale=0.4+rnd()*3,days=[];for(let n=399;n>=0;n--){if(i===17&&n<20)continue;const oc=Math.round((60+rnd()*140)*scale*100)/100,wc=rnd()<0.1?Math.round(rnd()*40*scale*100)/100:0;days.push([day(n),Math.round(oc/6),oc,wc?1:0,wc,Math.round(8+rnd()*25)]);}
+    const at=new Date(Date.now()-(i===17?5*864e5:rnd()*72e6));const u={id:'demo'+i,name:'DEMO '+nm,days,at:f(at),meta:{stockValue:Math.round(20000*scale),expiredValue:Math.round(rnd()*300),soonValue:Math.round(rnd()*2500),budget:i%7===3?0:Math.round(scale*5)*8000,items:100}};return u;});}
+function setRange(k){const t=today();let f,e=t;if(k==='week')f=addD(t,-6);else if(k==='month')f=mStart(0);else if(k==='last'){f=mStart(-1);e=mEnd(-1);}else{f=mStart(-11);}$('from').value=f;$('to').value=e;}
+function rows(){const f=$('from').value,t=$('to').value,len=dd(f,t)+1,pf=addD(f,-len),pt=addD(f,-1);
+  return U.map(u=>{const r=sum(u,f,t),p=sum(u,pf,pt),m=sum(u,mStart(0),today()),a=ageD(u.at);return Object.assign({u,id:u.id,name:u.name,prev:p.tot,chg:p.tot?(r.tot-p.tot)/p.tot*100:null,month:m.tot,bud:(u.meta&&u.meta.budget)||0,age:a,stock:(u.meta||{}).stockValue||0,exp:(u.meta||{}).expiredValue||0,soon:(u.meta||{}).soonValue||0},r);});}
+function render(){
+  const f=$('from').value,t=$('to').value;if(!f||!t||f>t){$('rangeNote').textContent='Choose a valid range.';return;}
+  const R=rows(),T=k=>R.reduce((a,r)=>a+(+r[k]||0),0),rep=R.filter(r=>r.age!==null&&r.age<=2).length;
+  $('when').textContent='updated '+show(stamp);
+  const t7=U.reduce((a,u)=>a+sum(u,addD(today(),-6),today()).tot,0),m0=U.reduce((a,u)=>a+sum(u,mStart(0),today()).tot,0),m1=U.reduce((a,u)=>a+sum(u,mStart(-1),mEnd(-1)).tot,0),dm=dd(mStart(0),today())+1,dl=dd(mStart(-1),mEnd(-1))+1,bud=T('bud');
+  const same=U.reduce((a,u)=>a+sum(u,mStart(-1),addD(mStart(-1),Math.min(dm,dl)-1)).tot,0);
+  $('tiles').innerHTML=[['Last 7 days',qa(t7),''],['This month so far',qa(m0),same?(m0>=same?'+':'')+nf((m0-same)/same*100)+'% vs the same days last month':''],['Last month',qa(m1),''],['Monthly budgets (all units)',bud?qa(bud):'-',bud?nf(m0/bud*100)+'% used this month':''],['Stock value now',qa(T('stock')),'expired '+qa(T('exp'))],['Expires within 90 days',qa(T('soon')),''],['Units sending totals',rep+' / '+U.length,'in the last 2 days']].map(x=>'<div class="tile"><div class="k">'+x[0]+'</div><div class="v">'+x[1]+'</div><div class="d">'+esc(x[2])+'</div></div>').join('');
+  $('rangeNote').textContent=dd(f,t)+1+' days, '+f.split('-').reverse().join('/')+' to '+t.split('-').reverse().join('/')+'. Compared with the '+(dd(f,t)+1)+' days before.';
+  chart();
+  const col=[['name','Unit'],['out','Stock Out (QAR)',1],['wo','Write Off (QAR)',1],['tot','Total (QAR)',1],['share','% of hospital',1],['chg','vs before',1],['oq','Units out',1],['n','Lines',1],['month','Month vs budget',1],['stock','Stock value',1],['exp','Expired',1],['soon','Soon (90 d)',1],['age','Last totals']];
+  const all=T('tot');R.forEach(r=>r.share=all?r.tot/all*100:0);
+  R.sort((a,b)=>{const x=a[sortK],y=b[sortK];if(x==null)return 1;if(y==null)return -1;return(typeof x==='string'?x.localeCompare(y):x-y)*sortD;});
+  $('tab').innerHTML='<tr>'+col.map(c=>'<th class="'+(c[2]?'n':'')+'" data-k="'+c[0]+'">'+c[1]+(sortK===c[0]?(sortD>0?' ▲':' ▼'):'')+'</th>').join('')+'</tr>'
+    +R.map(r=>{const stale=r.age===null?'never':r.age>2?'warn':'ok',cls=r.bud&&r.month>r.bud?' over':'';
+      return '<tr data-id="'+esc(r.id)+'" style="cursor:pointer"><td><b>'+esc(r.name)+'</b>'+(r.u.error?'<div class="why" style="color:var(--bad)">'+esc(r.u.error)+'</div>':'')+'</td><td class="n">'+nf(r.out)+'</td><td class="n">'+nf(r.wo)+'</td><td class="n"><b>'+nf(r.tot)+'</b></td><td class="n">'+nf(r.share)+'%</td>'
+      +'<td class="n">'+(r.chg==null?'-':(r.chg>0?'+':'')+nf(r.chg)+'%')+'</td><td class="n">'+nf(r.oq)+'</td><td class="n">'+nf(r.n)+'</td>'
+      +'<td class="n">'+(r.bud?'<div class="bar'+cls+'"><i style="width:'+Math.min(100,r.month/r.bud*100)+'%"></i></div><div class="why">'+nf(r.month)+' / '+nf(r.bud)+'</div>':'<span class="why">no budget</span>')+'</td>'
+      +'<td class="n">'+nf(r.stock)+'</td><td class="n">'+nf(r.exp)+'</td><td class="n">'+nf(r.soon)+'</td>'
+      +'<td><span class="pill '+(stale==='ok'?'ok':stale==='warn'?'warn':'bad')+'">'+(stale==='never'?'none yet':stale==='ok'?'OK':Math.floor(r.age)+' d ago')+'</span><div class="why">'+show(r.u.at)+'</div></td></tr>';}).join('')
+    +'<tr><td><b>All units</b></td><td class="n"><b>'+nf(T('out'))+'</b></td><td class="n"><b>'+nf(T('wo'))+'</b></td><td class="n"><b>'+nf(all)+'</b></td><td class="n">100%</td><td class="n">'+(T('prev')?(all>=T('prev')?'+':'')+nf((all-T('prev'))/T('prev')*100)+'%':'-')+'</td><td class="n"><b>'+nf(T('oq'))+'</b></td><td class="n"><b>'+nf(T('n'))+'</b></td><td class="n">'+nf(T('month'))+(bud?' / '+nf(bud):'')+'</td><td class="n"><b>'+nf(T('stock'))+'</b></td><td class="n"><b>'+nf(T('exp'))+'</b></td><td class="n"><b>'+nf(T('soon'))+'</b></td><td></td></tr>';
+}
+function chart(){const ms=[];for(let i=11;i>=0;i--)ms.push(mStart(-i).slice(0,7));
+  const out=ms.map(m=>U.reduce((a,u)=>a+sum(u,m+'-01',m+'-31').out,0)),wo=ms.map(m=>U.reduce((a,u)=>a+sum(u,m+'-01',m+'-31').wo,0));
+  const mx=Math.max(1,...ms.map((_,i)=>out[i]+wo[i])),W=760,H=190,pl=48,bw=(W-pl)/12;let g='';
+  for(let k=0;k<=4;k++){const y=H-24-(H-44)*k/4;g+='<line x1="'+pl+'" x2="'+W+'" y1="'+y+'" y2="'+y+'" stroke="var(--line)"/><text x="'+(pl-6)+'" y="'+(y+4)+'" text-anchor="end">'+nf(mx*k/4>=1000?Math.round(mx*k/4/1000)*1000:mx*k/4)+'</text>';}
+  ms.forEach((m,i)=>{const x=pl+i*bw+bw*0.18,w=bw*0.64,ho=(H-44)*out[i]/mx,hw=(H-44)*wo[i]/mx,y0=H-24;
+    g+='<rect x="'+x+'" y="'+(y0-ho)+'" width="'+w+'" height="'+ho+'" fill="var(--out)"><title>'+m+' Stock Out '+nf(out[i])+' QAR</title></rect><rect x="'+x+'" y="'+(y0-ho-hw)+'" width="'+w+'" height="'+hw+'" fill="var(--wo)"><title>'+m+' Write Off '+nf(wo[i])+' QAR</title></rect><text x="'+(x+w/2)+'" y="'+(H-8)+'" text-anchor="middle">'+m.slice(2).replace('-','/')+'</text>';});
+  $('chart').innerHTML='<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;max-width:900px" role="img" aria-label="Hospital cost per month">'+g+'</svg>';}
+function detail(id){const u=U.find(x=>x.id===id);if(!u)return;const ms={};(u.days||[]).forEach(x=>{const m=x[0].slice(0,7);(ms[m]=ms[m]||{out:0,wo:0,oq:0,n:0});ms[m].out+=x[2];ms[m].wo+=x[4];ms[m].oq+=x[1];ms[m].n+=x[5];});
+  const k=Object.keys(ms).sort().reverse();$('detail').style.display='';$('detail').innerHTML='<b>'+esc(u.name)+': months</b> <button class="btn alt sm" id="dx" style="float:right">Close</button><div class="wrap"><table style="min-width:500px"><tr><th>Month</th><th class="n">Stock Out (QAR)</th><th class="n">Write Off (QAR)</th><th class="n">Total (QAR)</th><th class="n">Units out</th><th class="n">Lines</th></tr>'+(k.length?k.map(m=>'<tr><td>'+m+'</td><td class="n">'+nf(ms[m].out)+'</td><td class="n">'+nf(ms[m].wo)+'</td><td class="n"><b>'+nf(ms[m].out+ms[m].wo)+'</b></td><td class="n">'+nf(ms[m].oq)+'</td><td class="n">'+nf(ms[m].n)+'</td></tr>').join(''):'<tr><td colspan="6" class="why">No totals from this unit yet.</td></tr>')+'</table></div>';$('dx').onclick=()=>$('detail').style.display='none';$('detail').scrollIntoView({behavior:'smooth'});}
+$('demoBtn').onclick=()=>{U=demoUnits();stamp=iso(new Date())+' '+new Date().toTimeString().slice(0,8);setRange('month');$('login').style.display='none';$('out').style.display='';$('when').textContent='DEMO: made-up units';render();$('when').textContent='DEMO: made-up units';};
+$('go').onclick=load;$('key').addEventListener('keydown',e=>{if(e.key==='Enter')load();});$('again').onclick=()=>{$('login').style.display='';load();};
+$('from').onchange=$('to').onchange=render;document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{setRange(b.dataset.r);render();});
+$('tab').addEventListener('click',e=>{const th=e.target.closest('th[data-k]');if(th){const k=th.dataset.k;if(sortK===k)sortD=-sortD;else{sortK=k;sortD=k==='name'?1:-1;}render();return;}const tr=e.target.closest('tr[data-id]');if(tr)detail(tr.dataset.id);});
+$('csv').onclick=()=>{const R=rows(),h=['Unit','Id','From','To','Stock Out QAR','Write Off QAR','Total QAR','Units out','Lines','Previous period QAR','Month so far QAR','Monthly budget QAR','Stock value QAR','Expired QAR','Expires within 90 days QAR','Last totals'];
+  const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"',L=[h.map(q).join(',')].concat(R.map(r=>[r.name,r.id,$('from').value,$('to').value,nf0(r.out),nf0(r.wo),nf0(r.tot),r.oq,r.n,nf0(r.prev),nf0(r.month),r.bud,r.stock,r.exp,r.soon,r.u.at].map(q).join(',')));
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob(['﻿'+L.join('\r\n')],{type:'text/csv'}));a.download='ccs_central_'+$('from').value+'_to_'+$('to').value+'.csv';a.click();};
+const nf0=v=>Math.round(v*100)/100;
+})();
+</script>
+</body>
+</html>
