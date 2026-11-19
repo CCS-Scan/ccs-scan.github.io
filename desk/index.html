@@ -105,7 +105,8 @@ tr.errrow td{background:#fff5f5}
 body.locked #modal{display:none!important}
 #uTab .pill{white-space:nowrap}
 #printArea{display:none}@media print{body.printkey>*{display:none!important}body.printkey>#printArea{display:block!important;padding:30px;font-size:15px}body.printkey .keybox{font-size:30px}}
-#mTab td.item{min-width:330px;width:42%}#mTab tr.chkrow>td{padding-top:0;border-top:0;background:#fbfcfe}#mTab tr.chkrow .shelf{margin:0}#mTab tr.chkrow td.stc{min-width:0}.btn:disabled{opacity:.38;cursor:not-allowed}
+#mTab tr.mainrow>td{border-top:2px solid #8996ad}#mTab tr.z0>td{background:#ffffff}#mTab tr.z1>td{background:#e9eef7}#mTab tr.errrow>td{background:#fdeaea}#mTab tr.chkrow>td{border-top:0}
+#mTab td.item{min-width:330px;width:42%}#mTab tr.chkrow>td{padding-top:0;border-top:0}#mTab tr.chkrow .shelf{margin:0}#mTab tr.chkrow td.stc{min-width:0}.btn:disabled{opacity:.38;cursor:not-allowed}
 #mTab select.ms{min-width:230px}#mTab input.me{min-width:170px}#mTab input.mq{width:76px}#mTab td.stc{min-width:190px}.shrows{display:flex;flex-direction:column;gap:4px}.shr{display:flex;gap:6px}.shelf input.shl{width:96px!important}.shelf .shp{font-weight:700;padding:4px 12px}
 #nav button svg{width:18px;height:18px;flex:0 0 18px;stroke:var(--c);fill:none;stroke-width:1.9;stroke-linecap:round;stroke-linejoin:round}
 .shelf{margin-top:6px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;font-size:12.5px;color:var(--ink)}.shelf input{width:74px!important}.shelf input.she{width:118px!important}.shelf .btn{padding:4px 10px}.shelf a{cursor:pointer;text-decoration:underline}
@@ -137,7 +138,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='2.4';
+const VERSION='2.5';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -1263,17 +1264,19 @@ function movPage(kind){
   $('mQ').addEventListener('keydown',e=>{const n=res.length;if(e.key==='ArrowDown'){hl=Math.min(n-1,hl+1);}else if(e.key==='ArrowUp'){hl=Math.max(0,hl-1);}else if(e.key==='Enter'){e.preventDefault();if(res[hl])add(res[hl].it);return;}else if(e.key==='Escape'){$('mSug').classList.add('hidden');return;}else return;
     e.preventDefault();$('mSug').querySelectorAll('div[data-j]').forEach((d,j)=>d.classList.toggle('hl',j===hl));});
   $('mSug').addEventListener('click',e=>{const d=e.target.closest('div[data-j]');if(d)add(res[+d.dataset.j].it);});
-  const draw=()=>{const L=DRAFT[kind],stt=draftStatus(kind,L),ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0);
+  const shelfKeep=()=>{const m={};$('mTab').querySelectorAll('.shelf').forEach(b=>{const rows=[...b.querySelectorAll('.shr')].map(r=>[r.querySelector('.shq').value,r.querySelector('.she').value,r.querySelector('.shl').value]);if(rows.some(r=>r[0]!==''||r[2]!==''))m[b.dataset.ir]=rows;});return m;};
+  const shelfRestore=m=>{Object.keys(m).forEach(ir=>{const b=[...$('mTab').querySelectorAll('.shelf')].find(x=>x.dataset.ir===ir);if(!b)return;m[ir].forEach((v,i)=>{let r=b.querySelectorAll('.shr')[i];if(!r){b.querySelector('button.shp').click();r=b.querySelectorAll('.shr')[i];}if(!r)return;r.querySelector('.shq').value=v[0];r.querySelector('.she').value=v[1];r.querySelector('.shl').value=v[2];});});};
+  const draw=()=>{const kp=shelfKeep(),L=DRAFT[kind],stt=draftStatus(kind,L),ok=L.filter(l=>!l.err),units=ok.reduce((a,l)=>a+l.qty,0);
     $('mHead').textContent=M.name+' list: '+L.length+' line'+(L.length===1?'':'s');
     $('mTab').innerHTML='<tr><th>Item</th><th style="min-width:240px">Expiry date</th><th style="width:96px">Qty</th><th>LOT (optional)</th>'+(kind==='wo'?'<th>Reason</th>':'')+'<th></th></tr>'+(L.length?L.map((l,j)=>{const it=DB.items.find(i=>i.ir===l.ir),lots=lotsOf(l.ir);
       let ex;if(l.err&&!it)ex=esc(l.exp?dmy(l.exp):'');else if(kind==='in')ex='<input type="text" class="me" data-j="'+j+'" value="'+esc(l.exp?dmy(l.exp):'')+'" placeholder="DD/MM/YYYY or empty" style="width:150px">';
       else ex='<select class="ms" data-j="'+j+'">'+lots.map(x=>'<option value="'+x.exp+'"'+(x.exp===l.exp?' selected':'')+'>'+(x.exp?dmy(x.exp):'no expiry')+' (stock '+x.qty+(x.lot?' · LOT '+esc(x.lot):'')+')</option>').join('')+(lots.some(x=>x.exp===l.exp)?'':'<option value="'+esc(l.exp)+'" selected>'+(l.exp?dmy(l.exp):'no expiry')+' (stock 0)</option>')+'</select>';
-      return '<tr'+(l.err?' class="errrow"':'')+'><td class="item">'+thumb(l.ir)+'<b>'+esc(it?it.name:(l.name||l.ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.sc?' <b>'+esc(disp(l.sc))+'</b>':'')+(l.src==='file'?' · from file (row '+l.line+')':'')+(l.src==='phonex'?' · <b>already in CCS</b> (imported on the SHARED tab '+esc(disp(l.impAt||''))+')':'')+'</div></td><td>'+ex+'</td>'
+      return '<tr class="mainrow z'+(j%2)+(l.err?' errrow':'')+'"><td class="item">'+thumb(l.ir)+'<b>'+esc(it?it.name:(l.name||l.ir))+'</b>'+(it?altHtml(it):'')+'<div class="lots"><span class="mono">'+esc(l.ir)+'</span>'+(l.by?' · scanned by '+esc(l.by):'')+(l.sc?' <b>'+esc(disp(l.sc))+'</b>':'')+(l.src==='file'?' · from file (row '+l.line+')':'')+(l.src==='phonex'?' · <b>already in CCS</b> (imported on the SHARED tab '+esc(disp(l.impAt||''))+')':'')+'</div></td><td>'+ex+'</td>'
         +'<td>'+(l.err&&!it?esc(l.qty):'<input type="number" min="1" class="mq" data-j="'+j+'" value="'+esc(l.qty)+'">')+'</td><td>'+(l.err&&!it?esc(l.lot||''):'<input type="text" class="ml" data-j="'+j+'" value="'+esc(l.lot||'')+'" placeholder="'+esc(kind==='in'?'optional':(lotAt(l.ir+'|'+l.exp)||'optional'))+'" maxlength="40" style="width:130px">')+'</td>'
         +(kind==='wo'?'<td><select class="mw" data-j="'+j+'">'+WO_REASONS.map((r,i)=>'<option value="'+(i+1)+'"'+(i+1===l.wo?' selected':'')+'>'+(i+1)+'. '+esc(r)+'</option>').join('')+'</select></td>':'')
         +'<td><button class="btn alt" data-x="'+j+'" title="Remove">✕</button></td></tr>'
-        +'<tr class="chkrow'+(l.err?' errrow':'')+'"'+(stt[j].c==='st-ok'?' style="display:none"':'')+'><td colspan="'+(kind==='wo'?5:4)+'" class="stc '+stt[j].c+'" data-j="'+j+'">'+stHtml(stt[j],l)+'</td></tr>';}).join(''):'<tr><td colspan="6" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
-    sumUp(L,stt);};
+        +'<tr class="chkrow z'+(j%2)+(l.err?' errrow':'')+'"'+(stt[j].c==='st-ok'?' style="display:none"':'')+'><td colspan="'+(kind==='wo'?6:5)+'" class="stc '+stt[j].c+'" data-j="'+j+'">'+stHtml(stt[j],l)+'</td></tr>';}).join(''):'<tr><td colspan="6" class="note">Empty. Add items with the search box, or import an Excel file.</td></tr>');
+    shelfRestore(kp);sumUp(L,stt);};
   // after a change in a box: update the checks and totals only (the table is not rebuilt, so the cursor stays where the user clicked)
   const sumUp=(L,stt)=>{const ok=L.filter((l,j)=>!l.err&&stt[j].c!=='st-short'),units=ok.reduce((a,l)=>a+l.qty,0),nErr=L.filter(l=>l.err).length,nShort=stt.filter(x=>x.c==='st-short').length;
     $('mSum').innerHTML=ok.length+' line'+(ok.length===1?'':'s')+' · '+units+' units'+(nErr?' · <span class="st-err">'+nErr+' with errors (not posted)</span>':'')+(nShort?' · <span class="st-short">'+nShort+' not enough stock (stay in the list, not posted)</span>':'');
@@ -1284,8 +1287,23 @@ function movPage(kind){
     if(t.classList.contains('me')){const v=t.value.trim();if(!v){l.exp='';if(/expiry/.test(l.err||''))delete l.err;}else{const e2=parseExpiry(v);if(e2){l.exp=e2;if(/expiry/.test(l.err||''))delete l.err;}else{alert('Expiry date not understood: '+v+'\nUse 31/12/2030 or 12/2030, or leave it empty (no expiry).');t.value=l.exp?dmy(l.exp):'';}}}
     if(t.classList.contains('ml')){l.lot=t.value.trim().slice(0,40);return;}
     if(t.classList.contains('ms')){l.exp=t.value;const lb=t.closest('tr').querySelector('input.ml');if(lb&&kind!=='in')lb.placeholder=lotAt(l.ir+'|'+l.exp)||'optional';}if(t.classList.contains('mw'))l.wo=+t.value;refresh();});
+  const UNDO=[],REDO=[];let fv=null;
+  const cur=(l,f)=>f==='qty'?l.qty:f==='exp'?l.exp:f==='lot'?(l.lot||''):l.wo;
+  const setv=(l,f,v)=>{if(f==='lot')l.lot=v;else l[f]=v;if(f==='qty'||f==='exp')if(l.err&&/quantity|expiry/.test(l.err))delete l.err;};
+  $('mTab').addEventListener('focusin',e=>{const t=e.target;if(t.matches&&t.matches('input,select'))fv={el:t,v:t.value};});
+  $('mTab').addEventListener('change',e=>{const t=e.target,l=DRAFT[kind][+t.dataset.j];if(!l)return;const f=t.classList.contains('mq')?'qty':t.classList.contains('me')||t.classList.contains('ms')?'exp':t.classList.contains('ml')?'lot':t.classList.contains('mw')?'wo':'';if(!f)return;
+    UNDO.push({l,f,old:cur(l,f)});if(UNDO.length>200)UNDO.shift();REDO.length=0;setTimeout(()=>{if(fv&&fv.el===t)fv.v=t.value;},0);},true);   // capture: runs before the change is stored
+  window.__undoFn=e=>{if(!(e.ctrlKey||e.metaKey)||e.altKey)return;const k=(e.key||'').toLowerCase();const redo=k==='y'||(k==='z'&&e.shiftKey);if(k!=='z'&&k!=='y')return;if(!document.getElementById('mTab')||document.getElementById('mTab')!==$('mTab'))return;
+    const a=document.activeElement;if(a&&a.matches&&a.matches('input,textarea')&&!$('mTab').contains(a))return;
+    if(a&&a.matches&&a.matches('input[type=text],input[type=number]')&&$('mTab').contains(a)&&fv&&fv.el===a&&a.value!==fv.v)return;   // the person is typing in the box: the browser's own undo
+    const from=redo?REDO:UNDO,to=redo?UNDO:REDO;let u;while((u=from.pop())){if(u.rm){break;}if(DRAFT[kind].includes(u.l))break;}if(!u)return;e.preventDefault();
+    if(u.rm){if(!redo){DRAFT[kind].splice(Math.min(u.idx,DRAFT[kind].length),0,...u.rows);if(DB.phoneDone&&DB.phoneDone.dis){const ids=new Set(u.rows.flatMap(x=>disIds(x)));DB.phoneDone.dis=DB.phoneDone.dis.filter(i=>!ids.has(i));save();updRes();}to.push(u);}
+      else{const i=DRAFT[kind].indexOf(u.rows[0]);if(i>=0){dismissRows(DRAFT[kind].splice(i,u.rows.length));to.push(u);}}}
+    else{to.push({l:u.l,f:u.f,old:cur(u.l,u.f)});setv(u.l,u.f,u.old);}
+    draw();};
+  if(!window.__undoBound){window.__undoBound=1;document.addEventListener('keydown',e=>{if(window.__undoFn)window.__undoFn(e);});}
   $('mTab').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.matches('input')){e.preventDefault();$('mQ').focus();}});   // leaving the box saves the change (one change event)
-  $('mTab').addEventListener('click',e=>{const b=e.target.closest('button[data-x]');if(b){dismissRows(DRAFT[kind].splice(+b.dataset.x,1));draw();return;}
+  $('mTab').addEventListener('click',e=>{const b=e.target.closest('button[data-x]');if(b){const idx=+b.dataset.x,rows=DRAFT[kind].splice(idx,1);UNDO.push({rm:1,idx,rows});REDO.length=0;dismissRows(rows);draw();return;}
     const u=e.target.closest('a.shundo');if(u){delete SHELF[kind][u.dataset.ir];draw();return;}
     const sp=e.target.closest('button.shp');if(sp){const rows=sp.closest('.shelf').querySelector('.shrows'),r=document.createElement('span');r.className='shr';r.innerHTML='<input type="number" min="0" class="shq" placeholder="qty"><input type="text" class="she" placeholder="expiry"><input type="text" class="shl" placeholder="LOT" maxlength="40">';rows.appendChild(r);r.querySelector('.shq').focus();return;}
     const sb=e.target.closest('button.shb');if(sb){const box=sb.closest('.shelf'),ir=box.dataset.ir,lots=[];

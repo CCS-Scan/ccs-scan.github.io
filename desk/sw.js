@@ -1,5 +1,5 @@
 // CCS Desk offline copy. A new version of the app = a new cache name.
-const CACHE = 'ccs-desk-2.4';
+const CACHE = 'ccs-desk-2.5';
 const ASSETS = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('ccs-desk-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
