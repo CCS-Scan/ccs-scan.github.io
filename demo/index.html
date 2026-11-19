@@ -138,7 +138,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='2.5';
+const VERSION='2.6';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -878,7 +878,7 @@ function startApp(){
   $('sideUnit').textContent=DB.unit;$('sideVer').textContent='version '+VERSION;
   $('sideWho').innerHTML='Signed in as <b>'+esc(ME.name)+'</b><br>'+esc(signName(ME))+' · '+(ME.role==='admin'?'admin':'charge nurse');
   $('nav').innerHTML=NAV.filter(n=>!(n[4]==='admin'&&ME.role!=='admin')).map(n=>n[0]==='grp'?'<div class="grp">'+esc(n[1])+'</div>':'<button type="button" data-p="'+n[0]+'" class="'+(n[3]?'soon':'')+'">'+ico(n[0],n[2])+esc(n[1])+'</button>').join('');
-  saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();phInit().then(()=>{phSumMaybe();if(page==='dash'||page==='set'||MOV[page]||page==='cnt')go(page);mediaInit();});
+  saveState('',DB.savedAt?'Saved '+disp(DB.savedAt):'');go(page);idle();phInit().then(()=>{phSumMaybe();phBkMaybe();if(page==='dash'||page==='set'||MOV[page]||page==='cnt')go(page);mediaInit();});
 }
 $('nav').addEventListener('click',e=>{const b=e.target.closest('button[data-p]');if(b)go(b.dataset.p);});
 ['mousemove','keydown','click','touchstart'].forEach(ev=>document.addEventListener(ev,()=>{if(ME)idle();},{passive:true}));
@@ -1654,6 +1654,9 @@ const REP={
 async function restoreBackup(name){
   const d=await bkDir(),h=await d.getFileHandle(name),txt=await (await h.getFile()).text();let o;
   try{o=JSON.parse(txt);}catch(e){throw new Error('the backup file is damaged');}
+  return restoreObject(o,name);
+}
+async function restoreObject(o,name){
   if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users)||!Array.isArray(o.items)||typeof o.stock!=='object')throw new Error('this is not a CCS Desk data file');
   if(!o.users.some(u=>u.role==='admin'&&u.active))throw new Error('the backup has no active admin');
   const safe='ccs_desk_data_before_restore_'+nowStamp().replace(/\D/g,'').slice(0,12)+'.json';await writeBackup(safe);
@@ -1693,6 +1696,26 @@ async function phRetryMarks(){
   for(const m of DB.markQueue.slice()){try{await phPost('mark',{status:'EXPORTED',exportId:m.ref,items:m.items});DB.markQueue=DB.markQueue.filter(x=>x!==m);await save();}
     catch(e){saveState('err','Phones not updated: '+(e.message||e.name));return;}}
 }
+// ---- v2.6: online backup of the data file (compressed; no passwords) into the unit sheet / server; restore on a new computer
+const bytesToB64=u=>{let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);};
+const b64ToBytes=b=>Uint8Array.from(atob(b),c=>c.charCodeAt(0));
+async function gzB64(txt){return bytesToB64(new Uint8Array(await new Response(new Blob([txt]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer()));}
+async function ungzB64(b){return await new Response(new Blob([b64ToBytes(b)]).stream().pipeThrough(new DecompressionStream('gzip'))).text();}
+function backupCopy(){const o=JSON.parse(JSON.stringify(DB));delete o.recovery;o.users=(o.users||[]).map(u=>{const c=Object.assign({},u);delete c.salt;delete c.hash;delete c.off;delete c.hashOff;return c;});return o;}
+async function phSendBackup(show){
+  if(!phOk()||PH.bk===false)return;
+  try{const txt=JSON.stringify(backupCopy()),data=await gzB64(txt),j=await phPost('backupSet',{data,size:String(txt.length),savedAt:DB.savedAt||nowStamp(),by:ME?ME.u:''},120000);PH.bkAt=j.at||nowStamp();PH.bkFor=DB.savedAt||'';phSave();if(show)return j;}
+  catch(e){if(show)throw e;}      // an old script does not know it: nothing is shown
+}
+function phBkMaybe(){if(!phOk()||PH.bk===false)return;const a=ageDays(PH.bkAt);if(a===null||(PH.bkFor!==(DB.savedAt||'')&&a>0.01))phSendBackup(false);}
+setInterval(()=>{try{phBkMaybe();}catch(e){}},20*60*1000);
+async function phRestoreOnline(){
+  const info=await phPost('backupInfo',{});if(!info.versions||!info.versions.length)throw new Error('There is no online backup yet for this unit.');
+  const v=info.versions[0];
+  if(!confirm('RESTORE the online backup?\n\nMade: '+disp(v.at)+(v.by?' (by '+v.by+')':'')+'\nData of: '+disp(v.saved||v.at)+'\n\nThe data you have now is first saved as a file in the backups folder. Everybody signs in again with the app password (passwords are not stored online).'))return null;
+  const j=await phPost('backupGet',{ver:v.ver},120000);let o;try{o=JSON.parse(await ungzB64(j.data));}catch(e){throw new Error('the online backup is damaged');}
+  return await restoreObject(o,'online backup '+disp(v.at));
+}
 // ---- v2.2: daily totals (only numbers: quantity and cost per day, no names, no patients) for the central page of the hospital
 function summaryPayload(){
   const from=addDays(-399),by=new Map();let n=0;
@@ -1713,7 +1736,7 @@ function phSumMaybe(){if(!phOk()||PH.sum===false)return;const a=ageDays(PH.sumAt
 function phStockSoon(){if(!phOk()||PH.auto===false)return;clearTimeout(phStockT);phStockT=setTimeout(()=>phSendStock(false),3000);}
 async function phSendStock(show){
   const st={};Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])return;const i=k.indexOf('|'),ir=k.slice(0,i);(st[ir]=st[ir]||{lots:[]}).lots.push({exp:k.slice(i+1),qty:DB.stock[k]});});
-  try{const j=await phPost('stockSet',{stock:st},60000);PH.stockAt=j.at;phSave();phSendSummary(false);if(show)return j;}
+  try{const j=await phPost('stockSet',{stock:st},60000);PH.stockAt=j.at;phSave();phSendSummary(false);phBkMaybe();if(show)return j;}
   catch(e){saveState('err','Stock not sent to the phones: '+(e.message||e.name));if(show)throw e;}
 }
 // ---- Stock In / Stock Out / Write Off: take the open lists of the phones
@@ -1755,9 +1778,14 @@ async function phSettings(box){
     if(phOk()){box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p>Linked to <b>'+esc(PH.unitName||PH.unitId||'the unit')+'</b> as <b>'+esc(PH.name||'')+'</b> ('+esc(PH.corp||'')+', charge nurse). Last stock sent: '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+'.'+(DB.markQueue&&DB.markQueue.length?' <span class="st-err">'+DB.markQueue.length+' posting(s) not yet sent to the phones.</span>':'')+'</p>'
         +'<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="phAuto"'+(PH.auto===false?'':' checked')+'> Send the stock to the phones after every posting</label>'
         +'<label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="phSum"'+(PH.sum===false?'':' checked')+'> Send the daily totals (only quantity and cost per day, no names) to the central page of the hospital</label>'
+        +'<label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="phBk"'+(PH.bk===false?'':' checked')+'> Online backup of the CCS Desk data (compressed, in the unit sheet; passwords are not included)</label>'
+        +'<p class="note">Online backup last made: '+esc(PH.bkAt?disp(PH.bkAt):'not yet')+'. The last 3 copies are kept. It is made every ~20 minutes when something changed, and when you press the button.</p>'
         +'<p class="note">Totals last sent: '+esc(PH.sumAt?disp(PH.sumAt):'not yet')+'.</p>'
-        +'<p class="note">Photos and second names from the phones: '+Object.keys(MEDIA.ph).length+' photos, '+Object.keys(MEDIA.sn).length+' second names (updated every 30 minutes).</p>'+'<div class="row" style="margin-top:10px"><button class="btn" id="phSend">Send the stock now</button><button class="btn alt" id="phMedia">Get photos and names now</button><button class="btn alt" id="phOut">Unlink</button></div><div class="msg" id="phMsg"></div>';
+        +'<p class="note">Photos and second names from the phones: '+Object.keys(MEDIA.ph).length+' photos, '+Object.keys(MEDIA.sn).length+' second names (updated every 30 minutes).</p>'+'<div class="row" style="margin-top:10px"><button class="btn" id="phSend">Send the stock now</button><button class="btn alt" id="phMedia">Get photos and names now</button><button class="btn alt" id="phBkNow">Back up now (online)</button>'+(ME&&ME.role==='admin'?'<button class="btn alt" id="phBkRes">Restore from online backup…</button>':'')+'<button class="btn alt" id="phOut">Unlink</button></div><div class="msg" id="phMsg"></div>';
       $('phAuto').onchange=()=>{PH.auto=$('phAuto').checked;phSave();};
+      $('phBk').onchange=()=>{PH.bk=$('phBk').checked;phSave();if(PH.bk)phSendBackup(false);};
+      $('phBkNow').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Saving the backup online…';try{const j=await phSendBackup(true);m.className='msg ok';m.textContent='Online backup saved ('+(j&&j.parts?j.parts+' parts':'ok')+').';draw();}catch(e){m.className='msg err';m.textContent=/unknown action/i.test(e.message||'')?'This unit script is too old for the online backup. Update the script to 6.4 (Extensions > Apps Script) and deploy a new version.':(e.message||e.name);}};
+      if($('phBkRes'))$('phBkRes').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Getting the online backup…';try{const r=await phRestoreOnline();if(!r){m.className='msg warn';m.textContent='Cancelled. Nothing was changed.';return;}if(!r.still){alert('Restored. Your user is not in that backup: sign in again.');location.reload();return;}startApp();go('set');setTimeout(()=>{const x=$('pmsg');if(x){x.className='msg ok';x.textContent='Restored from the online backup. The data before it was saved as '+BKDIR+'/'+r.safe+'.';}},50);}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
       $('phSum').onchange=()=>{PH.sum=$('phSum').checked;phSave();if(PH.sum)phSendSummary(false);};
       $('phSend').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Sending…';try{const j=await phSendStock(true);m.className='msg ok';m.textContent='Sent: '+j.items+' items. The phones show it within 5 minutes.';phSendSummary(false);await phRetryMarks();draw();}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
       $('phMedia').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Getting photos and names… (the first time can take a minute)';try{MEDIA.at=0;const r=await mediaSync(true);m.className='msg ok';m.textContent='Done: '+r.photos+' photos, '+r.names+' second names.';}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
