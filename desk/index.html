@@ -138,7 +138,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='2.7';
+const VERSION='2.8';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -1200,12 +1200,12 @@ PAGES.inv=()=>{
 };
 function invDialog(ir){
   const it=DB.items.find(i=>i.ir===ir);if(!it)return;const lots=lotsOf(ir),t=today(),total=lots.reduce((a,l)=>a+l.qty,0),f=DB.flags[ir],mv=DB.ledger.filter(x=>x.ir===ir).slice(-12).reverse();
-  modal('<h1>'+esc(it.name)+'</h1><p class="sub"><span class="mono">'+esc(ir)+'</span> · '+esc(it.unit)+' · '+esc(it.loc||'no location')+altHtml(it)+'</p>'+(MEDIA.ph[ir]?'<img class="bigph" src="'+MEDIA.ph[ir].d+'" alt="">':'')
+  modal('<div class="noprint" style="position:sticky;top:0;height:0;z-index:5"><button class="btn alt" id="dX" title="Close" style="padding:2px 12px;font-size:20px;line-height:1.2;box-shadow:0 1px 5px rgba(0,0,0,.3)">✕</button></div><h1 style="padding-left:50px">'+esc(it.name)+'</h1><p class="sub"><span class="mono">'+esc(ir)+'</span> · '+esc(it.unit)+' · '+esc(it.loc||'no location')+altHtml(it)+'</p>'+(MEDIA.ph[ir]?'<img class="bigph" src="'+MEDIA.ph[ir].d+'" alt="">':'')
     +(f?'<div class="msg warn" style="display:block">Needs a real count: '+esc(f.reason)+' ('+esc(disp(f.at))+', '+esc(f.by)+')</div>':'')
     +'<h3 style="margin:14px 0 6px">Stock: '+total+' '+esc(it.unit)+'</h3><table class="t"><tr><th>Expiry date</th><th>LOT</th><th style="text-align:right">Qty</th></tr>'+(lots.length?lots.map(l=>'<tr><td>'+(l.exp?dmy(l.exp)+(l.exp<t?' <span class="low">expired</span>':''):'no expiry')+'</td><td>'+esc(l.lot||'')+'</td><td class="num"><b>'+l.qty+'</b></td></tr>').join(''):'<tr><td colspan="3" class="note">No stock</td></tr>')+'</table>'
     +'<h3 style="margin:16px 0 6px">Last movements</h3><table class="t"><tr><th>When</th><th>Type</th><th>Expiry</th><th style="text-align:right">Qty</th><th>By</th></tr>'+(mv.length?mv.map(x=>'<tr><td>'+esc(disp(x.t))+'</td><td>'+esc(typeName(x.type))+'</td><td>'+(x.exp?dmy(x.exp):'-')+'</td><td class="num">'+(x.qty>0?'+':'')+x.qty+'</td><td>'+esc(x.by)+'</td></tr>').join(''):'<tr><td colspan="5" class="note">None yet</td></tr>')+'</table>'
-    +'<div class="row" style="margin-top:16px"><button class="btn alt" id="dClose">Close</button></div>');
-  $('dClose').onclick=closeModal;
+    +'<div class="row noprint" style="margin-top:16px"><button class="btn alt" id="dClose">Close</button><button class="btn" id="dPrint">🖨 Print</button></div>');
+  $('dClose').onclick=closeModal;$('dX').onclick=closeModal;$('dPrint').onclick=()=>printModal(it.name);
 }
 // ---- starting stock: the CCS inventory list (IR number + Qty + Expiry), header row found automatically
 async function xlsxSheets(buf){
@@ -1342,7 +1342,7 @@ function movPage(kind){
   const refs=()=>{const seen=[],typ=x=>kind==='wo'?/^WO/.test(x.type):x.type===M.type;for(let i=DB.ledger.length-1;i>=0&&seen.length<20;i--){const x=DB.ledger[i];if(typ(x)&&x.ref&&!x.pre&&!seen.includes(x.ref))seen.push(x.ref);}
     $('mRef').innerHTML=seen.length?seen.map(r=>{const x=DB.ledger.find(y=>y.ref===r);return '<option value="'+esc(r)+'">'+esc(disp(x.t))+' · '+esc(x.posted||'')+'</option>';}).join(''):'<option value="">no posting yet</option>';$('mCcs').disabled=!seen.length;};
   $('mCcs').onclick=()=>{if($('mRef').value)ccsExcel($('mRef').value);};
-  const last0=last;movPage.last=()=>{last0();refs();};draw();last0();refs();updRes();$('mQ').focus();
+  const last0=last;movPage.last=()=>{last0();refs();};draw();last0();refs();updRes();$('mQ').focus();autoPull(kind,()=>phPullMov(kind,draw));
 }
 // ---- Excel import into the list (nothing changes until "Post")
 function movRowsFrom(rows,kind){
@@ -1520,6 +1520,7 @@ PAGES.cnt=()=>{
   $('cImp').onclick=()=>{$('cFile').value='';$('cFile').click();};
   $('cFile').onchange=()=>importCount(draw);
   if($('cPh'))$('cPh').onclick=()=>phPullCount(draw);
+  autoPull('cnt',()=>phPullCount(draw));
   $('cPost').onclick=()=>postCount(draw);
   const last=()=>{const refs=[],seen=new Set();for(let i=DB.ledger.length-1;i>=0&&refs.length<12;i--){const x=DB.ledger[i];if(x.type==='COUNT'&&!seen.has(x.ref)){seen.add(x.ref);refs.push(x.ref);}}
     $('cLast').innerHTML='<tr><th>When</th><th>Counted at</th><th>Reference</th><th style="text-align:right">Items</th><th style="text-align:right">Difference (units)</th><th>Posted by</th><th>Note</th></tr>'+(refs.length?refs.map(r=>{const L=DB.ledger.filter(x=>x.ref===r);const sc=L.map(x=>x.sc).filter(Boolean).sort(),cat=sc.length?(sc[0]===sc[sc.length-1]?disp(sc[0]):disp(sc[0])+' – '+disp(sc[sc.length-1])):'';return '<tr><td>'+esc(disp(L[0].t))+'</td><td>'+esc(cat)+'</td><td class="mono">'+esc(r)+'</td><td class="num">'+new Set(L.map(x=>x.ir)).size+'</td><td class="num">'+(L.reduce((a,x)=>a+x.qty,0)>0?'+':'')+L.reduce((a,x)=>a+x.qty,0)+'</td><td>'+esc(L[0].posted||'')+'</td><td>'+esc(L[0].note||'')+'</td></tr>';}).join(''):'<tr><td colspan="7" class="note">None yet</td></tr>');};
@@ -1710,6 +1711,11 @@ async function phPost(action,extra,ms){
   catch(e){if(e.name==='AbortError')throw new Error('no answer from the Google Sheet (internet?)');if(e instanceof TypeError)throw new Error('no internet connection');throw e;}
   finally{clearTimeout(to);}
 }
+const AUTOPULL={};
+function autoPull(k,fn){if(!phOk()||(Date.now()-(AUTOPULL[k]||0))<15000)return;AUTOPULL[k]=Date.now();setTimeout(()=>{if(document.querySelector('#modal:not(.hidden)'))return;try{const r=fn();if(r&&r.catch)r.catch(()=>{});}catch(e){}},50);}
+function printModal(title){const src=$('modalBox').cloneNode(true);src.querySelectorAll('.noprint').forEach(x=>x.remove());
+  const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for CCS Desk and try again.');return;}
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title||'CCS Desk')+'</title><style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#111;font-size:12pt}h1{font-size:18pt;margin:0 0 4px}h3{margin:14px 0 6px}.sub,.note{color:#555}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #bbb;padding:5px 6px;text-align:left}th{font-size:10pt;text-transform:uppercase;color:#444}.num{text-align:right}.mono{font-family:Consolas,monospace}.bigph{max-width:60mm;max-height:60mm}.foot{margin-top:12px;font-size:9pt;color:#666}</style></head><body>'+src.innerHTML+'<div class="foot">'+esc(DB.unit)+' · CCS Desk '+esc(VERSION)+' · printed '+esc(nowStamp().slice(0,16))+'</div><script>setTimeout(function(){window.print();},300)<\/script></body></html>');w.document.close();}
 function phBtn(id,label){return phOk()?'<button class="btn alt" id="'+id+'" title="Lists scanned with the CCS Scan Helper app">'+label+'</button>':'';}
 // ---- after a posting: tell the phones these lines are done (they leave the SHARED list); kept in the data file until it works
 function phAfterPost(lines,ref){
