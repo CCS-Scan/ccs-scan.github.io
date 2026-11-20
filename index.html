@@ -625,7 +625,7 @@ const TEMPLATE_COLS = [['ir_number','ir','s',14],['item name','name','s',70],['E
 // DEFAULT shared folder link (OneDrive / SharePoint / Microsoft Forms upload link). It is part of this file, so everybody who gets
 // the file already has it and it never gets lost when the page is closed. To change it for everybody, edit the text between the quotes.
 const UPLOAD_LINK = '';
-const VERSION = '8.1';
+const VERSION = '8.2';
 const FOLDER_FEATURE = false;          // shared-folder sync is switched off (not usable on the hospital PCs); the code is kept          // shown in the page header, so you can see which copy of the file you are running
 const EXPORT = {
   OUT: { sheet: 'inventory list', file: 'CCS_StockOut', cols: TEMPLATE_COLS },
@@ -2168,14 +2168,16 @@ function c128Scan(gray, w, h, K) {
   function icOrder(){const since=icDay(30);return items.map((it,i)=>{const at=String((ic.counts[it.ir]&&ic.counts[it.ir].at)||''),loc=shortLoc(it.loc);return {it,i,at,due:!at||at<since,loc};}).sort((a,b)=>(b.due-a.due)||(a.due?((!a.loc)-(!b.loc))||a.loc.localeCompare(b.loc,undefined,{numeric:true,sensitivity:'base'}):0)||a.at.localeCompare(b.at)||a.i-b.i).map(o=>o.it);}
   function icOpenNext(){
     if(!items.length){msg('warn','The item list is not loaded yet.');return;}
+    if(hmFromHome){while(hmQueue.length){const nx=map.get(hmQueue.shift());if(nx&&(!icItem||nx.ir!==icItem.ir)&&!hmCounted(nx.ir)){icOpen(nx);icRenderNext();return;}}hmFromHome=false;icClose();$('tabHM').onclick();return;}
     let q=icOrder().filter(it=>icSkip.indexOf(it.ir)<0&&(!icItem||it.ir!==icItem.ir));
     if(!q.length){icSkip=[];q=icOrder();}
     icOpen(q[0]);
   }
   function icRenderNext(){
     if(ic.mode!=='app'||!items.length){$('icNext').innerHTML='';return;}
-    const q=icOrder().filter(it=>icSkip.indexOf(it.ir)<0&&(!icItem||it.ir!==icItem.ir)).slice(0,5);
-    $('icNext').innerHTML='<div class="note" style="margin:10px 0 2px"><b>Next suggested</b> (shelf by shelf, oldest count first):</div>'+q.map(it=>{const c=ic.counts[it.ir];
+    const src=hmFromHome?hmQueue.map(ir=>map.get(ir)).filter(it=>it&&!hmCounted(it.ir)):icOrder();
+    const q=src.filter(it=>icSkip.indexOf(it.ir)<0&&(!icItem||it.ir!==icItem.ir)).slice(0,5);
+    $('icNext').innerHTML='<div class="note" style="margin:10px 0 2px"><b>Next suggested</b> ('+(hmFromHome?'from the Home list: items to count':'shelf by shelf, oldest count first')+'):</div>'+q.map(it=>{const c=ic.counts[it.ir];
       return '<button type="button" class="btn alt nx" data-ir="'+xmlEsc(it.ir)+'">'+xmlEsc(it.name)+altHtml(it.ir)+'<small>'+(c?'last count '+xmlEsc(icAt(c.at))+' by '+xmlEsc(c.by||'?'):'never counted')+(it.loc?' · '+xmlEsc(shortLoc(it.loc)):'')+'</small></button>';}).join('');
   }
   $('icNext').addEventListener('click',e=>{const b=e.target.closest('button[data-ir]');if(b){const it=map.get(b.dataset.ir);if(it)icOpen(it);}});
@@ -2190,9 +2192,9 @@ function c128Scan(gray, w, h, K) {
     $('icRecent').innerHTML=last.length?'<b>Last counts in the unit</b>'+last.map(ir=>{const c=ic.counts[ir],it=map.get(ir);return '<div>'+xmlEsc(icAt(c.at))+' · <b>'+xmlEsc(c.by||'?')+'</b> · '+xmlEsc(it?it.name:ir)+(SN[ir]?' ('+xmlEsc(SN[ir].n)+')':'')+' = '+c.total+'</div>';}).join(''):'';
     icRenderNext();
   }
-  $('icModeStaff').onclick=()=>{ic.mode='staff';icStore();icClose();nrClose();render();focusScan();};
-  $('icModeExp').onclick=()=>{ic.mode='exp';icStore();icClose();nrClose();render();exUse(false);};
-  $('icModeNoir').onclick=()=>{ic.mode='noir';icStore();icClose();render();nrLoad();};
+  $('icModeStaff').onclick=()=>{ic.mode='staff';hmFromHome=false;hmQueue=[];icStore();icClose();nrClose();render();focusScan();};
+  $('icModeExp').onclick=()=>{ic.mode='exp';hmFromHome=false;hmQueue=[];icStore();icClose();nrClose();render();exUse(false);};
+  $('icModeNoir').onclick=()=>{ic.mode='noir';hmFromHome=false;hmQueue=[];icStore();icClose();render();nrLoad();};
   $('icModeApp').onclick=()=>{ic.mode='app';icStore();nrClose();render();icOpenNext();};
   async function icFlush(){
     if(icBusy||!shReady()||navigator.onLine===false||needLogin())return;
@@ -2223,7 +2225,8 @@ function c128Scan(gray, w, h, K) {
 
   // ---------------------------------------------------------------- v8.0 Home
   let HM={at:'',home:null,homeC:null,got:0,err:''};try{HM=Object.assign(HM,JSON.parse(localStorage.getItem('ccsHome.v1'+PROFILE)||'null')||{});}catch(e){}
-  let hmBusy=false,hmOpen='',hmMore=false;
+  let hmBusy=false,hmOpen='',hmMore=false,hmQueue=[],hmFromHome=false;
+  const hmCounted=ir=>{const c=ic.counts&&ic.counts[ir];return !!(c&&(c.at||'')>(HM.at||''));};
   const hmCharge=()=>!!(sh.chargeCode||(sh.user&&sh.user.role==='charge'));
   async function homeLoad(force){
     dsLoad(false);
@@ -2245,14 +2248,14 @@ function c128Scan(gray, w, h, K) {
     const H=HM.home,C=HM.homeC,mid=$('hMid'),below=$('hBelow');if(!mid)return;
     const ago=HM.at?HM.at.slice(11,16)+' ('+HM.at.slice(8,10)+'/'+HM.at.slice(5,7)+')':'-';
     const stat=(k,n,l,bad)=>'<button type="button" class="hstat'+(bad&&n>0?' bad':'')+(hmOpen===k?' on':'')+'" data-k="'+k+'"><b>'+n+'</b><span>'+l+'</span></button>';
-    const nl=(()=>{let c=0;['CNT1','CNT2','CNT3'].forEach(m=>{c+=(st.lists[m]||[]).length;});return c;})();
-    mid.innerHTML=H?stat('low',H.nl||0,'Low stock',1)+stat('exp',H.ne||0,'Expiring',1)+stat('cnt',H.nn||0,'To count')+(hmCharge()&&C?stat('ord',C.no||0,'Order list')+stat('cost',C.cost?C.cost.t:0,'QAR today'):'')+stat('cl',nl,'Count lists'):'<div class="note" style="grid-column:1/-1">'+xmlEsc(HM.err||'Loading… (needs internet and CCS Desk linked to this unit)')+'</div>'+stat('cl',nl,'Count lists');
+    const nDone=H?(H.cnt||[]).filter(x=>hmCounted(x.ir)).length:0;const nl=(()=>{let c=0;['CNT1','CNT2','CNT3'].forEach(m=>{c+=(st.lists[m]||[]).length;});return c;})();
+    mid.innerHTML=H?stat('low',H.nl||0,'Low stock',1)+stat('exp',H.ne||0,'Expiring',1)+stat('cnt',Math.max(0,(H.nn||0)-nDone),'To count')+(hmCharge()&&C?stat('ord',C.no||0,'Order list')+stat('cost',C.cost?C.cost.t:0,'QAR today'):'')+stat('cl',nl,'Count lists'):'<div class="note" style="grid-column:1/-1">'+xmlEsc(HM.err||'Loading… (needs internet and CCS Desk linked to this unit)')+'</div>'+stat('cl',nl,'Count lists');
     const k=hmOpen,more=hmMore;let b='<div class="card" style="margin-top:4px"><input id="hQ" type="text" placeholder="Check an item: scan, last digits or name" autocomplete="off"><div id="hQr"></div></div>';
     const list=(title,arr,fmt)=>{const a=arr||[],shown=more?a:a.slice(0,12);return '<div class="card"><b>'+title+'</b>'+(a.length?shown.map(fmt).join(''):'<div class="note" style="margin-top:6px">Nothing.</div>')+(a.length>12&&!more?'<button type="button" class="btn alt" id="hMore" style="margin-top:8px">Show all ('+a.length+')</button>':'')+'</div>';};
     const today0=new Date().toISOString().slice(0,10);
     if(H&&k==='low')b+=list('Running low (at or below the minimum, or 7 days of stock or less)',H.low,x=>'<div class="hrow" data-ir="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>'+x.s+(x.m!=null?' / min '+x.m:'')+(x.d!=null?' · '+x.d+' d':'')+'</span></div>');
     if(H&&k==='exp')b+=list('Expiring in 60 days or already expired',H.exp,x=>'<div class="hrow'+(x.e<today0?' red':'')+'" data-ir="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>'+dmy(x.e)+' · '+x.q+'</span></div>');
-    if(H&&k==='cnt')b+=list('To count when you have time (tap to count)',H.cnt,x=>'<div class="hrow" data-cnt="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>'+xmlEsc(x.w)+'</span></div>');
+    if(H&&k==='cnt')b+=list('To count when you have time (tap to count)'+(nDone?' · '+nDone+' counted on this phone, waiting for CCS Desk':''),(H.cnt||[]).filter(x=>!hmCounted(x.ir)),x=>'<div class="hrow" data-cnt="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>'+xmlEsc(x.w)+'</span></div>');
     if(C&&k==='ord')b+=list('Suggested order list (enough for 30 days)',C.ord,x=>'<div class="hrow" data-ir="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>order '+x.q+(x.d!=null?' · '+x.d+' d left':'')+'</span></div>');
     if(C&&k==='cost'&&C.cost){const c=C.cost,pc=c.b>0?Math.round(c.m/c.b*100):null;b+='<div class="card"><b>Cost (Stock Out + Write Off)</b><div class="hrow"><b>Today</b><span>QAR '+c.t+'</span></div><div class="hrow"><b>Last 7 days</b><span>QAR '+c.w+'</span></div><div class="hrow"><b>This month</b><span>QAR '+c.m+'</span></div>'+(c.b>0?'<div class="hrow"><b>Monthly budget</b><span>QAR '+c.b+' ('+pc+'% used)</span></div>':'')+'</div>';}
     if(k.startsWith('item:'))b+='<div class="card">'+hmItemCard(k.slice(5))+'</div>';
@@ -2264,13 +2267,13 @@ function c128Scan(gray, w, h, K) {
     if(e.target.id==='hRef'){homeLoad(true);return;}
     const st0=e.target.closest('.hstat');if(st0&&st0.dataset.k==='cl'){$('tabCNT').onclick();return;}if(st0){hmOpen=hmOpen===st0.dataset.k?'':st0.dataset.k;hmMore=false;homeRender();return;}
     if(e.target.id==='hMore'){hmMore=true;homeRender();return;}
-    const c=e.target.closest('[data-cnt]');if(c){const it=map.get(c.dataset.cnt);setMode('IC');if(it)setTimeout(()=>{try{icOpen(it);}catch(x){}},400);return;}
+    const c=e.target.closest('[data-cnt]');if(c){const ir0=c.dataset.cnt,it=map.get(ir0);ic.mode='app';icStore();icSkip=[];setMode('IC');if(it)setTimeout(()=>{try{hmQueue=((HM.home&&HM.home.cnt)||[]).map(x=>x.ir).filter(ir=>ir!==ir0&&!hmCounted(ir));hmFromHome=true;icOpen(it);icRenderNext();}catch(x){}},400);return;}
     const r=e.target.closest('[data-ir]');if(r){hmOpenItem(r.dataset.ir);return;}
     const q=e.target.closest('[data-q]');if(q){$('hQr').innerHTML=hmItemCard(q.dataset.q);}});
   $('hBelow').addEventListener('input',e=>{if(e.target.id!=='hQ')return;const v=e.target.value.trim().toLowerCase(),out=$('hQr');if(v.length<2){out.innerHTML='';return;}
     let ms=[];if(map.has(e.target.value.trim())){ms=[map.get(e.target.value.trim())];}else{ms=items.filter(i=>(/^\d+$/.test(v)&&i.ir.endsWith(v))||i.key.includes(v)).slice(0,6);}
     out.innerHTML=ms.length===1?hmItemCard(ms[0].ir):ms.map(i=>'<div class="hrow" data-q="'+xmlEsc(i.ir)+'"><b>'+xmlEsc(i.name)+'</b><span>'+xmlEsc(i.ir.slice(-5))+'</span></div>').join('')||'<div class="note" style="margin-top:6px">Nothing found.</div>';});
-  $('tabHM').onclick=()=>{view='home';cancelRecv();$('sugg').style.display='none';render();homeRender();homeLoad(false);};
+  $('tabHM').onclick=()=>{hmFromHome=false;hmQueue=[];view='home';cancelRecv();$('sugg').style.display='none';render();homeRender();homeLoad(false);};
   { const __render=render; render=function(){ __render(); const hm=view==='home'; $('tabHM').classList.toggle('on',hm); if(hm)document.querySelectorAll('.tab.on:not(.hm)').forEach(x=>x.classList.remove('on')); }; }
   setInterval(()=>{if(view==='home'&&!document.hidden)homeLoad(false);},3*60000);
   setTimeout(()=>dsLoad(false),4000);setInterval(()=>{if(!document.hidden)dsLoad(false);},5*60000);
