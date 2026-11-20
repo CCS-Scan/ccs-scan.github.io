@@ -138,7 +138,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='2.6';
+const VERSION='2.7';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -1030,7 +1030,7 @@ PAGES.dash=async()=>{
     try{const D=await writeReport('custom',f,t,'C'+f+'_'+t,'Report',"CCS_Desk_report_"+f+"_to_"+t);await save();repTable();m.className='msg ok';m.textContent='Report saved in the folder “reports”: total cost '+money(D.tot)+'. Press Open / print in the list.';}catch(e){m.className='msg err';m.textContent='The report could not be saved: '+(e.message||e.name);}};
   try{const b=await listBackups();$('dBk').textContent=b.length?b[0].name+' ('+b.length+' backup'+(b.length===1?'':'s')+')':'none yet';}catch(e){$('dBk').textContent='-';}
   healthRows().then(h=>{if($('dHealth'))$('dHealth').innerHTML=h.map(x=>'<div class="'+x.c+'" style="margin:3px 0">'+(x.c==='st-ok'?'✔ ':'⚠ ')+esc(x.t)+'</div>').join('');});
-  if($('dmList'))$('dmList').onclick=()=>demoRegen(true);if($('dmReset'))$('dmReset').onclick=()=>demoRegen(false);
+  if($('dmPres'))$('dmPres').onclick=demoPresent;if($('dmGuide'))$('dmGuide').onclick=()=>demoGuide(0);if($('dmList'))$('dmList').onclick=()=>demoRegen(true);if($('dmReset'))$('dmReset').onclick=()=>demoRegen(false);
   autoReports();
 };
 
@@ -1100,8 +1100,8 @@ async function demoSetup(){
   try{await demoReports();}catch(e){}
   await save();ME=null;loginScreen('ok','Demo data is ready.');
 }
-async function demoRegen(fromList){
-  if(!confirm((fromList?'Make 12 months of sample data from the CURRENT master list ('+DB.items.length+' items)?':'Reset the demo to the original list and sample data?')+'\n\nThe stock, all movements and all reports of this DEMO unit are replaced. Users and passwords stay.'))return;
+async function demoRegen(fromList,quiet){
+  if(!quiet&&!confirm((fromList?'Make 12 months of sample data from the CURRENT master list ('+DB.items.length+' items)?':'Reset the demo to the original list and sample data?')+'\n\nThe stock, all movements and all reports of this DEMO unit are replaced. Users and passwords stay.'))return;
   const keep=fromList?DB.items.map(x=>Object.assign({},x)):BUILTIN.map(a=>({ir:a[0],name:a[1],unit:a[2]||'',loc:a[3]||'',price:a[4],max:a[5],min:a[6],alias:a[7]||''}));
   if(!keep.length){alert('The master list is empty. Load a list in Items first.');return;}
   $('main').innerHTML='<div class="card"><h3>Making the sample data…</h3><p class="note">12 months of Stock In, Stock Out, Write Off, counts and the reports. One moment.</p></div>';
@@ -1111,7 +1111,25 @@ async function demoRegen(fromList){
   const bud=costBetween(monthRange(-1).from,monthRange(-1).to);DB.settings.budget=Math.ceil((bud.out+bud.wo)*1.05/100)*100;
   try{await demoReports();}catch(e){}
   await save();go('dash');}
-function demoCard(){return '<div class="card" style="border:2px solid #d49a1a"><h3>DEMO unit: made-up data for training and for showing managers</h3><p class="note" style="margin:0 0 8px">12 months of Stock In, Stock Out, Write Off, LOT numbers, counts and prices. Nothing here is real and nothing is sent to the real phones. Everything works as in the real CCS Desk.</p><ol class="note" style="margin:0 0 10px 18px;padding:0"><li>Dashboard: cost cards, budget, 12-week chart, top items, running out, checks.</li><li>Reports: monthly and weekly reports (Open / print), Cost by item and per day, Days of stock, Count differences.</li><li>Inventory and Transaction Log: LOT, expiry dates, search, Excel.</li><li>Stock Out / Write Off / Inventory Count: try posting, not enough stock, duplicates.</li><li>Items > Print labels.</li></ol>'+(ME.role==='admin'?'<div class="row"><button class="btn" id="dmList">Make sample data from the current master list</button><button class="btn alt" id="dmReset">Reset the demo</button></div><p class="note" style="margin:6px 0 0">Load your own list with prices first (Items > Load master list), then press the first button.</p>':'<p class="note" style="margin:0">Sign in as Demo Admin to reset the demo.</p>')+'</div>';}
+
+// ---- v2.7: presentation mode of the demo
+const DEMO_STEPS=[
+ ['1. The dashboard','dash','Cost of the last 7 and 30 days, this month against the budget, the 12-week chart, the top items and the items that will run out soon. All of it comes from what the nurses scan.'],
+ ['2. From the phone to the computer','out','In the real unit the nurses scan on their phones. Here, press <b>From phones</b>, check the lines (expiry, LOT, the Check column) and press <b>Post</b>. Lines without enough stock stay in the list: type an approximate shelf count and the item goes to the priority list for a real count.'],
+ ['3. Inventory, LOT and expiry','inv','Every item with its LOT numbers and expiry dates. The phone also tells the nurse which LOT to take first (FEFO) and keeps the last 3 expiry dates of each item.'],
+ ['4. Reports and the order list','rep','Open <b>Order list (suggested)</b>: how many days of stock are left, how much to order, and the value. Press Excel to send it to purchasing. <b>Expiring soon</b> and <b>Cost by item</b> are on the same page.',function(){REPF.r='sugg';}],
+ ['5. Safe and easy to start','set','Online backup of all the data, the users and roles, and the <b>join sheet</b>: print a page with a QR code, a new nurse scans it and joins in one minute.']];
+function demoGuide(i){
+  let g=document.getElementById('demoGuide');if(!g){g=document.createElement('div');g.id='demoGuide';g.style.cssText='position:fixed;right:16px;bottom:16px;width:340px;max-width:calc(100vw - 32px);background:#fff;border:3px solid #d49a1a;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.3);padding:12px 14px;z-index:9999;font-size:14px;line-height:1.4';document.body.appendChild(g);}
+  const st=DEMO_STEPS[i];if(!st){g.remove();return;}
+  g.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center"><b style="font-size:15px">'+st[0]+'</b><button class="btn alt" id="dgX" style="padding:2px 8px">✕</button></div><p style="margin:8px 0">'+st[2]+'</p><div class="row" style="justify-content:space-between"><span class="note">Step '+(i+1)+' of '+DEMO_STEPS.length+'</span><span><button class="btn alt" id="dgB"'+(i?'':' disabled')+'>Back</button> <button class="btn" id="dgN">'+(i===DEMO_STEPS.length-1?'Finish':'Next')+'</button></span></div>';
+  $('dgX').onclick=()=>g.remove();$('dgB').onclick=()=>demoGuide(i-1);$('dgN').onclick=()=>demoGuide(i+1);
+  if(st[3])st[3]();go(st[1]);
+}
+async function demoPresent(){
+  if(!confirm('PRESENTATION MODE\n\nThe demo data is reset to the original sample data (users and passwords stay), then a short guide of 5 steps starts. Continue?'))return;
+  await demoRegen(false,true);demoGuide(0);}
+function demoCard(){return '<div class="card" style="border:2px solid #d49a1a"><h3>DEMO unit: made-up data for training and for showing managers</h3><p class="note" style="margin:0 0 8px">12 months of Stock In, Stock Out, Write Off, LOT numbers, counts and prices. Nothing here is real and nothing is sent to the real phones. Everything works as in the real CCS Desk.</p><ol class="note" style="margin:0 0 10px 18px;padding:0"><li>Dashboard: cost cards, budget, 12-week chart, top items, running out, checks.</li><li>Reports: monthly and weekly reports (Open / print), Cost by item and per day, Days of stock, Count differences.</li><li>Inventory and Transaction Log: LOT, expiry dates, search, Excel.</li><li>Stock Out / Write Off / Inventory Count: try posting, not enough stock, duplicates.</li><li>Items > Print labels.</li><li>Order list (suggested) in Reports, and Settings > join sheet with a QR code.</li></ol>'+(ME.role==='admin'?'<div class="row"><button class="btn" id="dmPres">▶ Presentation mode (reset + 5-step guide)</button><button class="btn alt" id="dmGuide">Show the guide only</button><button class="btn alt" id="dmList">Make sample data from the current master list</button><button class="btn alt" id="dmReset">Reset the demo</button></div><p class="note" style="margin:6px 0 0">Load your own list with prices first (Items > Load master list), then press the first button.</p>':'<p class="note" style="margin:0">Sign in as Demo Admin to reset the demo.</p>')+'</div>';}
 
 // ---------------------------------------------------------------- help
 const HELP=[
@@ -1586,8 +1604,8 @@ PAGES.log=()=>{
 };
 
 // ---------------------------------------------------------------- STEP 5: REPORTS
-const REPS=[['stock','Stock on hand (with value)'],['exp','Expiring soon'],['use','Monthly use (Stock Out)'],['order','Order list (below minimum)'],['wo','Write offs'],['mov','Movements summary'],['cost','Cost by item'],['costd','Cost per day'],['days','Days of stock'],['diff','Count differences']];
-const REPF={r:'stock',win:90,old:true,months:6,from:'',to:''};
+const REPS=[['stock','Stock on hand (with value)'],['exp','Expiring soon'],['use','Monthly use (Stock Out)'],['order','Order list (below minimum)'],['sugg','Order list (suggested)'],['wo','Write offs'],['mov','Movements summary'],['cost','Cost by item'],['costd','Cost per day'],['days','Days of stock'],['diff','Count differences']];
+const REPF={r:'stock',sw:30,cov:30,win:90,old:true,months:6,from:'',to:''};
 PAGES.rep=()=>{
   if(!REPF.from){REPF.from=addDays(-30);REPF.to=today();}
   $('main').innerHTML='<div class="card"><div class="reptabs" id="rTabs">'+REPS.map(r=>'<button type="button" data-r="'+r[0]+'" class="'+(r[0]===REPF.r?'on':'')+'">'+esc(r[1])+'</button>').join('')+'</div>'
@@ -1600,7 +1618,7 @@ PAGES.rep=()=>{
       +(o.rows.length>400?'<tr><td colspan="'+o.cols.length+'" class="note">Showing the first 400 lines - the Excel has all '+o.rows.length+'.</td></tr>':'');
     $('rX').onclick=()=>xlsxOut('CCS_Desk_'+REPF.r+'_'+today()+'.xlsx',REPS.find(x=>x[0]===REPF.r)[1].slice(0,28),o.cols,o.rows.map(r=>{const c=Object.assign({},r);delete c._c;return c;}),o.title);};
   $('rPar').addEventListener('change',e=>{const t=e.target;if(t.id==='rWin'){$('rDaysW').style.display=t.value==='c'?'':'none';if(t.value!=='c')REPF.win=+t.value;}if(t.id==='rDays')REPF.win=Math.max(1,Math.min(1500,Math.floor(+t.value)||90));
-    if(t.id==='rOld')REPF.old=t.checked;if(t.id==='rMon')REPF.months=+t.value;if(t.id==='rFrom')REPF.from=t.value;if(t.id==='rTo')REPF.to=t.value;draw();});
+    if(t.id==='rOld')REPF.old=t.checked;if(t.id==='rMon')REPF.months=+t.value;if(t.id==='rSw')REPF.sw=+t.value;if(t.id==='rCov')REPF.cov=+t.value;if(t.id==='rFrom')REPF.from=t.value;if(t.id==='rTo')REPF.to=t.value;draw();});
   draw();
 };
 const dateRange=()=>'<div><label>From</label><input type="date" id="rFrom" value="'+REPF.from+'"></div><div><label>To</label><input type="date" id="rTo" value="'+REPF.to+'"></div>';
@@ -1638,6 +1656,15 @@ const REP={
       rows.sort((a,b)=>a.stock/Math.max(a.min,1)-b.stock/Math.max(b.min,1));
       return{title:'ORDER LIST',info:rows.length+' items below the minimum · suggested order = max − stock (2 × min when there is no max) · value '+money(rows.reduce((a,r)=>a+(+r.val||0),0)),
         cols:[['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10],['Location','loc','s',25],['Stock now','stock','n',9],['min_stock','min','n',9],['max_stock','max','n',9],['Order qty','order','n',9],['Use / month','use','n',10],['Value (QAR)','val','n',11]],rows};}},
+  sugg:{par:()=>'<div><label>Use measured over</label><select id="rSw">'+[[30,'last 30 days'],[90,'last 90 days']].map(o=>'<option value="'+o[0]+'"'+(o[0]===REPF.sw?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div><div><label>Order enough for</label><select id="rCov">'+[[14,'14 days'],[30,'30 days'],[60,'60 days']].map(o=>'<option value="'+o[0]+'"'+(o[0]===REPF.cov?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div>',
+    rows(){const W=REPF.sw,C=REPF.cov,since=addDays(-W),use=new Map();DB.ledger.forEach(x=>{if((x.type==='OUT'||/^WO/.test(x.type))&&x.t.slice(0,10)>=since)use.set(x.ir,(use.get(x.ir)||0)-x.qty);});
+      const rows=[];DB.items.forEach(it=>{const q=use.get(it.ir)||0,avg=q/W,stk=totalOf(it.ir),min=it.min!=null&&it.min!==''?+it.min:null,max=it.max!=null&&it.max!==''?+it.max:null;
+        const need=Math.ceil(avg*C-stk),below=min!=null&&stk<min,fill=below?Math.max(0,(max!=null?max:min*2)-stk):0,order=Math.max(need,fill);if(!(order>0))return;
+        const p=priceOf(it.ir),days=avg>0?stk/avg:null;
+        rows.push({ir:it.ir,name:it.name,unit:it.unit,loc:it.loc||'',stock:stk,avg:Math.round(avg*100)/100,days:days==null?'':Math.round(days*10)/10,order,val:p==null?'':Math.round(order*p*100)/100,why:below&&fill>=need?'Below the minimum ('+min+')':'Less than '+C+' days of stock',_c:stk===0?'errrow':''});});
+      rows.sort((a,b)=>(a.days===''?1e9:a.days)-(b.days===''?1e9:b.days));
+      return{title:'SUGGESTED ORDER LIST',info:rows.length+' items to order · value '+money(rows.reduce((a,r)=>a+(+r.val||0),0))+' · Use per day = Stock Out + Write Off of the '+(W===30?'last 30':'last 90')+' days ÷ '+W+' · Order qty = use per day × '+C+' − stock now (an item below its minimum gets at least max − stock). Shortest “Days left” first.',
+        cols:[['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10],['Location','loc','s',25],['Stock now','stock','n',9],['Use / day','avg','n',9],['Days left','days','n',9],['Order qty','order','n',9],['Value (QAR)','val','n',11],['Why','why','s',28]],rows};}},
   wo:{par:dateRange,rows(){const rows=DB.ledger.filter(x=>/^WO/.test(x.type)&&inRange(x)).map(x=>{const it=itemOf(x.ir),p=priceOf(x.ir);return{t:disp(x.t),reason:WO_REASONS[+x.type.slice(2)-1]||x.type,ir:x.ir,name:it?it.name:x.ir,exp:x.exp?dmy(x.exp):'',qty:-x.qty,val:p==null?'':Math.round(-x.qty*p*100)/100,by:x.by||'',posted:x.posted||'',ref:x.ref||''};}).reverse();
       const per=WO_REASONS.map(r=>{const L=rows.filter(x=>x.reason===r);return L.length?esc(r)+': '+L.reduce((a,x)=>a+x.qty,0)+' units, '+money(L.reduce((a,x)=>a+(+x.val||0),0)):'';}).filter(Boolean);
       return{title:'WRITE OFFS '+REPF.from+' TO '+REPF.to,info:rows.length+' lines · total '+money(rows.reduce((a,x)=>a+(+x.val||0),0))+(per.length?'<br>'+per.join(' · '):''),
@@ -1716,6 +1743,63 @@ async function phRestoreOnline(){
   const j=await phPost('backupGet',{ver:v.ver},120000);let o;try{o=JSON.parse(await ungzB64(j.data));}catch(e){throw new Error('the online backup is damaged');}
   return await restoreObject(o,'online backup '+disp(v.at));
 }
+// ---- v2.7: small QR code maker (byte mode, level M, versions 1-10), no libraries
+function qrMake(text){
+  const ECC=[0,10,16,26,18,24,16,18,22,22,26],BLK=[0,1,1,1,2,2,4,4,4,5,5];
+  const bytes=Array.from(new TextEncoder().encode(text));
+  const raw=v=>{let r=(16*v+128)*v+64;if(v>=2){const a=Math.floor(v/7)+2;r-=(25*a-10)*a-55;if(v>=7)r-=36;}return r;};
+  const dataCap=v=>Math.floor(raw(v)/8)-ECC[v]*BLK[v];
+  let ver=1;for(;ver<=10;ver++){if(4+(ver<10?8:16)+bytes.length*8<=dataCap(ver)*8)break;}
+  if(ver>10)throw new Error('The link is too long for the QR code');
+  const bits=[];const put=(val,n)=>{for(let i=n-1;i>=0;i--)bits.push((val>>>i)&1);};
+  put(4,4);put(bytes.length,ver<10?8:16);bytes.forEach(b=>put(b,8));
+  const capBits=dataCap(ver)*8;put(0,Math.min(4,capBits-bits.length));while(bits.length%8)bits.push(0);
+  const data=[];for(let i=0;i<bits.length;i+=8){let b=0;for(let j=0;j<8;j++)b=b*2+bits[i+j];data.push(b);}
+  for(let p=0xEC;data.length<dataCap(ver);p^=0xEC^0x11)data.push(p);
+  const mul=(a,b)=>{let z=0;for(let i=7;i>=0;i--){z=(z<<1)^((z>>>7)*0x11D);z^=((b>>>i)&1)*a;}return z&255;};
+  const gen=d=>{const r=new Array(d).fill(0);r[d-1]=1;let root=1;for(let i=0;i<d;i++){for(let j=0;j<d;j++){r[j]=mul(r[j],root);if(j+1<d)r[j]^=r[j+1];}root=mul(root,2);}return r;};
+  const rs=(dat,d)=>{const g=gen(d),r=new Array(d).fill(0);dat.forEach(b=>{const f=b^r.shift();r.push(0);g.forEach((c,i)=>{r[i]^=mul(c,f);});});return r;};
+  const nb=BLK[ver],el=ECC[ver],rc=Math.floor(raw(ver)/8),ns=nb-rc%nb,sl=Math.floor(rc/nb),blocks=[];
+  for(let i=0,k=0;i<nb;i++){const dl=sl-el+(i<ns?0:1),dat=data.slice(k,k+dl);k+=dl;const ec=rs(dat,el);if(i<ns)dat.push(0);blocks.push(dat.concat(ec));}
+  const all=[];for(let i=0;i<blocks[0].length;i++)blocks.forEach((b,j)=>{if(i!==sl-el||j>=ns)all.push(b[i]);});
+  const size=ver*4+17,M=[],F=[];for(let y=0;y<size;y++){M.push(new Array(size).fill(false));F.push(new Array(size).fill(false));}
+  const set=(x,y,d)=>{M[y][x]=d;F[y][x]=true;};
+  for(let i=0;i<size;i++){set(6,i,i%2===0);set(i,6,i%2===0);}
+  const finder=(cx,cy)=>{for(let dy=-4;dy<=4;dy++)for(let dx=-4;dx<=4;dx++){const d=Math.max(Math.abs(dx),Math.abs(dy)),x=cx+dx,y=cy+dy;if(x>=0&&x<size&&y>=0&&y<size)set(x,y,d!==2&&d!==4);}};
+  finder(3,3);finder(size-4,3);finder(3,size-4);
+  const na=ver===1?0:Math.floor(ver/7)+2,step=ver===1?0:Math.ceil((ver*4+4)/(na*2-2))*2,ap=[6];for(let p=size-7;ap.length<na;p-=step)ap.splice(1,0,p);
+  ap.forEach((cx,i)=>ap.forEach((cy,j)=>{if((i===0&&j===0)||(i===0&&j===na-1)||(i===na-1&&j===0))return;for(let dy=-2;dy<=2;dy++)for(let dx=-2;dx<=2;dx++)set(cx+dx,cy+dy,Math.max(Math.abs(dx),Math.abs(dy))!==1);}));
+  const fmt=mask=>{const d=mask;let r=d;for(let i=0;i<10;i++)r=(r<<1)^((r>>>9)*0x537);const b=((d<<10)|r)^0x5412,g=i=>((b>>>i)&1)!==0;
+    for(let i=0;i<=5;i++)set(8,i,g(i));set(8,7,g(6));set(8,8,g(7));set(7,8,g(8));for(let i=9;i<15;i++)set(14-i,8,g(i));
+    for(let i=0;i<8;i++)set(size-1-i,8,g(i));for(let i=8;i<15;i++)set(8,size-15+i,g(i));set(8,size-8,true);};
+  fmt(0);
+  if(ver>=7){let r=ver;for(let i=0;i<12;i++)r=(r<<1)^((r>>>11)*0x1F25);const b=(ver<<12)|r;for(let i=0;i<18;i++){const d=((b>>>i)&1)!==0,a=size-11+i%3,c=Math.floor(i/3);set(a,c,d);set(c,a,d);}}
+  let k=0;for(let right=size-1;right>=1;right-=2){if(right===6)right=5;for(let vert=0;vert<size;vert++)for(let j=0;j<2;j++){const x=right-j,up=((right+1)&2)===0,y=up?size-1-vert:vert;if(!F[y][x]&&k<all.length*8){M[y][x]=((all[k>>>3]>>>(7-(k&7)))&1)!==0;k++;}}}
+  const mk=(m,x,y)=>[(x+y)%2===0,y%2===0,x%3===0,(x+y)%3===0,(Math.floor(x/3)+Math.floor(y/2))%2===0,x*y%2+x*y%3===0,(x*y%2+x*y%3)%2===0,((x+y)%2+x*y%3)%2===0][m];
+  const apply=m=>{for(let y=0;y<size;y++)for(let x=0;x<size;x++)if(!F[y][x]&&mk(m,x,y))M[y][x]=!M[y][x];};
+  const pen=()=>{let p=0;
+    for(let t=0;t<2;t++){for(let a=0;a<size;a++){let run=1,prev=null;for(let b=0;b<size;b++){const v=t?M[b][a]:M[a][b];if(v===prev){run++;if(run===5)p+=3;else if(run>5)p++;}else{run=1;prev=v;}}}}
+    for(let y=0;y<size-1;y++)for(let x=0;x<size-1;x++){const c=M[y][x];if(c===M[y][x+1]&&c===M[y+1][x]&&c===M[y+1][x+1])p+=3;}
+    const pt=[1,0,1,1,1,0,1,0,0,0,0],pr=pt.slice().reverse();
+    for(let t=0;t<2;t++)for(let a=0;a<size;a++)for(let b=0;b+11<=size;b++){let m1=true,m2=true;for(let i=0;i<11;i++){const v=(t?M[b+i][a]:M[a][b+i])?1:0;if(v!==pt[i])m1=false;if(v!==pr[i])m2=false;}if(m1)p+=40;if(m2)p+=40;}
+    let dark=0;M.forEach(r=>r.forEach(v=>{if(v)dark++;}));p+=Math.floor(Math.abs(dark*20-size*size*10)/(size*size))*10;return p;};
+  let best=0,bp=1e9;for(let m=0;m<8;m++){apply(m);fmt(m);const p=pen();if(p<bp){bp=p;best=m;}apply(m);}
+  apply(best);fmt(best);return M;}
+function qrSvg(text,px){const M=qrMake(text),n=M.length,q=4;let d='';M.forEach((r,y)=>r.forEach((v,x)=>{if(v)d+='M'+(x+q)+' '+(y+q)+'h1v1h-1z';}));
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+px+'" height="'+px+'" viewBox="0 0 '+(n+2*q)+' '+(n+2*q)+'" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>';}
+
+// ---- v2.7: join sheet with a QR code
+function qrSettings(){const b=$('qrBox');if(!b)return;
+  const def=location.protocol==='https:'?new URL('../',location.href).href:'https://ccs-scan.github.io/';
+  b.innerHTML='<h3>Join sheet for the phones (QR code)</h3><p class="note">A page to print and hang in the unit: a QR code of the phone app and 3 steps for a new nurse.</p><div class="grid2"><div><label>Phone app link</label><input type="text" id="qrU" value="'+esc((DB.settings&&DB.settings.appUrl)||def)+'"></div><div><label>Unit name on the sheet</label><input type="text" id="qrN" value="'+esc((PH&&PH.unitName)||DB.unit)+'"></div></div><div class="row" style="margin-top:10px"><button class="btn" id="qrGo">Print the join sheet</button></div><div class="msg" id="qrMsg"></div>';
+  $('qrGo').onclick=async()=>{const u=$('qrU').value.trim(),nm=$('qrN').value.trim(),m=$('qrMsg');
+    if(!/^https:\/\/[^\s]+\.[^\s]+$/.test(u)){m.className='msg err';m.textContent='Type the link of the phone app, starting with https://';return;}
+    if(u.length>150){m.className='msg err';m.textContent='The link is too long for a QR code.';return;}
+    let svg;try{svg=qrSvg(u,'100%');}catch(e){m.className='msg err';m.textContent=e.message;return;}
+    const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for CCS Desk and try again.');return;}
+    const css='@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;margin:0;text-align:center;color:#111}h1{font-size:30pt;margin:6mm 0 1mm}h2{font-size:22pt;margin:0 0 6mm;color:#0a5}.qr{width:95mm;height:95mm;margin:0 auto;border:2px solid #111;padding:2mm}.u{font-size:13pt;margin:4mm 0 8mm;word-break:break-all}ol{text-align:left;max-width:150mm;margin:0 auto;font-size:15pt;line-height:1.5;padding-left:8mm}li{margin-bottom:4mm}.f{margin-top:10mm;font-size:10pt;color:#555}';
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Join CCS Scan Helper</title><style>'+css+'</style></head><body><h1>Join CCS Scan Helper</h1><h2>'+esc(nm)+'</h2><div class="qr">'+svg+'</div><div class="u">'+esc(u)+'</div><ol><li>Scan the code with the camera of your phone (or open the link above).</li><li>Choose the unit <b>'+esc(nm)+'</b>, tap <b>New account</b>, and type your Corp No., your name and a password.</li><li>Install the app: <b>Android</b>: browser menu &gt; Install app / Add to Home screen. <b>iPhone</b>: Safari Share button &gt; Add to Home Screen.</li></ol><div class="f">Consumable stock tracking only. No patient data. Made by CCS Desk '+esc(VERSION)+'.</div><script>setTimeout(function(){window.print();},400)<\/script></body></html>');w.document.close();
+    if(!DB.settings)DB.settings={};if(DB.settings.appUrl!==u){DB.settings.appUrl=u;try{await save();}catch(e){}}m.className='msg ok';m.textContent='The sheet is open in a new window: print it (or save as PDF).';};}
 // ---- v2.2: daily totals (only numbers: quantity and cost per day, no names, no patients) for the central page of the hospital
 function summaryPayload(){
   const from=addDays(-399),by=new Map();let n=0;
@@ -1986,7 +2070,7 @@ PAGES.set=async()=>{
   const adm=ME.role==='admin';
   $('main').innerHTML='<div class="card"><h3>Data folder and backups</h3><p>Folder <b>'+esc(DIR.name)+'</b> · file <span class="mono">'+DATA+'</span> · backups in the sub-folder <span class="mono">'+BKDIR+'</span> (one per day, the last '+((DB.settings&&DB.settings.backupDays)||30)+' days are kept)</p>'
     +'<div class="row"><button class="btn" id="sBk">Backup now</button><button class="btn alt" id="sDl">Download a copy of the data file</button>'+(adm?'<button class="btn alt" id="sDir">Use another data folder…</button>':'')+'</div><div class="msg" id="pmsg"></div><div id="sBkList" class="note"></div></div>'
-    +'<div class="card" id="phBox"></div>'
+    +'<div class="card" id="phBox"></div><div class="card" id="qrBox"></div>'
     +'<div class="card"><h3>My account</h3><p>'+esc(ME.name)+' (<span class="mono">'+esc(signName(ME))+'</span>) · '+(!hasLocal(ME)?'you sign in with the password of your CCS Scan Helper app'+(ME.off?' (last checked with internet: '+esc(disp(ME.off.at))+')':''):corpGuess(ME)?'you sign in with your CCS Desk password or your app password':'you sign in with your CCS Desk password')+'</p><div class="row"><button class="btn alt" id="sPw">Change my password</button><button class="btn alt" id="sLock">Lock now</button></div></div>'
     +(adm?'<div class="card"><h3>Unit and safety</h3><div class="grid2"><div><label>Unit name</label><input type="text" id="sUnit" value="'+esc(DB.unit)+'"></div><div><label>Lock the screen after … minutes without use</label><input type="number" id="sIdle" min="2" max="240" value="'+idleMin()+'"></div>'
       +'<div><label>Sign-in without internet: for … days after the last sign-in with internet</label><input type="number" id="sOff" min="1" max="365" value="'+offDays()+'"></div></div>'
@@ -2005,7 +2089,7 @@ PAGES.set=async()=>{
   $('sBk').onclick=async()=>{try{const n='ccs_desk_data_'+nowStamp().replace(' ','_').replace(/:/g,'').slice(0,15)+'.json';await writeBackup(n);audit('BACKUP',n);await save();pm('ok','Backup saved: '+BKDIR+'/'+n);showBk();}catch(e){pm('err','Backup failed: '+(e.message||e.name));}};
   $('sDl').onclick=()=>{const b=new Blob([JSON.stringify(DB)],{type:'application/json'}),a=document.createElement('a');a.href=URL.createObjectURL(b);a.download='ccs_desk_data_copy_'+today()+'.json';a.click();};
   $('sPw').onclick=()=>changePwScreen(false);$('sLock').onclick=()=>lockNow('');
-  phSettings($('phBox'));
+  phSettings($('phBox'));qrSettings();
   if(adm){$('sDir').onclick=()=>{if(confirm('Switch to another data folder? You will be signed out. The current folder is not changed.')){ME=null;chooseFolder();}};
     $('sSave').onclick=()=>{const u=$('sUnit').value.trim(),m=Math.max(2,Math.min(240,+$('sIdle').value||60)),od=Math.max(1,Math.min(365,+$('sOff').value||30));if(!u){pm('err','Type the unit name.');return;}DB.unit=u;DB.settings.idleMin=m;DB.settings.offlineDays=od;DB.settings.selfJoin=$('sJoin').checked;audit('SETTINGS','unit '+u+', lock after '+m+' min, offline sign-in '+od+' days, first sign-in by themselves '+(DB.settings.selfJoin?'on':'off'));save();startApp();go('set');};
     $('sKey').onclick=()=>{if(confirm(DB.recovery?'Make a NEW recovery key?\n\nThe old key (on paper) stops working.':'Make the recovery key now?'))recoveryScreen(!DB.recovery);};}
