@@ -138,7 +138,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='2.8';
+const VERSION='2.9';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -1712,7 +1712,7 @@ async function phPost(action,extra,ms){
   finally{clearTimeout(to);}
 }
 const AUTOPULL={};
-function autoPull(k,fn){if(!phOk()||(Date.now()-(AUTOPULL[k]||0))<15000)return;AUTOPULL[k]=Date.now();setTimeout(()=>{if(document.querySelector('#modal:not(.hidden)'))return;try{const r=fn();if(r&&r.catch)r.catch(()=>{});}catch(e){}},50);}
+function autoPull(k,fn){if(!phOk()||(Date.now()-(AUTOPULL[k]||0))<15000)return;AUTOPULL[k]=Date.now();const pg0=page;setTimeout(()=>{if(page!==pg0||document.querySelector('#modal:not(.hidden)'))return;try{const r=fn();if(r&&r.catch)r.catch(()=>{});}catch(e){}},50);}
 function printModal(title){const src=$('modalBox').cloneNode(true);src.querySelectorAll('.noprint').forEach(x=>x.remove());
   const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for CCS Desk and try again.');return;}
   w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title||'CCS Desk')+'</title><style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#111;font-size:12pt}h1{font-size:18pt;margin:0 0 4px}h3{margin:14px 0 6px}.sub,.note{color:#555}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #bbb;padding:5px 6px;text-align:left}th{font-size:10pt;text-transform:uppercase;color:#444}.num{text-align:right}.mono{font-family:Consolas,monospace}.bigph{max-width:60mm;max-height:60mm}.foot{margin-top:12px;font-size:9pt;color:#666}</style></head><body>'+src.innerHTML+'<div class="foot">'+esc(DB.unit)+' · CCS Desk '+esc(VERSION)+' · printed '+esc(nowStamp().slice(0,16))+'</div><script>setTimeout(function(){window.print();},300)<\/script></body></html>');w.document.close();}
@@ -1831,7 +1831,8 @@ async function phSendStock(show){
 }
 // ---- Stock In / Stock Out / Write Off: take the open lists of the phones
 async function phPullMov(kind,draw){
-  let dn=0;const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t+(dn?' '+dn+' line'+(dn===1?'':'s')+' you removed earlier '+(dn===1?'was':'were')+' not listed again.':'');updRes();};pm('warn','Getting the lists of the phones…');
+  const pg=page,dr0=draw;draw=()=>{if(page===pg)dr0();};
+  let dn=0;const pm=(k,t)=>{if(page!==pg||!$('pmsg'))return;$('pmsg').className='msg '+k;$('pmsg').textContent=t+(dn?' '+dn+' line'+(dn===1?'':'s')+' you removed earlier '+(dn===1?'was':'were')+' not listed again.':'');updRes();};pm('warn','Getting the lists of the phones…');
   try{const j=await phPost('list',{mode:kind==='in'?'IN':kind==='out'?'OUT':'WO'});const known=new Set(DB.items.map(i=>i.ir)),fpd=fpSet(),dsm=disSet();let n=0,skip=0,bad=0,dup=0,dis=0;const who=new Set();
     (j.batches||[]).forEach(b=>(b.lines||[]).forEach(l=>{
       const fp=fpOf(l.ir,l.expiry,l.qty,l.scanned,b.by);if([fp,'k|'+b.key+'|'+l.ir+'|'+(l.expiry||'')].some(z=>z&&dsm.has(z))){dis++;return;}if(fp&&(fpd.has(fp)||DRAFT[kind].some(x=>x.fp===fp))){dup++;return;}
@@ -1850,7 +1851,8 @@ async function phPullMov(kind,draw){
 }
 // ---- Inventory Count: take the counts of the phones newer than the last count posted here
 async function phPullCount(draw){
-  const pm=(k,t)=>{$('pmsg').className='msg '+k;$('pmsg').textContent=t;};pm('warn','Getting the counts of the phones…');
+  const pg=page,dr0=draw;draw=()=>{if(page===pg)dr0();};
+  const pm=(k,t)=>{if(page!==pg||!$('pmsg'))return;$('pmsg').className='msg '+k;$('pmsg').textContent=t;};pm('warn','Getting the counts of the phones…');
   try{const j=await phPost('counts',{}),c=j.counts||{},known=new Set(DB.items.map(i=>i.ir)),since=addDays(-31),lastCnt=new Map();
     DB.ledger.forEach(x=>{if(x.type==='COUNT'&&x.t>(lastCnt.get(x.ir)||''))lastCnt.set(x.ir,x.t);});
     let n=0,old=0;Object.keys(c).forEach(ir=>{const o=c[ir];if(!o||!Array.isArray(o.lots))return;const at=String(o.at||'');
