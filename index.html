@@ -299,6 +299,13 @@ header input{font-size:14px!important;padding:5px 8px!important;width:170px!impo
 .hchg{display:flex;gap:6px;margin-top:8px}.hchg .hstat{flex:1;justify-content:center;gap:8px}
 .hfoot{text-align:center;font-size:11px;color:var(--muted);margin-top:8px}
 .tab i.ti{display:block;font-style:normal;font-size:19px;line-height:1.1;margin-bottom:1px}
+
+/* v8.2 Home is a tab */
+.tab.on.hm{border-color:var(--blue2);background:rgba(90,163,224,.2);color:var(--blue2)}
+#hMid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border:0;background:none;padding:0;margin-bottom:2px}
+#hMid .hstat{display:block;text-align:center;padding:8px 2px;background:var(--card);border:2px solid var(--line);border-radius:12px}
+#hMid .hstat b{display:block;font-size:22px;line-height:1.15}#hMid .hstat span{font-size:12px;color:var(--muted)}
+#hMid .hstat.on{border-color:var(--blue2)}
 </style>
 </head>
 <body>
@@ -375,32 +382,20 @@ header input{font-size:14px!important;padding:5px 8px!important;width:170px!impo
     <button class="btn alt" id="fForget" type="button" style="display:none">Disconnect</button>
   </div>
   <div class="conf" id="conf" style="display:none"></div>
-  <div class="tabs homebar"><button class="tab hm" id="tabHM" type="button"><i class="ti">🏠</i>HOME</button></div>
   <div class="tabs top">
+    <button class="tab hm" id="tabHM" type="button"><i class="ti">🏠</i>HOME <small>overview</small></button>
     <button class="tab out" id="tabOUT" type="button"><i class="ti">📤</i>STOCK OUT <small id="cOUT">0 lines</small></button>
     <button class="tab sh" id="tabSH" type="button"><i class="ti">👥</i>SHARED <small>all phones</small></button>
-    <button class="tab hi" id="tabHI" type="button"><i class="ti">🕘</i>HISTORY <small>by date</small></button>
   </div>
   <div class="tabs sub">
     <button class="tab in" id="tabIN" type="button"><i class="ti">📥</i>STOCK IN <small id="cIN">0 lines</small></button>
     <button class="tab wo" id="tabWO" type="button"><i class="ti">🗑️</i>WRITE OFF <small id="cWO">0 lines</small></button>
     <button class="tab ic" id="tabIC" type="button"><i class="ti">📋</i>INVENTORY COUNT <small id="cIC"></small></button>
-    <button class="tab cnt" id="tabCNT" type="button"><i class="ti">🔢</i>COUNT <small id="cCNT">0 lines</small></button>
+    <button class="tab hi" id="tabHI" type="button"><i class="ti">🕘</i>HISTORY <small>by date</small></button>
+    <button class="tab cnt" id="tabCNT" type="button" style="display:none"><small id="cCNT">0 lines</small></button>
   </div>
   <div id="homeView" style="display:none">
-    <div class="hgrid">
-      <div class="hcol">
-        <button class="htile ht-out" id="hOUT" type="button"><i>📤</i>STOCK OUT<small id="hOUTc"></small></button>
-        <button class="htile ht-sh" id="hSH" type="button"><i>👥</i>SHARED<small>all phones</small></button>
-        <button class="htile ht-hi" id="hHI" type="button"><i>🕘</i>HISTORY<small>by date</small></button>
-      </div>
-      <div id="hMid"></div>
-      <div class="hcol">
-        <button class="htile ht-in" id="hIN" type="button"><i>📥</i>STOCK IN<small id="hINc"></small></button>
-        <button class="htile ht-wo" id="hWO" type="button"><i>🗑️</i>WRITE OFF<small id="hWOc"></small></button>
-        <button class="htile ht-ic" id="hIC" type="button"><i>📋</i>INV. COUNT</button>
-      </div>
-    </div>
+    <div id="hMid"></div>
     <div id="hBelow"></div>
   </div>
   <div id="scanView">
@@ -630,7 +625,7 @@ const TEMPLATE_COLS = [['ir_number','ir','s',14],['item name','name','s',70],['E
 // DEFAULT shared folder link (OneDrive / SharePoint / Microsoft Forms upload link). It is part of this file, so everybody who gets
 // the file already has it and it never gets lost when the page is closed. To change it for everybody, edit the text between the quotes.
 const UPLOAD_LINK = '';
-const VERSION = '8.0';
+const VERSION = '8.1';
 const FOLDER_FEATURE = false;          // shared-folder sync is switched off (not usable on the hospital PCs); the code is kept          // shown in the page header, so you can see which copy of the file you are running
 const EXPORT = {
   OUT: { sheet: 'inventory list', file: 'CCS_StockOut', cols: TEMPLATE_COLS },
@@ -1128,7 +1123,7 @@ function c128Scan(gray, w, h, K) {
     [s].concat(a).forEach(x=>{if(x&&out.every(y=>y.toLowerCase()!==x.toLowerCase()))out.push(x);});return out.join(' · ');}
   function altHtml(ir){const t=altTxt(ir);return t?'<span class="alt2">'+xmlEsc(t)+'</span>':'';}
   function render(){
-    const hv=view==='history',sv=view==='shared'||hv,hm=view==='home';$('scanView').style.display=(sv||hm)?'none':'';$('homeView').style.display=hm?'':'none';document.querySelectorAll('.tabs.top,.tabs.sub,.tabs.homebar').forEach(x=>{x.style.display=hm?'none':'';});$('sharedView').style.display=view==='shared'?'':'none';$('historyView').style.display=hv?'':'none';$('tabSH').classList.toggle('on',view==='shared');$('tabHI').classList.toggle('on',hv);
+    const hv=view==='history',sv=view==='shared'||hv,hm=view==='home';$('scanView').style.display=(sv||hm)?'none':'';$('homeView').style.display=hm?'':'none';$('sharedView').style.display=view==='shared'?'':'none';$('historyView').style.display=hv?'':'none';$('tabSH').classList.toggle('on',view==='shared');$('tabHI').classList.toggle('on',hv);
     $('tabOUT').classList.toggle('on',st.mode==='OUT'&&!sv);$('tabIN').classList.toggle('on',st.mode==='IN'&&!sv);$('tabCNT').classList.toggle('on',isCnt(st.mode)&&!sv);{const icm=st.mode==='IC',nrm=icm&&(ic.mode==='noir'||ic.mode==='exp');$('addBtn').style.display=icm?'none':'';$('scan').classList.toggle('solo',icm);document.querySelector('.scanline').style.display=nrm?'none':'';document.querySelector('.camrow').style.display=nrm?'none':'';$('tabIC').classList.toggle('on',icm&&!sv);$('icCard').style.display=icm?'':'none';$('listCard').style.display=icm?'none':'';$('listXbar').style.display=icm?'none':'';$('icXbar').style.display=icm&&!nrm?'':'none';$('addItemCard').style.display=icm&&ic.mode!=='exp'?'':'none';$('allItems').closest('label').style.display=icm?'none':'';icUndoShow();$('cIC').textContent=icTodayTxt();}$('tabWO').classList.toggle('on',isWo(st.mode)&&!sv);
     {const ls=WOM.map(m=>st.lists[m]),n=ls.reduce((a,l)=>a+l.length,0),u=ls.reduce((a,l)=>a+l.reduce((b,x)=>b+x.qty,0),0);$('cWO').textContent=n+' line'+(n===1?'':'s')+' · '+u+' units';}
     ['OUT','IN'].forEach(m=>{const l=st.lists[m];$('c'+m).textContent=l.length+' line'+(l.length===1?'':'s')+' · '+l.reduce((a,x)=>a+x.qty,0)+' units';});
@@ -2250,8 +2245,9 @@ function c128Scan(gray, w, h, K) {
     const H=HM.home,C=HM.homeC,mid=$('hMid'),below=$('hBelow');if(!mid)return;
     const ago=HM.at?HM.at.slice(11,16)+' ('+HM.at.slice(8,10)+'/'+HM.at.slice(5,7)+')':'-';
     const stat=(k,n,l,bad)=>'<button type="button" class="hstat'+(bad&&n>0?' bad':'')+(hmOpen===k?' on':'')+'" data-k="'+k+'"><b>'+n+'</b><span>'+l+'</span></button>';
-    mid.innerHTML='<h3>🏠 Home</h3>'+(H?stat('low',H.nl||0,'Low',1)+stat('exp',H.ne||0,'Expiring',1)+stat('cnt',H.nn||0,'To count'):'<div class="note">'+xmlEsc(HM.err||'Loading…')+'</div>');
-    const k=hmOpen,more=hmMore;let b=(hmCharge()&&C?'<div class="hchg">'+stat('ord',C.no||0,'Order list')+stat('cost',C.cost?C.cost.t:0,'QAR today')+'</div>':'')+'<div class="card" style="margin-top:8px"><input id="hQ" type="text" placeholder="Check an item: scan, last digits or name" autocomplete="off"><div id="hQr"></div></div>';
+    const nl=(()=>{let c=0;['CNT1','CNT2','CNT3'].forEach(m=>{c+=(st.lists[m]||[]).length;});return c;})();
+    mid.innerHTML=H?stat('low',H.nl||0,'Low stock',1)+stat('exp',H.ne||0,'Expiring',1)+stat('cnt',H.nn||0,'To count')+(hmCharge()&&C?stat('ord',C.no||0,'Order list')+stat('cost',C.cost?C.cost.t:0,'QAR today'):'')+stat('cl',nl,'Count lists'):'<div class="note" style="grid-column:1/-1">'+xmlEsc(HM.err||'Loading… (needs internet and CCS Desk linked to this unit)')+'</div>'+stat('cl',nl,'Count lists');
+    const k=hmOpen,more=hmMore;let b='<div class="card" style="margin-top:4px"><input id="hQ" type="text" placeholder="Check an item: scan, last digits or name" autocomplete="off"><div id="hQr"></div></div>';
     const list=(title,arr,fmt)=>{const a=arr||[],shown=more?a:a.slice(0,12);return '<div class="card"><b>'+title+'</b>'+(a.length?shown.map(fmt).join(''):'<div class="note" style="margin-top:6px">Nothing.</div>')+(a.length>12&&!more?'<button type="button" class="btn alt" id="hMore" style="margin-top:8px">Show all ('+a.length+')</button>':'')+'</div>';};
     const today0=new Date().toISOString().slice(0,10);
     if(H&&k==='low')b+=list('Running low (at or below the minimum, or 7 days of stock or less)',H.low,x=>'<div class="hrow" data-ir="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>'+x.s+(x.m!=null?' / min '+x.m:'')+(x.d!=null?' · '+x.d+' d':'')+'</span></div>');
@@ -2263,10 +2259,10 @@ function c128Scan(gray, w, h, K) {
     b+='<div class="hfoot">'+(UNIT_NAME?xmlEsc(UNIT_NAME)+' · ':'')+'updated '+xmlEsc(ago)+' <button type="button" id="hRef" class="btn alt" style="padding:1px 8px;font-size:12px">↻</button></div>';
     below.innerHTML=b;
   }
-  $('hMid').addEventListener('click',e=>{const t=e.target.closest('.hstat'),r=e.target.closest('#hRef');if(r){homeLoad(true);return;}if(t){hmOpen=hmOpen===t.dataset.k?'':t.dataset.k;hmMore=false;homeRender();}});
+  $('hMid').addEventListener('click',e=>{const t=e.target.closest('.hstat'),r=e.target.closest('#hRef');if(r){homeLoad(true);return;}if(t){if(t.dataset.k==='cl'){$('tabCNT').onclick();return;}hmOpen=hmOpen===t.dataset.k?'':t.dataset.k;hmMore=false;homeRender();}});
   $('hBelow').addEventListener('click',e=>{
     if(e.target.id==='hRef'){homeLoad(true);return;}
-    const st0=e.target.closest('.hstat');if(st0){hmOpen=hmOpen===st0.dataset.k?'':st0.dataset.k;hmMore=false;homeRender();return;}
+    const st0=e.target.closest('.hstat');if(st0&&st0.dataset.k==='cl'){$('tabCNT').onclick();return;}if(st0){hmOpen=hmOpen===st0.dataset.k?'':st0.dataset.k;hmMore=false;homeRender();return;}
     if(e.target.id==='hMore'){hmMore=true;homeRender();return;}
     const c=e.target.closest('[data-cnt]');if(c){const it=map.get(c.dataset.cnt);setMode('IC');if(it)setTimeout(()=>{try{icOpen(it);}catch(x){}},400);return;}
     const r=e.target.closest('[data-ir]');if(r){hmOpenItem(r.dataset.ir);return;}
@@ -2275,7 +2271,7 @@ function c128Scan(gray, w, h, K) {
     let ms=[];if(map.has(e.target.value.trim())){ms=[map.get(e.target.value.trim())];}else{ms=items.filter(i=>(/^\d+$/.test(v)&&i.ir.endsWith(v))||i.key.includes(v)).slice(0,6);}
     out.innerHTML=ms.length===1?hmItemCard(ms[0].ir):ms.map(i=>'<div class="hrow" data-q="'+xmlEsc(i.ir)+'"><b>'+xmlEsc(i.name)+'</b><span>'+xmlEsc(i.ir.slice(-5))+'</span></div>').join('')||'<div class="note" style="margin-top:6px">Nothing found.</div>';});
   $('tabHM').onclick=()=>{view='home';cancelRecv();$('sugg').style.display='none';render();homeRender();homeLoad(false);};
-  $('hOUT').onclick=()=>$('tabOUT').onclick();$('hIN').onclick=()=>$('tabIN').onclick();$('hWO').onclick=()=>$('tabWO').onclick();$('hIC').onclick=()=>$('tabIC').onclick();$('hSH').onclick=()=>$('tabSH').onclick();$('hHI').onclick=()=>$('tabHI').onclick();
+  { const __render=render; render=function(){ __render(); const hm=view==='home'; $('tabHM').classList.toggle('on',hm); if(hm)document.querySelectorAll('.tab.on:not(.hm)').forEach(x=>x.classList.remove('on')); }; }
   setInterval(()=>{if(view==='home'&&!document.hidden)homeLoad(false);},3*60000);
   setTimeout(()=>dsLoad(false),4000);setInterval(()=>{if(!document.hidden)dsLoad(false);},5*60000);
   async function icLoad(){dsLoad(false);
