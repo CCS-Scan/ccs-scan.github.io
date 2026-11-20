@@ -1,6 +1,6 @@
 {
-  "name": "CCS Desk",
-  "short_name": "CCS Desk",
+  "name": "ShelfDesk",
+  "short_name": "ShelfDesk",
   "description": "Ward stock: Stock In, Stock Out, Write Off, Inventory Count, log and reports",
   "start_url": "./",
   "scope": "./",

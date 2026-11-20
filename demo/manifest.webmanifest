@@ -1,7 +1,7 @@
 {
-  "name": "CCS Desk DEMO",
-  "short_name": "CCS Demo",
-  "description": "Training copy of CCS Desk with made-up data",
+  "name": "ShelfDesk DEMO",
+  "short_name": "Shelf Demo",
+  "description": "Training copy of ShelfDesk with made-up data",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

@@ -1,7 +1,7 @@
 {
-  "name": "CCS Scan Helper",
-  "short_name": "CCS Scan",
-  "description": "Scan consumable barcodes and make the Excel file for CCS Import Stock In/Out",
+  "name": "ShelfApp",
+  "short_name": "ShelfApp",
+  "description": "Scan consumable barcodes, count the shelf, and send stock to the unit sheet",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

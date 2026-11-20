@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>CCS Desk</title>
+<title>ShelfDesk</title>
 <link rel="manifest" href="manifest.webmanifest">
 <meta name="theme-color" content="#141b2d">
 <link rel="icon" href="icon-192.png">
@@ -125,7 +125,7 @@ body.locked #modal{display:none!important}
 <!-- application -->
 <div id="app" class="hidden">
   <aside id="side">
-    <div class="brand">CCS Desk<small id="sideUnit"></small></div>
+    <div class="brand">ShelfDesk<small id="sideUnit"></small></div>
     <div class="who" id="sideWho"></div>
     <nav id="nav"></nav>
     <div class="foot"><span id="sideVer"></span><button id="lockBtn" type="button" title="Lock the screen; your work stays as it is">Lock</button><button id="logoutBtn" type="button">Sign out</button></div>
@@ -138,7 +138,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='3.0';
+const VERSION='3.1';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -500,7 +500,7 @@ async function boot(){
   $('otherBtn').onclick=chooseFolder;
 }
 function welcome(){
-  screen('<h1>Choose the data folder</h1><p class="sub">CCS Desk keeps all its data in one file inside a folder you choose. Choose a folder in the hospital <b>OneDrive</b>, so the data is also kept outside this computer.</p><button class="btn big" id="pickBtn">Choose folder…</button><div class="msg" id="smsg"></div><p class="note">An existing CCS Desk folder is opened; an empty folder starts a new data file. A daily backup is made in the sub-folder “backups”.</p>');
+  screen('<h1>Choose the data folder</h1><p class="sub">ShelfDesk keeps all its data in one file inside a folder you choose. Choose a folder in the hospital <b>OneDrive</b>, so the data is also kept outside this computer.</p><button class="btn big" id="pickBtn">Choose folder…</button><div class="msg" id="smsg"></div><p class="note">An existing ShelfDesk folder is opened; an empty folder starts a new data file. A daily backup is made in the sub-folder “backups”.</p>');
   $('pickBtn').onclick=chooseFolder;
 }
 async function chooseFolder(){
@@ -511,13 +511,13 @@ async function chooseFolder(){
 async function openFolder(){
   try{FILEH=await DIR.getFileHandle(DATA);}catch(e){FILEH=null;}
   if(!FILEH){if(window.CCSD_DEMO)demoSetup();else setupScreen();return;}
-  try{const f=await FILEH.getFile(),o=JSON.parse(await f.text());if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users))throw new Error('this is not a CCS Desk data file');DB=o;migrate();lastMod=f.lastModified;loginScreen();}
+  try{const f=await FILEH.getFile(),o=JSON.parse(await f.text());if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users))throw new Error('this is not a ShelfDesk data file');DB=o;migrate();lastMod=f.lastModified;loginScreen();}
   catch(e){screen('<h1>The data file cannot be read</h1><p class="sub">'+esc(e.message)+'</p><p class="note">Do not delete anything. Restore the newest file from the “backups” folder (rename it to '+DATA+') or ask for help.</p><button class="btn alt big" id="otherBtn">Use another folder…</button>');$('otherBtn').onclick=chooseFolder;}
 }
 // ---------------------------------------------------------------- sign-in 1.5
-// One account per person: the CCS Scan Helper account (Corp No. + app password), checked by the unit Google Sheet.
-// The data file keeps only: who may use CCS Desk, their role here, and a salted check of the last good password
-// (so sign-in still works without internet, for a limited number of days). Old CCS Desk passwords keep working
+// One account per person: the ShelfApp account (Corp No. + app password), checked by the unit Google Sheet.
+// The data file keeps only: who may use ShelfDesk, their role here, and a salted check of the last good password
+// (so sign-in still works without internet, for a limited number of days). Old ShelfDesk passwords keep working
 // until the person signs in once with the app password. A recovery key (kept on paper) resets any password.
 const CORP_RE=/^[A-Z0-9]{3,12}$/,RK_ABC='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 let FAILS={},LOCKED=false,CAPS=false,UNITS=null;
@@ -566,7 +566,7 @@ async function linkPost(L,action,extra,ms){
 }
 async function deskDevice(){let d=await kvGet('device');if(!d){d='ccsdesk'+Math.random().toString(36).slice(2,8);await kvSet('device',d);}return d;}
 async function appLogin(corp,pw){
-  const L=await unitLink();if(!L){const x=new Error('This CCS Desk is not linked to a unit yet.');x.nolink=true;throw x;}
+  const L=await unitLink();if(!L){const x=new Error('This ShelfDesk is not linked to a unit yet.');x.nolink=true;throw x;}
   return {L,j:await linkPost(L,'login',{corp,password:pw,device:await deskDevice(),unit:L.unitName||DB.unit})};
 }
 async function appOk(us,j,L,pw){   // a good sign-in with the app account: remember it for offline use, and link this computer to the phones
@@ -581,11 +581,11 @@ const offOk=async(us,pw)=>!!(us.off&&us.off.salt&&await pwHash(pw,us.off.salt)==
 const localOk=async(us,pw)=>hasLocal(us)&&await pwHash(pw,us.salt)===us.hash;
 async function verify(us,pw,quick){   // -> {ok,how} or {ok:false,msg}
   if(quick)return (await localOk(us,pw)||await offOk(us,pw))?{ok:true,how:'unlock'}:{ok:false,msg:'Wrong password.'};
-  if(!us.blocked&&await localOk(us,pw))return {ok:true,how:'CCS Desk password'};
+  if(!us.blocked&&await localOk(us,pw))return {ok:true,how:'ShelfDesk password'};
   const corp=corpGuess(us),wrong='Wrong password for '+us.name+'.';
   if(!corp)return {ok:false,msg:wrong};
   try{const {j,L}=await appLogin(corp,pw);
-    if(j.role!=='charge')return {ok:false,msg:'The app account '+corp+' is not a charge nurse. In the CCS Scan Helper app: tap your name > I am a charge nurse. Then sign in here again.'};
+    if(j.role!=='charge')return {ok:false,msg:'The app account '+corp+' is not a charge nurse. In the ShelfApp app: tap your name > I am a charge nurse. Then sign in here again.'};
     await appOk(us,j,L,pw);return {ok:true,how:'app account'};}
   catch(e){const m=e.message||e.name;
     if(e.nolink)return {ok:false,msg:us.app?m:wrong};
@@ -596,8 +596,8 @@ async function verify(us,pw,quick){   // -> {ok,how} or {ok:false,msg}
       if(daysSince(us.off.at)>offDays())return {ok:false,msg:'No internet, and your last sign-in with internet was more than '+offDays()+' days ago. Connect this computer to the internet and sign in again.'};
       return {ok:true,how:'app account, without internet'};}
     if(/blocked/i.test(m)){us.blocked=true;return {ok:false,dirty:true,msg:'This account is blocked in the Users sheet of the unit Google Sheet. Ask the person who manages it.'};}
-    if(/^Wrong password/i.test(m))return {ok:false,msg:wrong+(us.app?'':' Use your CCS Desk password or the password of the CCS Scan Helper app.')};
-    if(/^No account/i.test(m))return {ok:false,msg:us.app?'The app account '+corp+' does not exist any more in this unit. Make it again in the CCS Scan Helper app (same Corp No.), then sign in here.':wrong};
+    if(/^Wrong password/i.test(m))return {ok:false,msg:wrong+(us.app?'':' Use your ShelfDesk password or the password of the ShelfApp app.')};
+    if(/^No account/i.test(m))return {ok:false,msg:us.app?'The app account '+corp+' does not exist any more in this unit. Make it again in the ShelfApp app (same Corp No.), then sign in here.':wrong};
     return {ok:false,msg:m};}
 }
 async function refreshDB(){   // another computer may have saved since this screen was opened
@@ -622,16 +622,16 @@ async function setupScreen(){
   screen('<h1>New data file</h1><p class="sub">One moment…</p>');
   const units=await unitList();let mode=units.length?'app':'local';
   const draw=()=>{
-    screen('<h1>New data file</h1><p class="sub">Folder <b>'+esc(DIR.name)+'</b> has no CCS Desk data yet. Set it up once.</p>'
+    screen('<h1>New data file</h1><p class="sub">Folder <b>'+esc(DIR.name)+'</b> has no ShelfDesk data yet. Set it up once.</p>'
       +(units.length?'<label>Unit</label><select id="sUnitSel">'+units.map(u=>'<option value="'+esc(u.id)+'">'+esc(u.name)+'</option>').join('')+'<option value="">Another unit (not in the list)</option></select>':'')
       +'<div id="sUnitBox"'+(units.length?' class="hidden"':'')+'><label>Unit name</label><input type="text" id="sUnit" value="'+(units.length?'':'PLTCU-1')+'"></div>'
       +(mode==='app'
-        ?'<label>Your Corp No.</label><input type="text" id="sCorp" data-kb autocomplete="off" inputmode="numeric"><div class="kbwarn hidden" id="sCorpW"></div><label>Password of the CCS Scan Helper app</label>'+pwField('sApw')+'<p class="note">Use your own charge nurse account of the app. You become the admin of this data file.</p>'
+        ?'<label>Your Corp No.</label><input type="text" id="sCorp" data-kb autocomplete="off" inputmode="numeric"><div class="kbwarn hidden" id="sCorpW"></div><label>Password of the ShelfApp app</label>'+pwField('sApw')+'<p class="note">Use your own charge nurse account of the app. You become the admin of this data file.</p>'
         :'<div class="grid2"><div><label>Your user name (admin)</label><input type="text" id="sUser" autocomplete="off" placeholder="your Corp No."></div><div><label>Your full name</label><input type="text" id="sName" autocomplete="off"></div></div>'
          +'<div class="grid2"><div><label>Password</label>'+pwField('sPw')+'</div><div><label>Password again</label>'+pwField('sPw2')+'</div></div>')
       +'<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="sItems"> Start with the built-in PLTCU-1 master list ('+BUILTIN.length+' items)</label>'
       +'<button class="btn big" id="sGo">Create the data file</button><div class="msg" id="smsg"></div>'
-      +(units.length?'<p class="links"><a href="#" id="sMode">'+(mode==='app'?'No internet or no app account? Use a CCS Desk password instead':'Use my CCS Scan Helper account instead')+'</a></p>':''));
+      +(units.length?'<p class="links"><a href="#" id="sMode">'+(mode==='app'?'No internet or no app account? Use a ShelfDesk password instead':'Use my ShelfApp account instead')+'</a></p>':''));
     const selU=()=>units.length?units.find(u=>u.id===$('sUnitSel').value)||null:null;
     const unitNow=()=>{const u=selU();return u?u.name:$('sUnit').value.trim();};
     const sync=()=>{if(units.length)$('sUnitBox').classList.toggle('hidden',!!selU());$('sItems').checked=normU(unitNow())==='pltcu1';};
@@ -648,8 +648,8 @@ async function setupScreen(){
           const corp=fixDigits($('sCorp').value).trim().toUpperCase(),pw=$('sApw').value;
           if(!CORP_RE.test(corp)){smsg('err','Type your Corp No.');return;}if(!pw){smsg('err','Type the password of the app.');return;}
           smsg('warn','Checking the app account…');DB=base();DB.link={url:uu.syncUrl,unitId:uu.id,unitName:uu.name};
-          let r;try{r=await appLogin(corp,pw);}catch(e){DB=null;smsg('err',e.net?'Could not check the app account: '+e.message+'. Check the internet, or use a CCS Desk password instead (link below).':e.message);return;}
-          if(r.j.role!=='charge'){DB=null;smsg('err','This app account is not a charge nurse. In the CCS Scan Helper app: tap your name > I am a charge nurse. Then try again.');return;}
+          let r;try{r=await appLogin(corp,pw);}catch(e){DB=null;smsg('err',e.net?'Could not check the app account: '+e.message+'. Check the internet, or use a ShelfDesk password instead (link below).':e.message);return;}
+          if(r.j.role!=='charge'){DB=null;smsg('err','This app account is not a charge nurse. In the ShelfApp app: tap your name > I am a charge nurse. Then try again.');return;}
           const us={u:corp.toLowerCase(),name:r.j.name||corp,role:'admin',active:true,created:now,last:now};await appOk(us,r.j,r.L,pw);DB.users.push(us);
         }else{
           const u=$('sUser').value.trim().toLowerCase(),name=$('sName').value.trim(),pw=$('sPw').value;
@@ -680,11 +680,11 @@ async function loginScreen(kind,text){
     +'<div id="lCorpBox" class="hidden"><label for="lCorp">Your Corp No.</label><input type="text" id="lCorp" data-kb autocomplete="off" inputmode="numeric"><div class="kbwarn hidden" id="lCorpW"></div></div>'
     +'<label for="lPw">Password</label>'+pwField('lPw')+'<p class="note" id="lHint" style="margin:6px 0 0"></p>'
     +'<button class="btn big" id="lGo">Sign in</button><div class="msg" id="smsg"></div><p class="links"><a href="#" id="lForgot">Forgot password?</a></p>'
-    +(window.CCSD_DEMO?DEMO_NOTE:'')+(L||window.CCSD_DEMO?'':'<p class="note">Sign-in with the app account is not possible yet: this CCS Desk is not linked to a unit (admin: Settings > Phones).</p>'));
+    +(window.CCSD_DEMO?DEMO_NOTE:'')+(L||window.CCSD_DEMO?'':'<p class="note">Sign-in with the app account is not possible yet: this ShelfDesk is not linked to a unit (admin: Settings > Phones).</p>'));
   if(kind)smsg(kind,text);
   const hint=()=>{const w=$('lWho').value,us=DB.users.find(x=>x.u===w);$('lCorpBox').classList.toggle('hidden',w!=='+');
-    $('lHint').textContent=w==='+'?'Corp No. and password of your CCS Scan Helper account. Charge nurses only. This first sign-in needs the internet.'
-      :!us?'':!hasLocal(us)?'The password of your CCS Scan Helper app.':corpGuess(us)&&L?'Your CCS Desk password, or the password of your CCS Scan Helper app.':'Your CCS Desk password.';};
+    $('lHint').textContent=w==='+'?'Corp No. and password of your ShelfApp account. Charge nurses only. This first sign-in needs the internet.'
+      :!us?'':!hasLocal(us)?'The password of your ShelfApp app.':corpGuess(us)&&L?'Your ShelfDesk password, or the password of your ShelfApp app.':'Your ShelfDesk password.';};
   hint();$('lWho').onchange=()=>{hint();(($('lWho').value==='+')?$('lCorp'):$('lPw')).focus();};
   let busy=false;
   const go=async()=>{
@@ -696,11 +696,11 @@ async function loginScreen(kind,text){
       if(who==='+'){
         const corp=fixDigits($('lCorp').value).trim().toUpperCase();if(!CORP_RE.test(corp)){fail('Type your Corp No. (letters and numbers only).');return;}
         us=DB.users.find(x=>String(x.corp||'').toUpperCase()===corp||x.u.toUpperCase()===corp)||null;
-        if(us&&!us.active){fail('This user is switched off in CCS Desk. Ask the admin (Users page).');return;}
+        if(us&&!us.active){fail('This user is switched off in ShelfDesk. Ask the admin (Users page).');return;}
         if(!us){
           const k='+'+corp,w=failWait(k);if(w){fail(waitMsg(w));return;}
           let r;try{r=await appLogin(corp,pw);}catch(e){if(!e.net&&!e.nolink)failAdd(k);fail(e.net?'Could not check the app account: '+e.message+'. The first sign-in needs the internet.':e.message);return;}
-          if(r.j.role!=='charge'){fail('This app account is not a charge nurse. In the CCS Scan Helper app: tap your name > I am a charge nurse. Then sign in here again.');return;}
+          if(r.j.role!=='charge'){fail('This app account is not a charge nurse. In the ShelfApp app: tap your name > I am a charge nurse. Then sign in here again.');return;}
           us={u:corp.toLowerCase(),name:r.j.name||corp,role:'charge',active:true,created:nowStamp(),last:''};await appOk(us,r.j,r.L,pw);DB.users.push(us);
           ME=us;audit('USER_ADD',us.u+' ('+us.name+', charge nurse): first sign-in with the app account');how='app account';failClear(k);
         }
@@ -727,7 +727,7 @@ function enterApp(){if(ME.role==='admin'&&!DB.recovery){recoveryScreen(true);ret
 // ---- own password
 function changePwScreen(first){
   const app=!first&&!!corpGuess(ME)&&!hasLocal(ME);
-  screen('<h1>'+(first?'Choose your own password':'Change password')+'</h1><p class="sub">'+esc(ME.name)+(app?' · this also changes the password of your CCS Scan Helper app':'')+'</p>'
+  screen('<h1>'+(first?'Choose your own password':'Change password')+'</h1><p class="sub">'+esc(ME.name)+(app?' · this also changes the password of your ShelfApp app':'')+'</p>'
     +(first?'':'<label>Current password</label>'+pwField('cOld'))+'<label>New password</label>'+pwField('cNew')+'<label>New password again</label>'+pwField('cNew2')
     +'<p class="note">At least 8 characters, with letters and numbers.</p><button class="btn big" id="cGo">Save password</button>'+(first?'':'<button class="btn alt big" id="cBack" style="margin-top:8px">Cancel</button>')+'<div class="msg" id="smsg"></div>');
   if(!first)$('cBack').onclick=startApp;
@@ -751,9 +751,9 @@ function newKey(){const b=crypto.getRandomValues(new Uint8Array(16));let s='';fo
 const normKey=k=>String(k||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
 function printKey(key){
   let a=$('printArea');if(!a){a=document.createElement('div');a.id='printArea';document.body.appendChild(a);}
-  a.innerHTML='<h1>CCS Desk recovery key</h1><p>Unit: <b>'+esc(DB.unit)+'</b> &nbsp; Made: '+esc(disp(nowStamp()))+' by '+esc(ME.name)+'</p><div class="keybox">'+esc(key)+'</div>'
-    +'<p><b>How to use it:</b> CCS Desk sign-in screen &gt; Forgot password? &gt; type this key, choose the user, type a new password.</p>'
-    +'<p>Keep this paper locked away. Whoever has this key can sign in to CCS Desk of this unit as any user. A new key can be made in Settings &gt; Unit and safety; the old key then stops working.</p>';
+  a.innerHTML='<h1>ShelfDesk recovery key</h1><p>Unit: <b>'+esc(DB.unit)+'</b> &nbsp; Made: '+esc(disp(nowStamp()))+' by '+esc(ME.name)+'</p><div class="keybox">'+esc(key)+'</div>'
+    +'<p><b>How to use it:</b> ShelfDesk sign-in screen &gt; Forgot password? &gt; type this key, choose the user, type a new password.</p>'
+    +'<p>Keep this paper locked away. Whoever has this key can sign in to ShelfDesk of this unit as any user. A new key can be made in Settings &gt; Unit and safety; the old key then stops working.</p>';
   document.body.classList.add('printkey');const done=()=>document.body.classList.remove('printkey');window.addEventListener('afterprint',done,{once:true});setTimeout(done,120000);window.print();
 }
 function recoveryScreen(first){
@@ -775,8 +775,8 @@ function recoveryScreen(first){
 function forgotScreen(pre){
   const users=DB.users.filter(u=>u.active).sort((a,b)=>a.name.localeCompare(b.name));
   screen('<h1>Forgot password?</h1>'
-    +'<p><b>You sign in with the app password</b> (CCS Scan Helper): ask the person who manages the unit Google Sheet to delete your row in the <b>Users</b> sheet. Make your account again in the app with the same Corp No. Then sign in here with the new password.</p>'
-    +'<p><b>You have a CCS Desk password:</b> an admin signs in and gives you a temporary password (Users &gt; Reset password).</p>'
+    +'<p><b>You sign in with the app password</b> (ShelfApp): ask the person who manages the unit Google Sheet to delete your row in the <b>Users</b> sheet. Make your account again in the app with the same Corp No. Then sign in here with the new password.</p>'
+    +'<p><b>You have a ShelfDesk password:</b> an admin signs in and gives you a temporary password (Users &gt; Reset password).</p>'
     +'<h3 style="margin:18px 0 0">Nobody can help? Use the recovery key</h3>'
     +(DB.recovery?'<label>Recovery key (16 characters, on paper)</label><input type="text" id="fKey" data-kb autocomplete="off" placeholder="XXXX-XXXX-XXXX-XXXX" style="text-transform:uppercase"><div class="kbwarn hidden" id="fKeyW"></div>'
       +'<label>User</label><select id="fWho">'+users.map(u=>'<option value="'+esc(u.u)+'"'+(u.u===pre?' selected':'')+'>'+esc(u.name)+' · '+esc(signName(u))+(u.role==='admin'?' (admin)':'')+'</option>').join('')+'</select>'
@@ -836,7 +836,7 @@ function save(first){
   return saving;
 }
 function conflict(){
-  $('modalBox').innerHTML='<h1>The data file was changed somewhere else</h1><p class="sub">Another computer or window saved the data file after you opened it. Your last change was <b>not</b> saved, so nothing is overwritten.</p><p class="note">Use CCS Desk on one computer at a time. Press “Reload” to load the newest data, then do your last change again.</p><button class="btn big" id="cfReload">Reload</button>';
+  $('modalBox').innerHTML='<h1>The data file was changed somewhere else</h1><p class="sub">Another computer or window saved the data file after you opened it. Your last change was <b>not</b> saved, so nothing is overwritten.</p><p class="note">Use ShelfDesk on one computer at a time. Press “Reload” to load the newest data, then do your last change again.</p><button class="btn big" id="cfReload">Reload</button>';
   $('modal').classList.remove('hidden');$('cfReload').onclick=()=>location.reload();
 }
 async function bkDir(){return DIR.getDirectoryHandle(BKDIR,{create:true});}
@@ -886,7 +886,7 @@ function go(p){
   const n=NAV.find(x=>x[0]===p)||NAV[1];if(n[4]==='admin'&&ME.role!=='admin')p='dash';page=p;
   document.querySelectorAll('#nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
   document.documentElement.style.setProperty('--accent','var('+n[2]+')');
-  $('title').textContent=n[1];$('crumb').textContent=DB.unit+' · CCS Desk'+(window.CCSD_DEMO?' · DEMO: made-up data for training':'');
+  $('title').textContent=n[1];$('crumb').textContent=DB.unit+' · ShelfDesk'+(window.CCSD_DEMO?' · DEMO: made-up data for training':'');
   (PAGES[p]||soon)(n);
 }
 function soon(n){$('main').innerHTML='<div class="card soonbox"><b>'+esc(n[1])+'</b>Coming in step '+n[3]+' of the trial version.</div>';}
@@ -942,14 +942,14 @@ function reportData(from,to,title){
   return{title,from,to,sum,secs,tot,ptot,ch,out:R.out,wo:R.wo};
 }
 function reportXlsxBytes(D){const rows=[];D.sum.forEach(x=>rows.push({sec:'Summary',name:x.name,ir:'',qty:x.qty,val:x.val,note:x.note}));D.secs.forEach(sc=>sc.rows.forEach(x=>rows.push({sec:sc.h,name:x.name,ir:x.ir,qty:x.qty,val:x.val,note:x.note})));
-  return buildXlsx('report',[['Section','sec','s',36],['Item','name','s',60],['IR','ir','s',14],['Qty','qty','n',10],['Value (QAR)','val','n',14],['Note','note','s',36]],rows,{who:ME?ME.name:'',created:new Date(),title:D.title,infoName:'Info',info:[['Unit',DB.unit],['Report',D.title],['Period',dmy(D.from)+' to '+dmy(D.to)],['Made on',nowStamp().slice(0,16)],['Tool','CCS Desk '+VERSION]]});}
+  return buildXlsx('report',[['Section','sec','s',36],['Item','name','s',60],['IR','ir','s',14],['Qty','qty','n',10],['Value (QAR)','val','n',14],['Note','note','s',36]],rows,{who:ME?ME.name:'',created:new Date(),title:D.title,infoName:'Info',info:[['Unit',DB.unit],['Report',D.title],['Period',dmy(D.from)+' to '+dmy(D.to)],['Made on',nowStamp().slice(0,16)],['Tool','ShelfDesk '+VERSION]]});}
 function reportHtml(D){const f=v=>v===''||v==null?'':typeof v==='number'?v.toLocaleString('en-US',{maximumFractionDigits:2}):esc(v);
   const tab=(rows)=>'<table><tr><th>Item</th><th>IR</th><th class="n">Qty</th><th class="n">Value (QAR)</th><th>Note</th></tr>'+(rows.length?rows.map(x=>'<tr><td>'+esc(x.name)+'</td><td>'+esc(x.ir||'')+'</td><td class="n">'+f(x.qty)+'</td><td class="n">'+f(x.val)+'</td><td>'+esc(x.note||'')+'</td></tr>').join(''):'<tr><td colspan="5" style="color:#667">None</td></tr>')+'</table>';
   return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>'+esc(D.title)+'</title><style>body{font:14px Arial,sans-serif;margin:24px;color:#1b2430}h1{font-size:21px;margin:0}.sub{color:#556;margin:2px 0 14px}h2{font-size:15px;margin:22px 0 6px}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #d9dee5;padding:5px 8px;text-align:left;vertical-align:top}th{background:#f3f5f8}.n{text-align:right}.k{display:flex;gap:12px;flex-wrap:wrap;margin:10px 0}.kp{border:1px solid #d9dee5;border-radius:8px;padding:8px 14px;min-width:150px}.kp b{display:block;font-size:19px}.foot{color:#778;font-size:12px;margin-top:22px}@media print{body{margin:10mm}}</style></head><body>'
     +'<h1>'+esc(D.title)+'</h1><div class="sub">'+esc(DB.unit)+' · '+esc(dmy(D.from))+' to '+esc(dmy(D.to))+'</div>'
     +'<div class="k"><div class="kp">Total cost<b>'+f(D.tot)+' QAR</b>'+(D.ch==null?'':(D.ch>0?'+':'')+D.ch+'% vs previous period')+'</div><div class="kp">Stock Out (consumption)<b>'+f(D.out)+' QAR</b></div><div class="kp">Write Off<b>'+f(D.wo)+' QAR</b></div></div>'
     +'<h2>Summary</h2>'+tab(D.sum)+D.secs.map(sc=>'<h2>'+esc(sc.h)+'</h2>'+tab(sc.rows)).join('')
-    +'<div class="foot">Made by CCS Desk '+esc(VERSION)+' on '+esc(nowStamp().slice(0,16))+'. Costs use the unit price kept at the time of posting. Consumable stock tracking only: no patient data.</div></body></html>';}
+    +'<div class="foot">Made by ShelfDesk '+esc(VERSION)+' on '+esc(nowStamp().slice(0,16))+'. Costs use the unit price kept at the time of posting. Consumable stock tracking only: no patient data.</div></body></html>';}
 async function repDir(){return DIR.getDirectoryHandle('reports',{create:true});}
 async function writeReport(kind,from,to,key,title,base){
   const D=reportData(from,to,title),d=await repDir(),files=[];
@@ -959,8 +959,8 @@ async function writeReport(kind,from,to,key,title,base){
 async function autoReports(){
   if(!ME||!DIR||!canEdit()||autoReports.busy)return;autoReports.busy=true;let made=0;
   try{const have=new Set((DB.reports||[]).map(r=>r.k)),first=DB.ledger.reduce((a,x)=>x.t.slice(0,10)<a?x.t.slice(0,10):a,'9999-99-99'),jobs=[];
-    for(let i=1;i<=4;i++){const w=weekRange(-i);jobs.push({kind:'weekly',from:w.from,to:w.to,key:'W'+w.from,title:'Weekly report',base:'CCS_Desk_weekly_'+w.from+'_to_'+w.to});}
-    for(let i=1;i<=2;i++){const m=monthRange(-i);jobs.push({kind:'monthly',from:m.from,to:m.to,key:'M'+m.from.slice(0,7),title:'Monthly report',base:'CCS_Desk_monthly_'+m.from.slice(0,7)});}
+    for(let i=1;i<=4;i++){const w=weekRange(-i);jobs.push({kind:'weekly',from:w.from,to:w.to,key:'W'+w.from,title:'Weekly report',base:'ShelfDesk_weekly_'+w.from+'_to_'+w.to});}
+    for(let i=1;i<=2;i++){const m=monthRange(-i);jobs.push({kind:'monthly',from:m.from,to:m.to,key:'M'+m.from.slice(0,7),title:'Monthly report',base:'ShelfDesk_monthly_'+m.from.slice(0,7)});}
     for(const j of jobs){if(have.has(j.key)||j.to<first||!costBetween(j.from,j.to).lines)continue;await writeReport(j.kind,j.from,j.to,j.key,j.title,j.base);made++;}
     if(made){await save();}}
   catch(e){autoReports.err=e.message||String(e);}
@@ -1015,7 +1015,7 @@ PAGES.dash=async()=>{
     +'<div class="card"><h3>Running out soon (14 days of stock or less)</h3><table class="t"><tr><th>Item</th><th style="text-align:right">Stock</th><th style="text-align:right">Use / day</th><th style="text-align:right">Days left</th></tr>'+(run.length?run.map(r=>'<tr><td>'+esc(r.name)+'<div class="lots mono">'+esc(r.ir)+'</div></td><td class="num">'+r.stock+'</td><td class="num">'+(Math.round(r.avg*10)/10)+'</td><td class="num"><b class="'+(r.days<=3?'st-err':'')+'">'+(Math.round(r.days*10)/10)+'</b></td></tr>').join(''):'<tr><td colspan="4" class="note">Nothing is running out within 14 days.</td></tr>')+'</table><p class="note" style="margin:6px 0 0">Based on the Stock Out of the last 30 days. Full list: Reports > Days of stock.</p></div>'
     +'<div class="card"><h3>Check these items on the shelf this week</h3><table class="t"><tr><th>Item</th><th style="text-align:right">System stock</th><th>Why</th><th>Last counted</th></tr>'+(sg.length?sg.map(x=>{const it=itemOf(x.ir);return '<tr><td>'+esc(it?it.name:x.ir)+'<div class="lots mono">'+esc(x.ir)+'</div></td><td class="num">'+totalOf(x.ir)+'</td><td>'+esc(x.why)+'</td><td>'+(x.last?esc(dmy(x.last)):'never')+'</td></tr>';}).join(''):'<tr><td colspan="4" class="note">Nothing to suggest.</td></tr>')+'</table>'+(sg.length&&canEdit()?'<div style="margin-top:8px"><button class="btn" id="dSug">Add these to the Count list</button></div>':'')+'</div>'
     +'<div class="card"><h3>Checks</h3><div id="dHealth" class="note">…</div></div>'
-    +'<div class="card"><h3>Reports</h3><p class="note" style="margin:0 0 8px">A weekly report (Sunday to Saturday) and a monthly report are made by themselves the first time CCS Desk is opened after the week or month has ended. The files (Excel and a page to print or save as PDF) are in the folder <b>reports</b> inside the data folder. Send them by e-mail or Teams, or share the OneDrive link.</p><table class="t" id="dRepT"></table>'
+    +'<div class="card"><h3>Reports</h3><p class="note" style="margin:0 0 8px">A weekly report (Sunday to Saturday) and a monthly report are made by themselves the first time ShelfDesk is opened after the week or month has ended. The files (Excel and a page to print or save as PDF) are in the folder <b>reports</b> inside the data folder. Send them by e-mail or Teams, or share the OneDrive link.</p><table class="t" id="dRepT"></table>'
     +(canEdit()?'<div class="row filt" style="margin-top:10px"><div><label>From</label><input type="date" id="dpF" value="'+addDays(-29)+'"></div><div><label>To</label><input type="date" id="dpT" value="'+t0+'"></div><div><label>&nbsp;</label><button class="btn alt" id="dpGo">Create a report for these dates</button></div></div><div class="msg" id="dpMsg"></div>':'')+'</div>'
     +'<div class="card"><h3>Data</h3><table class="t"><tr><td style="width:220px">Data folder</td><td><b>'+esc(DIR.name)+'</b> · file '+DATA+'</td></tr><tr><td>Last saved</td><td>'+esc(disp(DB.savedAt))+' by '+esc(DB.savedBy||'')+'</td></tr><tr><td>Newest backup</td><td id="dBk">…</td></tr><tr><td>Data file created</td><td>'+esc(disp(DB.created))+'</td></tr><tr><td>Phones</td><td>'+(phOk()?'linked to <b>'+esc(PH.unitName||PH.unitId||'')+'</b> · stock sent '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+(DB.markQueue&&DB.markQueue.length?' · <span class="st-err">'+DB.markQueue.length+' posting(s) waiting to be sent</span>':''):'not linked (Settings > Phones)')+'</td></tr></table></div>';
   repTable();
@@ -1027,7 +1027,7 @@ PAGES.dash=async()=>{
   if($('dSug'))$('dSug').onclick=()=>{sg.forEach(x=>{if(CDRAFT.lines.some(l=>l.ir===x.ir))return;const lots=lotsOf(x.ir);(lots.length?lots:[{exp:'',qty:0,lot:''}]).forEach(l=>CDRAFT.lines.push({ir:x.ir,exp:l.exp,qty:'',lot:l.lot||'',src:'hand'}));});go('cnt');};
   $('dRepT').addEventListener('click',e=>{const a=e.target.closest('button[data-ro]'),b=e.target.closest('button[data-rx]');if(a)openReportFile(a.dataset.ro,'html');if(b)openReportFile(b.dataset.rx,'xlsx');});
   if($('dpGo'))$('dpGo').onclick=async()=>{const f=$('dpF').value,t=$('dpT').value,m=$('dpMsg');if(!f||!t||f>t){m.className='msg err';m.textContent='Choose the dates: From must not be after To.';return;}
-    try{const D=await writeReport('custom',f,t,'C'+f+'_'+t,'Report',"CCS_Desk_report_"+f+"_to_"+t);await save();repTable();m.className='msg ok';m.textContent='Report saved in the folder “reports”: total cost '+money(D.tot)+'. Press Open / print in the list.';}catch(e){m.className='msg err';m.textContent='The report could not be saved: '+(e.message||e.name);}};
+    try{const D=await writeReport('custom',f,t,'C'+f+'_'+t,'Report',"ShelfDesk_report_"+f+"_to_"+t);await save();repTable();m.className='msg ok';m.textContent='Report saved in the folder “reports”: total cost '+money(D.tot)+'. Press Open / print in the list.';}catch(e){m.className='msg err';m.textContent='The report could not be saved: '+(e.message||e.name);}};
   try{const b=await listBackups();$('dBk').textContent=b.length?b[0].name+' ('+b.length+' backup'+(b.length===1?'':'s')+')':'none yet';}catch(e){$('dBk').textContent='-';}
   healthRows().then(h=>{if($('dHealth'))$('dHealth').innerHTML=h.map(x=>'<div class="'+x.c+'" style="margin:3px 0">'+(x.c==='st-ok'?'✔ ':'⚠ ')+esc(x.t)+'</div>').join('');});
   if($('dmPres'))$('dmPres').onclick=demoPresent;if($('dmGuide'))$('dmGuide').onclick=()=>demoGuide(0);if($('dmList'))$('dmList').onclick=()=>demoRegen(true);if($('dmReset'))$('dmReset').onclick=()=>demoRegen(false);
@@ -1085,8 +1085,8 @@ function demoGenerate(D,itemsList,days){
   D.pins=P.slice().sort((a,b)=>b.lam-a.lam).slice(0,8).map(p=>p.it.ir);D.stockSince=stamp(d0,0,0,0);D.imports=[];D.markQueue=[];D.reports=[];D.audit=D.audit||[];
   return P.length;}
 function addDaysIso(iso,n){const d=new Date(iso+'T12:00:00');d.setDate(d.getDate()+n);return d.getFullYear()+'-'+pad2(d.getMonth()+1)+'-'+pad2(d.getDate());}
-async function demoReports(){for(let i=1;i<=12;i++){const m=monthRange(-i);await writeReport('monthly',m.from,m.to,'M'+m.from.slice(0,7),'Monthly report','CCS_Desk_monthly_'+m.from.slice(0,7));}
-  for(let i=1;i<=8;i++){const w=weekRange(-i);await writeReport('weekly',w.from,w.to,'W'+w.from,'Weekly report','CCS_Desk_weekly_'+w.from+'_to_'+w.to);}}
+async function demoReports(){for(let i=1;i<=12;i++){const m=monthRange(-i);await writeReport('monthly',m.from,m.to,'M'+m.from.slice(0,7),'Monthly report','ShelfDesk_monthly_'+m.from.slice(0,7));}
+  for(let i=1;i<=8;i++){const w=weekRange(-i);await writeReport('weekly',w.from,w.to,'W'+w.from,'Weekly report','ShelfDesk_weekly_'+w.from+'_to_'+w.to);}}
 async function demoSetup(){
   screen('<h1>DEMO unit</h1><p class="sub">Making 12 months of sample data… one moment.</p>');
   const now=nowStamp(),users=[];
@@ -1129,22 +1129,22 @@ function demoGuide(i){
 async function demoPresent(){
   if(!confirm('PRESENTATION MODE\n\nThe demo data is reset to the original sample data (users and passwords stay), then a short guide of 5 steps starts. Continue?'))return;
   await demoRegen(false,true);demoGuide(0);}
-function demoCard(){return '<div class="card" style="border:2px solid #d49a1a"><h3>DEMO unit: made-up data for training and for showing managers</h3><p class="note" style="margin:0 0 8px">12 months of Stock In, Stock Out, Write Off, LOT numbers, counts and prices. Nothing here is real and nothing is sent to the real phones. Everything works as in the real CCS Desk.</p><ol class="note" style="margin:0 0 10px 18px;padding:0"><li>Dashboard: cost cards, budget, 12-week chart, top items, running out, checks.</li><li>Reports: monthly and weekly reports (Open / print), Cost by item and per day, Days of stock, Count differences.</li><li>Inventory and Transaction Log: LOT, expiry dates, search, Excel.</li><li>Stock Out / Write Off / Inventory Count: try posting, not enough stock, duplicates.</li><li>Items > Print labels.</li><li>Order list (suggested) in Reports, and Settings > join sheet with a QR code.</li></ol>'+(ME.role==='admin'?'<div class="row"><button class="btn" id="dmPres">▶ Presentation mode (reset + 5-step guide)</button><button class="btn alt" id="dmGuide">Show the guide only</button><button class="btn alt" id="dmList">Make sample data from the current master list</button><button class="btn alt" id="dmReset">Reset the demo</button></div><p class="note" style="margin:6px 0 0">Load your own list with prices first (Items > Load master list), then press the first button.</p>':'<p class="note" style="margin:0">Sign in as Demo Admin to reset the demo.</p>')+'</div>';}
+function demoCard(){return '<div class="card" style="border:2px solid #d49a1a"><h3>DEMO unit: made-up data for training and for showing managers</h3><p class="note" style="margin:0 0 8px">12 months of Stock In, Stock Out, Write Off, LOT numbers, counts and prices. Nothing here is real and nothing is sent to the real phones. Everything works as in the real ShelfDesk.</p><ol class="note" style="margin:0 0 10px 18px;padding:0"><li>Dashboard: cost cards, budget, 12-week chart, top items, running out, checks.</li><li>Reports: monthly and weekly reports (Open / print), Cost by item and per day, Days of stock, Count differences.</li><li>Inventory and Transaction Log: LOT, expiry dates, search, Excel.</li><li>Stock Out / Write Off / Inventory Count: try posting, not enough stock, duplicates.</li><li>Items > Print labels.</li><li>Order list (suggested) in Reports, and Settings > join sheet with a QR code.</li><li>Reports: Daily summary (one printable page of the day), Min/Max suggestions, and a Print / PDF button on every report.</li></ol>'+(ME.role==='admin'?'<div class="row"><button class="btn" id="dmPres">▶ Presentation mode (reset + 5-step guide)</button><button class="btn alt" id="dmGuide">Show the guide only</button><button class="btn alt" id="dmList">Make sample data from the current master list</button><button class="btn alt" id="dmReset">Reset the demo</button></div><p class="note" style="margin:6px 0 0">Load your own list with prices first (Items > Load master list), then press the first button.</p>':'<p class="note" style="margin:0">Sign in as Demo Admin to reset the demo.</p>')+'</div>';}
 
 // ---------------------------------------------------------------- help
 const HELP=[
- ['Every day: from the phones to CCS Desk',['On the phones the staff scan items. In CCS Desk open <b>Stock In</b>, <b>Stock Out</b> or <b>Write Off</b> and press <b>From phones</b>.','Check the lines (expiry, qty, LOT) and the Check column, then press <b>Post</b>. The phones are told these lines are done.','Press <b>Excel for CCS</b> (Last postings) and import that file in the hospital CCS if you still keep CCS up to date.','A line you remove with ✕ or Clear list does not come back with From phones. The link “Bring back the lines I removed” brings them back.']],
- ['Not enough stock in the Check column',['CCS Desk never goes below zero. For the item, type what is on the shelf now (after this posting): quantity and expiry date, and use <b>+</b> for more expiry dates, then <b>Set</b>.','It is saved as an inventory count of that item, with the time.','If you do not count it, Post asks once and writes an adjustment; the item is marked “needs a real count”.']],
+ ['Every day: from the phones to ShelfDesk',['On the phones the staff scan items. In ShelfDesk open <b>Stock In</b>, <b>Stock Out</b> or <b>Write Off</b> and press <b>From phones</b>.','Check the lines (expiry, qty, LOT) and the Check column, then press <b>Post</b>. The phones are told these lines are done.','Press <b>Excel for CCS</b> (Last postings) and import that file in the hospital CCS if you still keep CCS up to date.','A line you remove with ✕ or Clear list does not come back with From phones. The link “Bring back the lines I removed” brings them back.']],
+ ['Not enough stock in the Check column',['ShelfDesk never goes below zero. For the item, type what is on the shelf now (after this posting): quantity and expiry date, and use <b>+</b> for more expiry dates, then <b>Set</b>.','It is saved as an inventory count of that item, with the time.','If you do not count it, Post asks once and writes an adjustment; the item is marked “needs a real count”.']],
  ['Inventory Count',['Add items, type the counted quantity per expiry date (0 if none). “＋ another expiry date” adds a line.','The count REPLACES the stock of the item. Big differences (over 20% and 3 units) ask for a second look.','<b>Counts from phones</b> loads the counts made on the phones. Counts older than the starting stock are not offered.','A full count: tick “Full count”; items not in the list become 0.']],
- ['LOT number',['Optional. Type it in Stock In, Stock Out, Write Off and Inventory Count, or use a column LOT in the Excel file.','CCS Desk remembers the LOT of each item and expiry date and shows it in Inventory and the Transaction Log.']],
- ['Cost, dashboard and reports',['The dashboard shows the cost of the last 7 and 30 days, this month and last month, a 12-week chart, the top 10 items, items running out and the budget.','<b>Cost between two dates</b> gives any period; <b>Open the full report</b> shows it by item. Reports has Cost by item, Cost per day, Days of stock and Count differences.','Cost = Stock Out (and Write Off) quantity × the unit price kept at the time of posting. Items without a price are counted and warned about: fill the price in Items.','The weekly (Sunday to Saturday) and monthly reports are made by themselves when CCS Desk is opened after the period ends. They are in the folder <b>reports</b> of the data folder. Send them from OneDrive, e-mail or Teams.']],
+ ['LOT number',['Optional. Type it in Stock In, Stock Out, Write Off and Inventory Count, or use a column LOT in the Excel file.','ShelfDesk remembers the LOT of each item and expiry date and shows it in Inventory and the Transaction Log.']],
+ ['Cost, dashboard and reports',['The dashboard shows the cost of the last 7 and 30 days, this month and last month, a 12-week chart, the top 10 items, items running out and the budget.','<b>Cost between two dates</b> gives any period; <b>Open the full report</b> shows it by item. Reports has Cost by item, Cost per day, Days of stock and Count differences.','Cost = Stock Out (and Write Off) quantity × the unit price kept at the time of posting. Items without a price are counted and warned about: fill the price in Items.','The weekly (Sunday to Saturday) and monthly reports are made by themselves when ShelfDesk is opened after the period ends. They are in the folder <b>reports</b> of the data folder. Send them from OneDrive, e-mail or Teams.']],
  ['Labels',['Items > <b>Print labels</b>. Choose all, only items with stock, or selected items (search and tick).','Paper: narrow lab sticker (type width and height) or an A4 label sheet (3 × 10). “Start at label number” uses a partly used sheet.','Printing uses the printers installed on the computer. Add a network (IP) printer once in Windows, then choose it in the print window. Scale 100%, margins none.']],
- ['Sign in, lock, forgot password',['Sign in with your CCS Scan Helper account (Corp No. and app password). The screen locks after 60 minutes; your work stays.','Forgot the app password: delete your row in the Users sheet of the unit Google Sheet and make the account again in the app.','Nobody can sign in: Forgot password? on the sign-in screen, with the 16-character recovery key (Settings > Unit and safety).']],
+ ['Sign in, lock, forgot password',['Sign in with your ShelfApp account (Corp No. and app password). The screen locks after 60 minutes; your work stays.','Forgot the app password: delete your row in the Users sheet of the unit Google Sheet and make the account again in the app.','Nobody can sign in: Forgot password? on the sign-in screen, with the 16-character recovery key (Settings > Unit and safety).']],
  ['Backups and restore',['A backup of the data file is made every day in the folder <b>backups</b> (the last 30 are kept). Keep the data folder inside the hospital OneDrive.','Settings > Data folder and backups: restore a backup. Do not work on the same data folder on two computers at the same time.']],
- ['Messages and what to do',['<b>No available batch found for expiry</b> (in CCS): CCS has no stock with that exact expiry date. Fix the expiry in CCS Desk or add the stock in CCS first.','<b>Item not found</b>: the IR number is not in the CCS item list.','<b>already in CCS</b>: the line was imported in CCS on the phone SHARED tab; it is in the list for CCS Desk stock only and not in the Excel for CCS.','Duplicate lines (same item, expiry, quantity and scan time) are not listed twice.']],
- ['Good habits',['Post every day. Count a few fast-moving items every week (the dashboard suggests them).','Keep prices in Items up to date. Check the “Checks” card on the dashboard.','No patient data in CCS Desk: only items, quantities, expiry dates, LOT and staff.']]];
+ ['Messages and what to do',['<b>No available batch found for expiry</b> (in CCS): CCS has no stock with that exact expiry date. Fix the expiry in ShelfDesk or add the stock in CCS first.','<b>Item not found</b>: the IR number is not in the CCS item list.','<b>already in CCS</b>: the line was imported in CCS on the phone SHARED tab; it is in the list for ShelfDesk stock only and not in the Excel for CCS.','Duplicate lines (same item, expiry, quantity and scan time) are not listed twice.']],
+ ['Good habits',['Post every day. Count a few fast-moving items every week (the dashboard suggests them).','Keep prices in Items up to date. Check the “Checks” card on the dashboard.','No patient data in ShelfDesk: only items, quantities, expiry dates, LOT and staff.']]];
 PAGES.help=()=>{
-  $('main').innerHTML='<div class="card"><div class="row"><div class="search"><input type="text" id="hQ" placeholder="Search the help, e.g. label, LOT, backup, expiry"></div></div><p class="note" style="margin:6px 0 0">CCS Desk '+VERSION+'</p></div><div id="hList"></div>';
+  $('main').innerHTML='<div class="card"><div class="row"><div class="search"><input type="text" id="hQ" placeholder="Search the help, e.g. label, LOT, backup, expiry"></div></div><p class="note" style="margin:6px 0 0">ShelfDesk '+VERSION+'</p></div><div id="hList"></div>';
   const draw=()=>{const q=$('hQ').value.trim().toLowerCase();$('hList').innerHTML=HELP.filter(h=>!q||(h[0]+' '+h[1].join(' ')).toLowerCase().includes(q)).map((h,i)=>'<div class="card"><details'+(q||i===0?' open':'')+'><summary style="cursor:pointer;font-weight:700;font-size:15px">'+esc(h[0])+'</summary><ul style="margin:8px 0 0 18px;padding:0">'+h[1].map(x=>'<li style="margin:5px 0">'+x+'</li>').join('')+'</ul></details></div>').join('')||'<div class="card note">Nothing found.</div>';};
   draw();$('hQ').addEventListener('input',draw);
 };
@@ -1196,7 +1196,7 @@ PAGES.inv=()=>{
   $('vFile').onchange=loadStartStock;
   $('vXlsx').onclick=()=>{const rows=[];invRows().filter(r=>r.total>0).forEach(r=>r.lots.forEach(l=>buildRows([{ir:r.it.ir,name:r.it.name,expiry:l.exp,qty:l.qty}],DB.items,false).forEach(x=>{x.flag=r.flag?'yes':'';x.lot=l.lot||'';rows.push(x);})));
     if(!rows.length){alert('There is no stock yet.');return;}
-    download('CCS_Desk_stock_'+today()+'.xlsx',buildXlsx('inventory list',TEMPLATE_COLS.concat([['Needs count','flag','s',12],['LOT','lot','s',16]]),rows,{who:ME.name,created:new Date(),title:'Stock',infoName:'Info',info:[['Report','Stock of '+DB.unit+' (CCS Desk)'],['Saved on',nowStamp().slice(0,16)],['Lines',rows.length],['Total units',rows.reduce((a,x)=>a+x.qty,0)],['Value',money(stockValue())],['Prepared by',ME.name]]}));};
+    download('ShelfDesk_stock_'+today()+'.xlsx',buildXlsx('inventory list',TEMPLATE_COLS.concat([['Needs count','flag','s',12],['LOT','lot','s',16]]),rows,{who:ME.name,created:new Date(),title:'Stock',infoName:'Info',info:[['Report','Stock of '+DB.unit+' (ShelfDesk)'],['Saved on',nowStamp().slice(0,16)],['Lines',rows.length],['Total units',rows.reduce((a,x)=>a+x.qty,0)],['Value',money(stockValue())],['Prepared by',ME.name]]}));};
 };
 function invDialog(ir){
   const it=DB.items.find(i=>i.ir===ir);if(!it)return;const lots=lotsOf(ir),t=today(),total=lots.reduce((a,l)=>a+l.qty,0),f=DB.flags[ir],mv=DB.ledger.filter(x=>x.ir===ir).slice(-12).reverse();
@@ -1234,7 +1234,7 @@ async function loadStartStock(){
   try{const sheets=await xlsxSheets(await f.arrayBuffer());let rows=null,sn='';for(const s0 of sheets){const r=stockRowsFrom(s0.rows);if(r&&r.length){rows=r;sn=s0.name;break;}}
     if(!rows){pm('err','No sheet with the columns “IR number” and “Qty” (or Quantity / Balance) was found in '+f.name+'.');return;}
     const known=new Set(DB.items.map(i=>i.ir)),unknown=[...new Set(rows.filter(r=>!known.has(r.ir)).map(r=>r.ir))],items=new Set(rows.map(r=>r.ir)).size,units=rows.reduce((a,r)=>a+r.qty,0),noExp=rows.filter(r=>!r.exp).length;
-    if(!confirm('LOAD STARTING STOCK\n\n'+f.name+' (sheet “'+sn+'”)\n'+rows.length+' lines · '+items+' items · '+units+' units'+(noExp?'\n'+noExp+' lines without an expiry date':'')+(unknown.length?'\n'+unknown.length+' IR numbers are not in the master list: they are added as new items (rename them later)':'')+'\n\nThis REPLACES the whole stock of CCS Desk.\nUse the CCS inventory list of TODAY.\n\nContinue?'))return;
+    if(!confirm('LOAD STARTING STOCK\n\n'+f.name+' (sheet “'+sn+'”)\n'+rows.length+' lines · '+items+' items · '+units+' units'+(noExp?'\n'+noExp+' lines without an expiry date':'')+(unknown.length?'\n'+unknown.length+' IR numbers are not in the master list: they are added as new items (rename them later)':'')+'\n\nThis REPLACES the whole stock of ShelfDesk.\nUse the CCS inventory list of TODAY.\n\nContinue?'))return;
     const now=nowStamp(),ref='OPEN-'+now.replace(/\D/g,'').slice(0,12);
     unknown.forEach(ir=>{const r=rows.find(x=>x.ir===ir);DB.items.push({ir,name:(r&&r.name)||ir,unit:'',loc:'',price:null,max:null,min:null,alias:''});});
     DB.stock={};rows.forEach(r=>{const k=r.ir+'|'+r.exp;DB.stock[k]=(DB.stock[k]||0)+r.qty;});Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])delete DB.stock[k];});DB.lots={};rows.forEach(r=>{if(r.lot&&DB.stock[r.ir+'|'+r.exp])DB.lots[r.ir+'|'+r.exp]=r.lot;});
@@ -1394,7 +1394,7 @@ function ccsExcel(ref){
 //    -> correction in the log + the item is marked "needs a real count"
 function askShelf(short){return new Promise(res=>{
   modal('<h1>Not enough stock</h1><p class="sub">Nothing is posted yet. For each item, type how many are on the shelf <b>now</b> (after this posting). A rough count is OK. Leave it empty if you cannot count now: the stock becomes 0.</p>'
-    +'<table class="t"><tr><th>Item</th><th style="text-align:right">Stock in CCS Desk</th><th style="text-align:right">This posting</th><th style="width:150px">On the shelf now</th></tr>'
+    +'<table class="t"><tr><th>Item</th><th style="text-align:right">Stock in ShelfDesk</th><th style="text-align:right">This posting</th><th style="width:150px">On the shelf now</th></tr>'
     +short.map((s,j)=>'<tr><td><b>'+esc(s.name)+'</b><div class="lots mono">'+esc(s.ir)+'</div></td><td class="num">'+s.have+'</td><td class="num">'+s.take+'</td><td><input type="number" min="0" id="sh'+j+'" placeholder="empty = 0"></td></tr>').join('')+'</table>'
     +'<p class="note">These items will be marked “needs a real count” (priority list for the next count).</p><div class="row" style="margin-top:14px"><button class="btn" id="shOk">Post</button><button class="btn alt" id="shNo">Cancel - post nothing</button></div><div class="msg" id="mmsg"></div>');
   $('shNo').onclick=()=>{closeModal();res(null);};
@@ -1467,7 +1467,7 @@ function itemSearch(qId,sId,onPick){
 const itemOf=ir=>DB.items.find(i=>i.ir===ir);
 const totalOf=ir=>lotsOf(ir).reduce((a,x)=>a+x.qty,0);
 const bigDiff=(sys,cnt)=>{const d=Math.abs(cnt-sys);return d>=3&&d>0.2*Math.max(sys,1);};
-function xlsxOut(name,sheet,cols,rows,title){download(name,buildXlsx(sheet,cols,rows,{who:ME?ME.name:'',created:new Date(),title:title||sheet,infoName:'Info',info:[['Unit',DB.unit],['Prepared by',ME?ME.name:''],['Saved on',nowStamp().slice(0,16)],['Report',title||sheet],['Lines',rows.length],['Tool','CCS Desk '+VERSION]]}));}
+function xlsxOut(name,sheet,cols,rows,title){download(name,buildXlsx(sheet,cols,rows,{who:ME?ME.name:'',created:new Date(),title:title||sheet,infoName:'Info',info:[['Unit',DB.unit],['Prepared by',ME?ME.name:''],['Saved on',nowStamp().slice(0,16)],['Report',title||sheet],['Lines',rows.length],['Tool','ShelfDesk '+VERSION]]}));}
 
 // ---------------------------------------------------------------- STEP 4: INVENTORY COUNT
 // The count REPLACES the stock of every counted item (all its expiry dates). Items that are not in the count do not change,
@@ -1476,7 +1476,7 @@ const CDRAFT={lines:[],full:false};
 PAGES.cnt=()=>{
   $('main').innerHTML='<div class="card"><div class="row"><div class="search" style="position:relative"><input type="text" id="cQ" autocomplete="off" placeholder="Add a counted item: last digits of the IR, or part of the name"><div class="sugg hidden" id="cSug"></div></div>'
     +'<button class="btn alt" id="cImp">Import count from Excel…</button>'+phBtn('cPh','⬇ Counts from phones')+'</div><input type="file" id="cFile" accept=".xlsx" class="hidden">'
-    +'<p class="note" style="margin:8px 0 0">Excel: the count file of the CCS Scan Helper app (INVENTORY COUNT > Save Excel) or any file with the columns IR number, Qty and Expiry. Qty 0 is allowed.</p><div class="msg" id="pmsg"></div></div>'
+    +'<p class="note" style="margin:8px 0 0">Excel: the count file of the ShelfApp app (INVENTORY COUNT > Save Excel) or any file with the columns IR number, Qty and Expiry. Qty 0 is allowed.</p><div class="msg" id="pmsg"></div></div>'
     +'<div class="card"><div class="drafthead"><h3 id="cHead"></h3><label style="margin:0 0 0 auto;display:flex;gap:6px;align-items:center;font-weight:600"><input type="checkbox" id="cFull"'+(CDRAFT.full?' checked':'')+'> Full count (items NOT in this list become 0)</label><button class="btn alt" id="cClear">Clear list</button></div>'
     +'<div style="max-height:56vh;overflow:auto"><table class="t" id="cTab"></table></div>'
     +'<div class="sumbar"><input type="text" id="cNote" placeholder="Note (optional), e.g. monthly count November" style="flex:1;min-width:240px"><span id="cSum" class="note"></span><button class="btn" id="cPost">Post count</button></div></div>'
@@ -1553,7 +1553,7 @@ async function postCount(draw){
   const ok=[...byIr.keys()].filter(ir=>!bad.includes(ir));if(!ok.length){pm('err','Nothing to post.');return;}
   const zero=CDRAFT.full?DB.items.filter(i=>!byIr.has(i.ir)&&totalOf(i.ir)>0).map(i=>i.ir):[];
   const big=ok.filter(ir=>bigDiff(totalOf(ir),byIr.get(ir).reduce((a,l)=>a+l.qty,0)));
-  if(big.length){const go=await new Promise(res=>{modal('<h1>Big differences</h1><p class="sub">These items differ by more than 20% (and at least 3 units) from the stock in CCS Desk. Please check them on the shelf before posting.</p><table class="t"><tr><th>Item</th><th style="text-align:right">System</th><th style="text-align:right">Counted</th><th style="text-align:right">Difference</th></tr>'
+  if(big.length){const go=await new Promise(res=>{modal('<h1>Big differences</h1><p class="sub">These items differ by more than 20% (and at least 3 units) from the stock in ShelfDesk. Please check them on the shelf before posting.</p><table class="t"><tr><th>Item</th><th style="text-align:right">System</th><th style="text-align:right">Counted</th><th style="text-align:right">Difference</th></tr>'
       +big.map(ir=>{const s=totalOf(ir),c=byIr.get(ir).reduce((a,l)=>a+l.qty,0),it=itemOf(ir);return '<tr><td><b>'+esc(it?it.name:ir)+'</b><div class="lots mono">'+esc(ir)+'</div></td><td class="num">'+s+'</td><td class="num">'+c+'</td><td class="num st-err">'+(c-s>0?'+':'')+(c-s)+'</td></tr>';}).join('')+'</table>'
       +'<label style="display:flex;gap:8px;align-items:center;margin-top:12px"><input type="checkbox" id="bgOk"> I checked these items</label><div class="row" style="margin-top:12px"><button class="btn" id="bgGo">Post the count</button><button class="btn alt" id="bgNo">Back - check again</button></div><div class="msg" id="mmsg"></div>');
     $('bgNo').onclick=()=>{closeModal();res(false);};$('bgGo').onclick=()=>{if(!$('bgOk').checked){mmsg('err','Tick “I checked these items” first.');return;}closeModal();res(true);};});
@@ -1600,26 +1600,33 @@ PAGES.log=()=>{
   $('lQ').oninput=()=>{LOGF.q=$('lQ').value;draw();};
   $('lTab').addEventListener('click',e=>{const tr=e.target.closest('tr[data-ir]');if(tr&&itemOf(tr.dataset.ir))invDialog(tr.dataset.ir);});
   $('lX').onclick=()=>{const L=rows(),out=L.map(x=>{const it=itemOf(x.ir);return{t:disp(x.t),type:typeName(x.type),ir:x.ir,name:it?it.name:'',exp:x.exp?dmy(x.exp):'',lot:x.lot||'',qty:x.qty,bal:x.bal,by:x.by||'',scanned:x.sc?disp(x.sc):'',imported:x.imp?disp(x.imp):'',posted:x.posted||'',ref:x.ref||'',note:x.note||'',val:it&&it.price!=null?Math.round(x.qty*it.price*100)/100:''};});
-    xlsxOut('CCS_Desk_log_'+(LOGF.from||'start')+'_to_'+(LOGF.to||today())+'.xlsx','transaction log',[['When','t','s',17],['Type','type','s',26],['ir_number','ir','s',14],['item name','name','s',60],['Expiry','exp','s',12],['LOT','lot','s',16],['Qty','qty','n',8],['Balance','bal','n',9],['Scanned / counted by','by','s',18],['Scanned at','scanned','s',17],['Imported in CCS at','imported','s',17],['Posted by','posted','s',14],['Reference','ref','s',20],['Note','note','s',40],['Value (QAR)','val','n',12]],out,'TRANSACTION LOG');};
+    xlsxOut('ShelfDesk_log_'+(LOGF.from||'start')+'_to_'+(LOGF.to||today())+'.xlsx','transaction log',[['When','t','s',17],['Type','type','s',26],['ir_number','ir','s',14],['item name','name','s',60],['Expiry','exp','s',12],['LOT','lot','s',16],['Qty','qty','n',8],['Balance','bal','n',9],['Scanned / counted by','by','s',18],['Scanned at','scanned','s',17],['Imported in CCS at','imported','s',17],['Posted by','posted','s',14],['Reference','ref','s',20],['Note','note','s',40],['Value (QAR)','val','n',12]],out,'TRANSACTION LOG');};
   draw();
 };
 
 // ---------------------------------------------------------------- STEP 5: REPORTS
-const REPS=[['stock','Stock on hand (with value)'],['exp','Expiring soon'],['use','Monthly use (Stock Out)'],['order','Order list (below minimum)'],['sugg','Order list (suggested)'],['wo','Write offs'],['mov','Movements summary'],['cost','Cost by item'],['costd','Cost per day'],['days','Days of stock'],['diff','Count differences']];
-const REPF={r:'stock',sw:30,cov:30,win:90,old:true,months:6,from:'',to:''};
+const REPS=[['stock','Stock on hand (with value)'],['day','Daily summary'],['exp','Expiring soon'],['use','Monthly use (Stock Out)'],['order','Order list (below minimum)'],['sugg','Order list (suggested)'],['mm','Min/Max suggestions'],['wo','Write offs'],['mov','Movements summary'],['cost','Cost by item'],['costd','Cost per day'],['days','Days of stock'],['diff','Count differences']];
+const REPF={r:'stock',sw:30,cov:30,lead:14,mx:30,day:'',win:90,old:true,months:6,from:'',to:''};
 PAGES.rep=()=>{
   if(!REPF.from){REPF.from=addDays(-30);REPF.to=today();}
+  if(!REPF.day)REPF.day=today();
   $('main').innerHTML='<div class="card"><div class="reptabs" id="rTabs">'+REPS.map(r=>'<button type="button" data-r="'+r[0]+'" class="'+(r[0]===REPF.r?'on':'')+'">'+esc(r[1])+'</button>').join('')+'</div>'
     +'<div class="row filt" id="rPar" style="margin-top:10px"></div><div id="rInfo" class="note" style="margin-top:6px"></div></div><div class="card"><div style="max-height:62vh;overflow:auto"><table class="t" id="rTab"></table></div></div>';
   $('rTabs').onclick=e=>{const b=e.target.closest('button[data-r]');if(b){REPF.r=b.dataset.r;PAGES.rep();}};
-  const R=REP[REPF.r];$('rPar').innerHTML=R.par()+'<div><label>&nbsp;</label><button class="btn" id="rX">⬇ Excel</button></div>';
+  const R=REP[REPF.r];$('rPar').innerHTML=R.par()+'<div><label>&nbsp;</label><button class="btn" id="rX">⬇ Excel</button> <button class="btn alt" id="rP">🖨 Print / PDF</button></div>';
   const draw=()=>{const o=R.rows();$('rInfo').innerHTML=o.info||'';
     $('rTab').innerHTML='<tr>'+o.cols.map(c=>'<th'+(c[2]==='n'?' style="text-align:right"':'')+'>'+esc(c[0])+'</th>').join('')+'</tr>'
-      +(o.rows.length?o.rows.slice(0,400).map(r=>'<tr'+(r._c?' class="'+r._c+'"':'')+'>'+o.cols.map(c=>'<td'+(c[2]==='n'?' class="num"':'')+'>'+esc(r[c[1]]==null?'':c[2]==='n'&&typeof r[c[1]]==='number'&&!Number.isInteger(r[c[1]])?r[c[1]].toFixed(c[1]==='val'||c[1]==='price'?2:1):r[c[1]])+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+o.cols.length+'" class="note">Nothing to show.</td></tr>')
+      +(o.rows.length?o.rows.slice(0,400).map(r=>'<tr'+(r._c?' class="'+r._c+'"':'')+'>'+o.cols.map(c=>c[2]==='k'?'<td><input type="checkbox" class="mmk" data-ir="'+esc(r.ir)+'" checked></td>':'<td'+(c[2]==='n'?' class="num"':'')+'>'+esc(r[c[1]]==null?'':c[2]==='n'&&typeof r[c[1]]==='number'&&!Number.isInteger(r[c[1]])?r[c[1]].toFixed(c[1]==='val'||c[1]==='price'?2:1):r[c[1]])+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+o.cols.length+'" class="note">Nothing to show.</td></tr>')
       +(o.rows.length>400?'<tr><td colspan="'+o.cols.length+'" class="note">Showing the first 400 lines - the Excel has all '+o.rows.length+'.</td></tr>':'');
-    $('rX').onclick=()=>xlsxOut('CCS_Desk_'+REPF.r+'_'+today()+'.xlsx',REPS.find(x=>x[0]===REPF.r)[1].slice(0,28),o.cols,o.rows.map(r=>{const c=Object.assign({},r);delete c._c;return c;}),o.title);};
+    $('rX').onclick=()=>xlsxOut('ShelfDesk_'+REPF.r+'_'+today()+'.xlsx',REPS.find(x=>x[0]===REPF.r)[1].slice(0,28),o.cols.filter(c=>c[2]!=='k'),o.rows.map(r=>{const c=Object.assign({},r);delete c._c;return c;}),o.title);
+    $('rP').onclick=()=>printReport(o,REPS.find(x=>x[0]===REPF.r)[1]);
+    if($('mmGo')){if(!canEdit())$('mmGo').style.display='none';$('mmGo').onclick=async()=>{const irs=[...document.querySelectorAll('.mmk:checked')].map(x=>x.dataset.ir),sel=o.rows.filter(r=>irs.includes(r.ir));
+      if(!sel.length){alert('Tick at least one item.');return;}
+      if(!confirm('Set the minimum and maximum of '+sel.length+' item(s) to the suggested values?\n\nThe old values are kept in the audit log.'))return;
+      sel.forEach(r=>{const it=itemOf(r.ir);if(!it)return;audit('minmax',r.ir+': '+(it.min==null||it.min===''?'-':it.min)+'/'+(it.max==null||it.max===''?'-':it.max)+' -> '+r.smin+'/'+r.smax);it.min=r.smin;it.max=r.smax;});
+      await save();draw();alert('Done: '+sel.length+' item(s) updated.');};}};
   $('rPar').addEventListener('change',e=>{const t=e.target;if(t.id==='rWin'){$('rDaysW').style.display=t.value==='c'?'':'none';if(t.value!=='c')REPF.win=+t.value;}if(t.id==='rDays')REPF.win=Math.max(1,Math.min(1500,Math.floor(+t.value)||90));
-    if(t.id==='rOld')REPF.old=t.checked;if(t.id==='rMon')REPF.months=+t.value;if(t.id==='rSw')REPF.sw=+t.value;if(t.id==='rCov')REPF.cov=+t.value;if(t.id==='rFrom')REPF.from=t.value;if(t.id==='rTo')REPF.to=t.value;draw();});
+    if(t.id==='rOld')REPF.old=t.checked;if(t.id==='rMon')REPF.months=+t.value;if(t.id==='rSw')REPF.sw=+t.value;if(t.id==='rLead')REPF.lead=+t.value;if(t.id==='rMx')REPF.mx=+t.value;if(t.id==='rDay')REPF.day=t.value||today();if(t.id==='rCov')REPF.cov=+t.value;if(t.id==='rFrom')REPF.from=t.value;if(t.id==='rTo')REPF.to=t.value;draw();});
   draw();
 };
 const dateRange=()=>'<div><label>From</label><input type="date" id="rFrom" value="'+REPF.from+'"></div><div><label>To</label><input type="date" id="rTo" value="'+REPF.to+'"></div>';
@@ -1666,6 +1673,29 @@ const REP={
       rows.sort((a,b)=>(a.days===''?1e9:a.days)-(b.days===''?1e9:b.days));
       return{title:'SUGGESTED ORDER LIST',info:rows.length+' items to order · value '+money(rows.reduce((a,r)=>a+(+r.val||0),0))+' · Use per day = Stock Out + Write Off of the '+(W===30?'last 30':'last 90')+' days ÷ '+W+' · Order qty = use per day × '+C+' − stock now (an item below its minimum gets at least max − stock). Shortest “Days left” first.',
         cols:[['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10],['Location','loc','s',25],['Stock now','stock','n',9],['Use / day','avg','n',9],['Days left','days','n',9],['Order qty','order','n',9],['Value (QAR)','val','n',11],['Why','why','s',28]],rows};}},
+  day:{par:()=>'<div><label>Date</label><input type="date" id="rDay" value="'+REPF.day+'"></div>',
+    rows(){const d=REPF.day||today(),rows=[],led=DB.ledger.filter(x=>x.t.slice(0,10)===d),tn=today();
+      const nm=ir=>{const it=itemOf(ir);return it?it.name:ir;};
+      const agg=(ok,sec,sign)=>{const m=new Map();led.filter(x=>ok(x.type)).forEach(x=>{const o=m.get(x.ir)||{q:0,v:0},q=sign*x.qty,pp=x.pr!=null?x.pr:priceOf(x.ir);o.q+=q;if(pp!=null)o.v+=q*pp;m.set(x.ir,o);});
+        let tq=0,tv=0;[...m.entries()].sort((a,b)=>b[1].q-a[1].q).forEach(([ir,o])=>{tq+=o.q;tv+=o.v;rows.push({sec,name:nm(ir),ir,qty:o.q,val:Math.round(o.v*100)/100,note:''});});return{q:tq,v:tv,n:m.size};};
+      const u=agg(t=>t==='OUT','Used (Stock Out)',-1),w=agg(t=>/^WO/.test(t),'Written off',-1),r=agg(t=>t==='IN','Received (Stock In)',1);
+      led.filter(x=>x.type==='COUNT').forEach(x=>rows.push({sec:'Counted',name:nm(x.ir),ir:x.ir,qty:x.qty,val:'',note:'difference of the count'}));
+      const tot=new Map();Object.keys(DB.stock).forEach(k=>{const q=DB.stock[k];if(q>0){const ir=k.slice(0,k.indexOf('|'));tot.set(ir,(tot.get(ir)||0)+q);}});
+      DB.items.forEach(it=>{const mn=it.min!=null&&it.min!==''?+it.min:null,s=tot.get(it.ir)||0;if(mn!=null&&s<mn)rows.push({sec:'Low stock now',name:it.name,ir:it.ir,qty:s,val:'',note:'minimum '+mn});});
+      const lim=addDaysFrom(tn,30),ex=[];Object.keys(DB.stock).forEach(k=>{const q=DB.stock[k];if(!(q>0))return;const i=k.indexOf('|'),e=k.slice(i+1);if(e&&e<=lim)ex.push({ir:k.slice(0,i),e,q});});
+      ex.sort((a,b)=>a.e.localeCompare(b.e)).forEach(x=>rows.push({sec:x.e<tn?'EXPIRED, still in the store':'Expiring in 30 days',name:nm(x.ir),ir:x.ir,qty:x.q,val:'',note:(x.e<tn?'expired ':'expires ')+dmy(x.e),_c:x.e<tn?'errrow':''}));
+      return{title:'DAILY SUMMARY '+dmy(d),info:'<b>'+dmy(d)+'</b> · Used '+u.q+' units ('+u.n+' items) QAR '+money(u.v)+' · Written off '+w.q+' units QAR '+money(w.v)+' · Received '+r.q+' units ('+r.n+' items). “Low stock” and “Expiring” show the situation now.',
+        cols:[['Section','sec','s',26],['Item','name','s',58],['IR','ir','s',14],['Qty','qty','n',9],['Value (QAR)','val','n',12],['Note','note','s',30]],rows};}},
+  mm:{par:()=>'<div><label>Use measured over</label><select id="rSw">'+[[30,'last 30 days'],[90,'last 90 days']].map(o=>'<option value="'+o[0]+'"'+(o[0]===REPF.sw?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></div><div><label>Minimum covers</label><select id="rLead">'+[7,14,21].map(n=>'<option value="'+n+'"'+(n===REPF.lead?' selected':'')+'>'+n+' days</option>').join('')+'</select></div><div><label>Maximum covers</label><select id="rMx">'+[30,45,60].map(n=>'<option value="'+n+'"'+(n===REPF.mx?' selected':'')+'>'+n+' days</option>').join('')+'</select></div><div><label>&nbsp;</label><button class="btn" id="mmGo">Apply the ticked</button></div>',
+    rows(){const W=REPF.sw,since=addDays(-W),use=new Map(),ev=new Map();DB.ledger.forEach(x=>{if((x.type==='OUT'||/^WO/.test(x.type))&&x.t.slice(0,10)>=since){use.set(x.ir,(use.get(x.ir)||0)-x.qty);ev.set(x.ir,(ev.get(x.ir)||0)+1);}});
+      const rows=[];DB.items.forEach(it=>{const q=use.get(it.ir)||0,e=ev.get(it.ir)||0;if(e<3||q<=0)return;const ud=q/W,smin=Math.max(1,Math.ceil(ud*REPF.lead)),smax=Math.max(smin+2,Math.ceil(ud*REPF.mx)),
+          cmin=it.min!=null&&it.min!==''?+it.min:null,cmax=it.max!=null&&it.max!==''?+it.max:null,far=(c,s)=>c==null||Math.abs(s-c)>=Math.max(1,0.25*c);
+        if(!(far(cmin,smin)||far(cmax,smax)))return;
+        const why=cmin==null&&cmax==null?'New (none set)':cmin!=null&&smin>cmin?'Raise the minimum':cmin!=null&&smin<cmin?'Lower the minimum':'Change the maximum';
+        rows.push({ir:it.ir,name:it.name,unit:it.unit,ud:Math.round(ud*100)/100,cmin:cmin==null?'':cmin,smin,cmax:cmax==null?'':cmax,smax,why,_k:1});});
+      rows.sort((a,b)=>b.ud-a.ud);
+      return{title:'MIN / MAX SUGGESTIONS',info:rows.length+' items. Use per day = Stock Out + Write Off of the '+(W===30?'last 30':'last 90')+' days ÷ '+W+' (only items with at least 3 movements). Suggested minimum = use per day × '+REPF.lead+'; suggested maximum = use per day × '+REPF.mx+'. Only items that differ by 25% or more, or have no value, are listed. Untick what you do not want, then press “Apply the ticked”.',
+        cols:[['Apply','_k','k',7],['ir_number','ir','s',14],['item name','name','s',55],['Qty_type','unit','s',10],['Use / day','ud','n',9],['Min now','cmin','n',9],['New min','smin','n',9],['Max now','cmax','n',9],['New max','smax','n',9],['Suggestion','why','s',24]],rows};}},
   wo:{par:dateRange,rows(){const rows=DB.ledger.filter(x=>/^WO/.test(x.type)&&inRange(x)).map(x=>{const it=itemOf(x.ir),p=priceOf(x.ir);return{t:disp(x.t),reason:WO_REASONS[+x.type.slice(2)-1]||x.type,ir:x.ir,name:it?it.name:x.ir,exp:x.exp?dmy(x.exp):'',qty:-x.qty,val:p==null?'':Math.round(-x.qty*p*100)/100,by:x.by||'',posted:x.posted||'',ref:x.ref||''};}).reverse();
       const per=WO_REASONS.map(r=>{const L=rows.filter(x=>x.reason===r);return L.length?esc(r)+': '+L.reduce((a,x)=>a+x.qty,0)+' units, '+money(L.reduce((a,x)=>a+(+x.val||0),0)):'';}).filter(Boolean);
       return{title:'WRITE OFFS '+REPF.from+' TO '+REPF.to,info:rows.length+' lines · total '+money(rows.reduce((a,x)=>a+(+x.val||0),0))+(per.length?'<br>'+per.join(' · '):''),
@@ -1685,7 +1715,7 @@ async function restoreBackup(name){
   return restoreObject(o,name);
 }
 async function restoreObject(o,name){
-  if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users)||!Array.isArray(o.items)||typeof o.stock!=='object')throw new Error('this is not a CCS Desk data file');
+  if(!o||o.app!=='CCS Desk'||!Array.isArray(o.users)||!Array.isArray(o.items)||typeof o.stock!=='object')throw new Error('this is not a ShelfDesk data file');
   if(!o.users.some(u=>u.role==='admin'&&u.active))throw new Error('the backup has no active admin');
   const safe='ccs_desk_data_before_restore_'+nowStamp().replace(/\D/g,'').slice(0,12)+'.json';await writeBackup(safe);
   const me=ME,rk=DB.recovery,lk=DB.link;DB=o;['ledger','audit','imports','pins'].forEach(k=>{if(!Array.isArray(DB[k]))DB[k]=[];});if(!DB.flags)DB.flags={};if(rk)DB.recovery=rk;if(lk&&!DB.link)DB.link=lk;migrate();
@@ -1693,7 +1723,7 @@ async function restoreObject(o,name){
   return{safe,still:!!ME};
 }
 
-// ---------------------------------------------------------------- PHONES: link to the CCS Scan Helper app (the unit's Google Sheet)
+// ---------------------------------------------------------------- PHONES: link to the ShelfApp app (the unit's Google Sheet)
 // The link is kept on THIS computer only (not in the data file): unit, web app link, and the sign-in of a charge nurse account.
 let PH=null,phStockT=null;
 async function phInit(){try{PH=(await kvGet('phones'))||null;}catch(e){PH=null;}phRetryMarks();}
@@ -1701,7 +1731,7 @@ async function phSave(){try{await kvSet('phones',PH);}catch(e){}}
 const phOk=()=>!!(PH&&PH.url&&PH.token);
 async function phPost(action,extra,ms){
   if(window.CCSD_DEMO&&!(PH&&/^demo/i.test(PH.unitId||'')))throw new Error('DEMO: it can be linked only to a demo unit.');
-  if(!PH||!PH.url)throw new Error('CCS Desk is not linked to the phones yet (Settings > Phones).');
+  if(!PH||!PH.url)throw new Error('ShelfDesk is not linked to the phones yet (Settings > Phones).');
   const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),ms||30000);
   try{const body=Object.assign({},extra||{},{action},PH.token&&!('code' in (extra||{}))?{code:PH.token}:{},PH.unitId?{hubUnit:PH.unitId}:{});
     const r=await fetch(PH.url,{method:'POST',body:JSON.stringify(body),redirect:'follow',signal:ctl.signal});let j;
@@ -1714,9 +1744,9 @@ async function phPost(action,extra,ms){
 const AUTOPULL={};
 function autoPull(k,fn){if(!phOk()||(Date.now()-(AUTOPULL[k]||0))<15000)return;AUTOPULL[k]=Date.now();const pg0=page;setTimeout(()=>{if(page!==pg0||document.querySelector('#modal:not(.hidden)'))return;try{const r=fn();if(r&&r.catch)r.catch(()=>{});}catch(e){}},50);}
 function printModal(title){const src=$('modalBox').cloneNode(true);src.querySelectorAll('.noprint').forEach(x=>x.remove());
-  const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for CCS Desk and try again.');return;}
-  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title||'CCS Desk')+'</title><style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#111;font-size:12pt}h1{font-size:18pt;margin:0 0 4px}h3{margin:14px 0 6px}.sub,.note{color:#555}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #bbb;padding:5px 6px;text-align:left}th{font-size:10pt;text-transform:uppercase;color:#444}.num{text-align:right}.mono{font-family:Consolas,monospace}.bigph{max-width:60mm;max-height:60mm}.foot{margin-top:12px;font-size:9pt;color:#666}</style></head><body>'+src.innerHTML+'<div class="foot">'+esc(DB.unit)+' · CCS Desk '+esc(VERSION)+' · printed '+esc(nowStamp().slice(0,16))+'</div><script>setTimeout(function(){window.print();},300)<\/script></body></html>');w.document.close();}
-function phBtn(id,label){return phOk()?'<button class="btn alt" id="'+id+'" title="Lists scanned with the CCS Scan Helper app">'+label+'</button>':'';}
+  const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for ShelfDesk and try again.');return;}
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(title||'ShelfDesk')+'</title><style>@page{size:A4;margin:12mm}body{font-family:Arial,sans-serif;color:#111;font-size:12pt}h1{font-size:18pt;margin:0 0 4px}h3{margin:14px 0 6px}.sub,.note{color:#555}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #bbb;padding:5px 6px;text-align:left}th{font-size:10pt;text-transform:uppercase;color:#444}.num{text-align:right}.mono{font-family:Consolas,monospace}.bigph{max-width:60mm;max-height:60mm}.foot{margin-top:12px;font-size:9pt;color:#666}</style></head><body>'+src.innerHTML+'<div class="foot">'+esc(DB.unit)+' · ShelfDesk '+esc(VERSION)+' · printed '+esc(nowStamp().slice(0,16))+'</div><script>setTimeout(function(){window.print();},300)<\/script></body></html>');w.document.close();}
+function phBtn(id,label){return phOk()?'<button class="btn alt" id="'+id+'" title="Lists scanned with the ShelfApp app">'+label+'</button>':'';}
 // ---- after a posting: tell the phones these lines are done (they leave the SHARED list); kept in the data file until it works
 function phAfterPost(lines,ref){
   if(!DB.phoneDone)DB.phoneDone={lines:[],refs:[]};if(!DB.phoneDone.fps)DB.phoneDone.fps=[];lines.forEach(l=>{if(l.fp)DB.phoneDone.fps.push(l.fp);});if(DB.phoneDone.fps.length>20000)DB.phoneDone.fps.splice(0,DB.phoneDone.fps.length-20000);DB.phoneDone.refs.push(ref);lines.forEach(l=>{if(l.src==='phonex'&&l.lineId)DB.phoneDone.lines.push(l.lineId);});
@@ -1802,9 +1832,9 @@ function qrSettings(){const b=$('qrBox');if(!b)return;
     if(!/^https:\/\/[^\s]+\.[^\s]+$/.test(u)){m.className='msg err';m.textContent='Type the link of the phone app, starting with https://';return;}
     if(u.length>150){m.className='msg err';m.textContent='The link is too long for a QR code.';return;}
     let svg;try{svg=qrSvg(u,'100%');}catch(e){m.className='msg err';m.textContent=e.message;return;}
-    const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for CCS Desk and try again.');return;}
+    const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for ShelfDesk and try again.');return;}
     const css='@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;margin:0;text-align:center;color:#111}h1{font-size:30pt;margin:6mm 0 1mm}h2{font-size:22pt;margin:0 0 6mm;color:#0a5}.qr{width:95mm;height:95mm;margin:0 auto;border:2px solid #111;padding:2mm}.u{font-size:13pt;margin:4mm 0 8mm;word-break:break-all}ol{text-align:left;max-width:150mm;margin:0 auto;font-size:15pt;line-height:1.5;padding-left:8mm}li{margin-bottom:4mm}.f{margin-top:10mm;font-size:10pt;color:#555}';
-    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Join CCS Scan Helper</title><style>'+css+'</style></head><body><h1>Join CCS Scan Helper</h1><h2>'+esc(nm)+'</h2><div class="qr">'+svg+'</div><div class="u">'+esc(u)+'</div><ol><li>Scan the code with the camera of your phone (or open the link above).</li><li>Choose the unit <b>'+esc(nm)+'</b>, tap <b>New account</b>, and type your Corp No., your name and a password.</li><li>Install the app: <b>Android</b>: browser menu &gt; Install app / Add to Home screen. <b>iPhone</b>: Safari Share button &gt; Add to Home Screen.</li></ol><div class="f">Consumable stock tracking only. No patient data. Made by CCS Desk '+esc(VERSION)+'.</div><script>setTimeout(function(){window.print();},400)<\/script></body></html>');w.document.close();
+    w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Join ShelfApp</title><style>'+css+'</style></head><body><h1>Join ShelfApp</h1><h2>'+esc(nm)+'</h2><div class="qr">'+svg+'</div><div class="u">'+esc(u)+'</div><ol><li>Scan the code with the camera of your phone (or open the link above).</li><li>Choose the unit <b>'+esc(nm)+'</b>, tap <b>New account</b>, and type your Corp No., your name and a password.</li><li>Install the app: <b>Android</b>: browser menu &gt; Install app / Add to Home screen. <b>iPhone</b>: Safari Share button &gt; Add to Home Screen.</li></ol><div class="f">Consumable stock tracking only. No patient data. Made by ShelfDesk '+esc(VERSION)+'.</div><script>setTimeout(function(){window.print();},400)<\/script></body></html>');w.document.close();
     if(!DB.settings)DB.settings={};if(DB.settings.appUrl!==u){DB.settings.appUrl=u;try{await save();}catch(e){}}m.className='msg ok';m.textContent='The sheet is open in a new window: print it (or save as PDF).';};}
 
 // ---- v3.0: Home page data for the phones (low stock, expiring soon, counts, order list, cost)
@@ -1831,6 +1861,16 @@ function homeData(){
 async function phSendHome(){
   if(!phOk())return;
   try{const d=homeData();await phPost('homeSet',d,30000);PH.homeAt=nowStamp();phSave();}catch(e){PH.homeErr=(e&&e.message)||'error';}}
+
+// ---- v3.1: print / PDF of any report, daily summary, min/max suggestions
+function printReport(o,name){
+  const cols=o.cols.filter(c=>c[2]!=='k'),cell=(c,r)=>esc(r[c[1]]==null?'':c[2]==='n'&&typeof r[c[1]]==='number'&&!Number.isInteger(r[c[1]])?r[c[1]].toFixed(c[1]==='val'||c[1]==='price'?2:1):r[c[1]]);
+  const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for ShelfDesk and try again.');return;}
+  const css='@page{size:A4 landscape;margin:10mm}body{font-family:Arial,sans-serif;color:#111;font-size:10.5pt}h1{font-size:16pt;margin:0}.sub{color:#555;margin:2px 0 8px}.info{margin:0 0 8px;font-size:10pt}table{border-collapse:collapse;width:100%}th,td{border-bottom:1px solid #bbb;padding:3px 5px;text-align:left;vertical-align:top}th{font-size:9pt;text-transform:uppercase;background:#eef1f5}.num{text-align:right}.foot{margin-top:10px;font-size:8.5pt;color:#666}tr{page-break-inside:avoid}thead{display:table-header-group}';
+  w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>'+esc(name)+'</title><style>'+css+'</style></head><body><h1>'+esc(o.title||name)+'</h1><div class="sub">'+esc(DB.unit)+' · printed '+esc(disp(nowStamp()))+' by '+esc(ME?ME.name:'')+'</div><div class="info">'+(o.info||'')+'</div><table><thead><tr>'+cols.map(c=>'<th'+(c[2]==='n'?' class="num"':'')+'>'+esc(c[0])+'</th>').join('')+'</tr></thead><tbody>'
+    +(o.rows.length?o.rows.map(r=>'<tr>'+cols.map(c=>'<td'+(c[2]==='n'?' class="num"':'')+'>'+cell(c,r)+'</td>').join('')+'</tr>').join(''):'<tr><td colspan="'+cols.length+'">Nothing to show.</td></tr>')
+    +'</tbody></table><div class="foot">ShelfDesk '+esc(VERSION)+' · '+o.rows.length+' line(s)</div><script>setTimeout(function(){window.print();},400)<\/script></body></html>');w.document.close();}
+const addDaysFrom=(d,n)=>{const x=new Date(d+'T12:00:00');x.setDate(x.getDate()+n);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0');};
 // ---- v2.2: daily totals (only numbers: quantity and cost per day, no names, no patients) for the central page of the hospital
 function summaryPayload(){
   const from=addDays(-399),by=new Map();let n=0;
@@ -1891,11 +1931,11 @@ async function phPullCount(draw){
 async function phSettings(box){
   let units=[];if(location.protocol==='https:'){try{const r=await fetch('../config.json',{cache:'no-store'});const c=await r.json();units=(c.units||[]).filter(u=>u.id&&u.syncUrl&&(!window.CCSD_DEMO||/^demo/i.test(u.id)));}catch(e){}}
   const draw=()=>{
-    if(window.CCSD_DEMO&&!units.length&&!phOk()){box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p class="note">The DEMO can be linked only to a demo unit of the phone app (a unit whose id starts with <b>demo</b> in config.json). No demo unit is set up yet, so the demo works without phones. It can never be linked to a real unit.</p>';return;}
-    if(phOk()){box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p>Linked to <b>'+esc(PH.unitName||PH.unitId||'the unit')+'</b> as <b>'+esc(PH.name||'')+'</b> ('+esc(PH.corp||'')+', charge nurse). Last stock sent: '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+'.'+(DB.markQueue&&DB.markQueue.length?' <span class="st-err">'+DB.markQueue.length+' posting(s) not yet sent to the phones.</span>':'')+'</p>'
+    if(window.CCSD_DEMO&&!units.length&&!phOk()){box.innerHTML='<h3>Phones (ShelfApp)</h3><p class="note">The DEMO can be linked only to a demo unit of the phone app (a unit whose id starts with <b>demo</b> in config.json). No demo unit is set up yet, so the demo works without phones. It can never be linked to a real unit.</p>';return;}
+    if(phOk()){box.innerHTML='<h3>Phones (ShelfApp)</h3><p>Linked to <b>'+esc(PH.unitName||PH.unitId||'the unit')+'</b> as <b>'+esc(PH.name||'')+'</b> ('+esc(PH.corp||'')+', charge nurse). Last stock sent: '+esc(PH.stockAt?disp(PH.stockAt):'not yet')+'.'+(DB.markQueue&&DB.markQueue.length?' <span class="st-err">'+DB.markQueue.length+' posting(s) not yet sent to the phones.</span>':'')+'</p>'
         +'<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="phAuto"'+(PH.auto===false?'':' checked')+'> Send the stock to the phones after every posting</label>'
         +'<label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="phSum"'+(PH.sum===false?'':' checked')+'> Send the daily totals (only quantity and cost per day, no names) to the central page of the hospital</label>'
-        +'<label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="phBk"'+(PH.bk===false?'':' checked')+'> Online backup of the CCS Desk data (compressed, in the unit sheet; passwords are not included)</label>'
+        +'<label style="display:flex;gap:8px;align-items:center;margin-top:6px"><input type="checkbox" id="phBk"'+(PH.bk===false?'':' checked')+'> Online backup of the ShelfDesk data (compressed, in the unit sheet; passwords are not included)</label>'
         +'<p class="note">Online backup last made: '+esc(PH.bkAt?disp(PH.bkAt):'not yet')+'. The last 3 copies are kept. It is made every ~20 minutes when something changed, and when you press the button.</p>'
         +'<p class="note">Totals last sent: '+esc(PH.sumAt?disp(PH.sumAt):'not yet')+'.</p>'
         +'<p class="note">Photos and second names from the phones: '+Object.keys(MEDIA.ph).length+' photos, '+Object.keys(MEDIA.sn).length+' second names (updated every 30 minutes).</p>'+'<div class="row" style="margin-top:10px"><button class="btn" id="phSend">Send the stock now</button><button class="btn alt" id="phMedia">Get photos and names now</button><button class="btn alt" id="phBkNow">Back up now (online)</button>'+(ME&&ME.role==='admin'?'<button class="btn alt" id="phBkRes">Restore from online backup…</button>':'')+'<button class="btn alt" id="phOut">Unlink</button></div><div class="msg" id="phMsg"></div>';
@@ -1906,8 +1946,8 @@ async function phSettings(box){
       $('phSum').onchange=()=>{PH.sum=$('phSum').checked;phSave();if(PH.sum)phSendSummary(false);};
       $('phSend').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Sending…';try{const j=await phSendStock(true);m.className='msg ok';m.textContent='Sent: '+j.items+' items. The phones show it within 5 minutes.';phSendSummary(false);await phRetryMarks();draw();}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
       $('phMedia').onclick=async()=>{const m=$('phMsg');m.className='msg warn';m.textContent='Getting photos and names… (the first time can take a minute)';try{MEDIA.at=0;const r=await mediaSync(true);m.className='msg ok';m.textContent='Done: '+r.photos+' photos, '+r.names+' second names.';}catch(e){m.className='msg err';m.textContent=e.message||e.name;}};
-      $('phOut').onclick=()=>{if(confirm('Unlink CCS Desk from the phones on this computer?')){PH=null;phSave();draw();}};return;}
-    box.innerHTML='<h3>Phones (CCS Scan Helper)</h3><p class="note">Link CCS Desk to the Google Sheet of the unit: then Stock Out, Stock In, Write Off and Inventory Count get the phones\' lists with one button, the phones are told what was posted, and the phones show the stock of CCS Desk. Use a <b>charge nurse</b> account of the app.</p>'
+      $('phOut').onclick=()=>{if(confirm('Unlink ShelfDesk from the phones on this computer?')){PH=null;phSave();draw();}};return;}
+    box.innerHTML='<h3>Phones (ShelfApp)</h3><p class="note">Link ShelfDesk to the Google Sheet of the unit: then Stock Out, Stock In, Write Off and Inventory Count get the phones\' lists with one button, the phones are told what was posted, and the phones show the stock of ShelfDesk. Use a <b>charge nurse</b> account of the app.</p>'
       +'<div class="grid2">'+(units.length?'<div><label>Unit</label><select id="phU">'+units.map(u=>'<option value="'+esc(u.id)+'"'+(u.name===DB.unit?' selected':'')+'>'+esc(u.name)+'</option>').join('')+'</select></div>':'<div><label>Google Sheet web app link of the unit</label><input type="text" id="phL" placeholder="https://script.google.com/macros/s/…/exec"></div><div><label>Unit id (central script only, e.g. pltcu1)</label><input type="text" id="phId" placeholder="empty if the unit has its own script"></div>')
       +'<div><label>Corp No.</label><input type="text" id="phC" autocomplete="off"></div><div><label>Password (of the app)</label><input type="password" id="phP" autocomplete="off"></div></div>'
       +'<div class="row" style="margin-top:10px"><button class="btn" id="phGo">Link</button></div><div class="msg" id="phMsg"></div>';
@@ -1959,7 +1999,7 @@ function printLabels(list,cfg){
   if(!list.length){alert('No item to print.');return;}
   const copies=Math.max(1,Math.min(50,Math.floor(+cfg.copies)||1)),all=[];list.forEach(it=>{for(let c=0;c<copies;c++)all.push(it);});
   if(all.length>240&&!confirm(all.length+' labels. Print all of them?'))return;
-  const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for CCS Desk and try again.');return;}
+  const w=window.open('','_blank');if(!w){alert('The browser blocked the new window. Allow pop-ups for ShelfDesk and try again.');return;}
   const a4=cfg.paper==='a4',W=a4?(210-2*cfg.ml)/cfg.cols:cfg.w,H=a4?(297-2*cfg.mt)/cfg.rows:cfg.h,fs=Math.max(5.5,Math.min(9,H*0.27)).toFixed(1),ifs=Math.max(6.5,Math.min(11,H*0.3)).toFixed(1),bh=Math.max(6,Math.min(16,H*0.36)).toFixed(1);
   const lab=it=>'<div class="l"><div class="n">'+esc(it.name)+'</div>'+code128Svg(it.ir,bh)+'<div class="i">'+esc(it.ir)+'</div>'+(H>=22?'<div class="o">'+esc([it.unit,it.loc].filter(Boolean).join(' · '))+'</div>':'')+'</div>';
   const css='body{margin:0;font-family:Arial,sans-serif}.l{box-sizing:border-box;overflow:hidden;padding:1.2mm 2mm;display:flex;flex-direction:column;justify-content:space-between;'+(cfg.border?'outline:1px dashed #999;outline-offset:-1px;':'')+'}.n{font-size:'+fs+'pt;font-weight:700;line-height:1.12;max-height:'+(H>=22?'3.4':'2.3')+'em;overflow:hidden}.i{font:700 '+ifs+'pt monospace;letter-spacing:1px;text-align:center;line-height:1.1}.o{font-size:6.5pt;color:#333;white-space:nowrap;overflow:hidden}svg rect{fill:#000}.tip{font:12px Arial;padding:8px;background:#fff4d6;margin-bottom:6px}@media print{.tip{display:none}}';
@@ -1987,7 +2027,7 @@ function labelDialog(shown){
     +'<div class="grid2"><div><label>Margin top and bottom (mm)</label><input type="number" id="lbMT" min="0" max="30" step="0.5" value="'+C.mt+'"></div><div><label>Margin left and right (mm)</label><input type="number" id="lbML" min="0" max="30" step="0.5" value="'+C.ml+'"></div></div>'
     +'<label>Start at label number (to use a sheet that is already partly used)</label><input type="number" id="lbS" min="1" value="1" style="width:100px"></div>'
     +'<div class="grid2"><div><label>Copies of each label</label><input type="number" id="lbCo" min="1" max="50" value="'+C.copies+'"></div><div><label style="display:flex;gap:8px;align-items:center;margin-top:28px;font-weight:400"><input type="checkbox" id="lbB"'+(C.border?' checked':'')+'> Thin dashed border (for a test on plain paper)</label></div></div>'
-    +'<p class="note">Printing goes through the printers installed on this computer (the same list as Ctrl+P). A network printer with an IP address is added once in Windows (Printers &amp; scanners > Add), then it appears in the list. CCS Desk cannot send to an IP address by itself.</p>'
+    +'<p class="note">Printing goes through the printers installed on this computer (the same list as Ctrl+P). A network printer with an IP address is added once in Windows (Printers &amp; scanners > Add), then it appears in the list. ShelfDesk cannot send to an IP address by itself.</p>'
     +'<div class="row" style="margin-top:12px"><button class="btn" id="lbGo">Print</button><button class="btn alt" id="lbX">Cancel</button></div><div class="msg" id="mmsg"></div>');
   const paperUi=()=>{const a=$('lbPaper').value==='a4';$('lbA4').classList.toggle('hidden',!a);$('lbRoll').classList.toggle('hidden',a);};paperUi();$('lbPaper').onchange=paperUi;
   const selList=()=>{const q=$('lbQ').value.trim().toLowerCase(),all=itemsKeyed();let L=q?all.filter(i=>q.split(/\s+/).every(w=>i.key.includes(w)||i.ir.endsWith(w)||i.ir.startsWith(w))):all;L=L.slice(0,200);selList.shown=L;
@@ -2026,7 +2066,7 @@ PAGES.items=()=>{
   $('iLbl').onclick=()=>labelDialog(PAGES.items.L||[]);
   $('iXlsx').onclick=()=>{const rows=DB.items.map(i=>({ir:i.ir,name:i.name,alias:i.alias||'',unit:i.unit,loc:i.loc,max:i.max,min:i.min,price:i.price,expiry:'',qty:''}));
     const cols=[['ir_number','ir','s',14],['item name','name','s',70],['other names','alias','s',30],['Qty_type','unit','s',10],['Location','loc','s',40],['max_stock','max','n',10],['min_stock','min','n',10],['Unit Price','price','n',11]];
-    download('CCS_Desk_master_list_'+today()+'.xlsx',buildXlsx('inventory list',cols,rows,null));};
+    download('ShelfDesk_master_list_'+today()+'.xlsx',buildXlsx('inventory list',cols,rows,null));};
 };
 function itemDialog(it){
   const ro=!canEdit(),f=(k,l,v,t)=>'<div><label>'+l+'</label><input type="'+(t||'text')+'" id="f_'+k+'" value="'+esc(v==null?'':v)+'"'+(ro||(k==='ir'&&it)?' disabled':'')+'></div>';
@@ -2070,24 +2110,24 @@ function download(name,bytes){const b=new Blob([bytes],{type:'application/vnd.op
 // ---------------------------------------------------------------- users (admin)
 PAGES.users=()=>{
   $('main').innerHTML='<div class="card"><div class="row" style="margin-bottom:10px"><h3 style="margin:0">Users</h3><button class="btn" id="uNew" style="margin-left:auto">＋ New user</button></div><table class="t" id="uTab"></table>'
-    +'<p class="note">People with an <b>app account</b> sign in with the password of their CCS Scan Helper app. '+(DB.settings.selfJoin!==false?'A charge nurse of the unit can sign in the first time by themselves (sign-in screen: “I am not in this list”) and then appears here. ':'')+'Charge nurses can do everything except users, master-list loading and settings. Every change is saved with the user name.</p></div>';
+    +'<p class="note">People with an <b>app account</b> sign in with the password of their ShelfApp app. '+(DB.settings.selfJoin!==false?'A charge nurse of the unit can sign in the first time by themselves (sign-in screen: “I am not in this list”) and then appears here. ':'')+'Charge nurses can do everything except users, master-list loading and settings. Every change is saved with the user name.</p></div>';
   $('uTab').innerHTML='<tr><th>Full name</th><th>Signs in with</th><th>Role</th><th>Status</th><th>Last sign-in</th><th></th></tr>'+DB.users.map(u=>'<tr><td>'+esc(u.name)+'</td>'
-    +'<td>'+(u.corp?'app account <span class="mono">'+esc(u.corp)+'</span>'+(hasLocal(u)?'<br>or CCS Desk password':''):'CCS Desk password, user <span class="mono">'+esc(u.u)+'</span>')+'</td>'
+    +'<td>'+(u.corp?'app account <span class="mono">'+esc(u.corp)+'</span>'+(hasLocal(u)?'<br>or ShelfDesk password':''):'ShelfDesk password, user <span class="mono">'+esc(u.u)+'</span>')+'</td>'
     +'<td>'+(u.role==='admin'?'<span class="pill b">admin</span>':'<span class="pill">charge nurse</span>')+'</td>'
     +'<td>'+(u.active?'<span class="pill g">active</span>':'<span class="pill r">disabled</span>')+(u.mustChange?' <span class="pill">new password</span>':'')+(u.blocked?' <span class="pill r">blocked at the last check</span>':'')+'</td><td>'+esc(disp(u.last))+'</td>'
     +'<td style="text-align:right">'+(u.u===ME.u?'<span class="note">you</span>'+(u.corp?'':' <button class="btn alt" data-corp="'+esc(u.u)+'">Corp No.…</button>'):'<button class="btn alt" data-pw="'+esc(u.u)+'">Reset password</button> '+(u.corp?'':'<button class="btn alt" data-corp="'+esc(u.u)+'">Corp No.…</button> ')
       +'<button class="btn alt" data-role="'+esc(u.u)+'">'+(u.role==='admin'?'Make charge nurse':'Make admin')+'</button> <button class="btn alt" data-act="'+esc(u.u)+'">'+(u.active?'Disable':'Enable')+'</button>')+'</td></tr>').join('');
   $('uTab').addEventListener('click',async e=>{const B=k=>{const b=e.target.closest('button[data-'+k+']');return b?DB.users.find(x=>x.u===b.dataset[k]):null;},p=B('pw'),a=B('act'),r=B('role'),c=B('corp');
-    if(p){const np=prompt('Temporary CCS Desk password for '+p.name+' (at least 8 characters, with letters and numbers).\nThey must choose their own password at the next sign-in.'+(p.corp?'\n\n'+p.name+' normally signs in with the app password. This temporary password works too.':''),'');if(np===null)return;if(pwRule(np)){alert(pwRule(np));return;}
+    if(p){const np=prompt('Temporary ShelfDesk password for '+p.name+' (at least 8 characters, with letters and numbers).\nThey must choose their own password at the next sign-in.'+(p.corp?'\n\n'+p.name+' normally signs in with the app password. This temporary password works too.':''),'');if(np===null)return;if(pwRule(np)){alert(pwRule(np));return;}
       p.salt=newSalt();p.hash=await pwHash(np,p.salt);delete p.hashOff;p.mustChange=true;failClear(p.u);audit('USER_RESET',signName(p));await save();PAGES.users();}
     if(a){a.active=!a.active;audit(a.active?'USER_ENABLE':'USER_DISABLE',signName(a));await save();PAGES.users();}
     if(r){if(!confirm(r.role==='admin'?'Make '+r.name+' a charge nurse (no users, settings and master-list loading)?':'Make '+r.name+' an admin (users, settings, master-list loading, restore)?'))return;r.role=r.role==='admin'?'charge':'admin';audit('USER_ROLE',signName(r)+' -> '+r.role);await save();PAGES.users();}
-    if(c){const v=prompt('Corp No. of '+c.name+'.\nAfter this, '+c.name+' can sign in with the password of the CCS Scan Helper app (charge nurse account).','');if(v===null)return;const corp=fixDigits(v).trim().toUpperCase();
+    if(c){const v=prompt('Corp No. of '+c.name+'.\nAfter this, '+c.name+' can sign in with the password of the ShelfApp app (charge nurse account).','');if(v===null)return;const corp=fixDigits(v).trim().toUpperCase();
       if(!CORP_RE.test(corp)){alert('Corp No.: 3-12 letters or numbers.');return;}if(DB.users.some(x=>x!==c&&(String(x.corp||'').toUpperCase()===corp||x.u.toUpperCase()===corp))){alert('Another user already has this Corp No.');return;}
       c.corp=corp;audit('USER_CORP',c.u+' = '+corp);await save();PAGES.users();}});
   $('uNew').onclick=()=>{modal('<h1>New user</h1><p class="sub">A charge nurse with the app does not need this: they sign in by themselves the first time.</p><div class="grid2"><div><label>Full name</label><input type="text" id="nN"></div><div><label>Corp No. (signs in with the app password)</label><input type="text" id="nC" autocomplete="off"></div></div>'
       +'<div class="grid2"><div><label>User name (only without Corp No.)</label><input type="text" id="nU" autocomplete="off"></div><div><label>Role</label><select id="nR"><option value="charge">Charge nurse</option><option value="admin">Admin</option></select></div></div>'
-      +'<label>Temporary CCS Desk password (needed without Corp No.)</label><input type="text" id="nP" autocomplete="off"><p class="note">With a temporary password, the user must choose their own password at the first sign-in.</p><div class="row" style="margin-top:14px"><button class="btn" id="nGo">Add user</button><button class="btn alt" id="nX">Cancel</button></div><div class="msg" id="mmsg"></div>');
+      +'<label>Temporary ShelfDesk password (needed without Corp No.)</label><input type="text" id="nP" autocomplete="off"><p class="note">With a temporary password, the user must choose their own password at the first sign-in.</p><div class="row" style="margin-top:14px"><button class="btn" id="nGo">Add user</button><button class="btn alt" id="nX">Cancel</button></div><div class="msg" id="mmsg"></div>');
     $('nX').onclick=closeModal;
     $('nGo').onclick=async()=>{const corp=fixDigits($('nC').value).trim().toUpperCase(),u=($('nU').value.trim()||corp).toLowerCase(),nm=$('nN').value.trim(),pw=$('nP').value;
       if(!nm){mmsg('err','Type the full name.');return;}if(corp&&!CORP_RE.test(corp)){mmsg('err','Corp No.: 3-12 letters or numbers.');return;}
@@ -2104,7 +2144,7 @@ PAGES.set=async()=>{
   $('main').innerHTML='<div class="card"><h3>Data folder and backups</h3><p>Folder <b>'+esc(DIR.name)+'</b> · file <span class="mono">'+DATA+'</span> · backups in the sub-folder <span class="mono">'+BKDIR+'</span> (one per day, the last '+((DB.settings&&DB.settings.backupDays)||30)+' days are kept)</p>'
     +'<div class="row"><button class="btn" id="sBk">Backup now</button><button class="btn alt" id="sDl">Download a copy of the data file</button>'+(adm?'<button class="btn alt" id="sDir">Use another data folder…</button>':'')+'</div><div class="msg" id="pmsg"></div><div id="sBkList" class="note"></div></div>'
     +'<div class="card" id="phBox"></div><div class="card" id="qrBox"></div>'
-    +'<div class="card"><h3>My account</h3><p>'+esc(ME.name)+' (<span class="mono">'+esc(signName(ME))+'</span>) · '+(!hasLocal(ME)?'you sign in with the password of your CCS Scan Helper app'+(ME.off?' (last checked with internet: '+esc(disp(ME.off.at))+')':''):corpGuess(ME)?'you sign in with your CCS Desk password or your app password':'you sign in with your CCS Desk password')+'</p><div class="row"><button class="btn alt" id="sPw">Change my password</button><button class="btn alt" id="sLock">Lock now</button></div></div>'
+    +'<div class="card"><h3>My account</h3><p>'+esc(ME.name)+' (<span class="mono">'+esc(signName(ME))+'</span>) · '+(!hasLocal(ME)?'you sign in with the password of your ShelfApp app'+(ME.off?' (last checked with internet: '+esc(disp(ME.off.at))+')':''):corpGuess(ME)?'you sign in with your ShelfDesk password or your app password':'you sign in with your ShelfDesk password')+'</p><div class="row"><button class="btn alt" id="sPw">Change my password</button><button class="btn alt" id="sLock">Lock now</button></div></div>'
     +(adm?'<div class="card"><h3>Unit and safety</h3><div class="grid2"><div><label>Unit name</label><input type="text" id="sUnit" value="'+esc(DB.unit)+'"></div><div><label>Lock the screen after … minutes without use</label><input type="number" id="sIdle" min="2" max="240" value="'+idleMin()+'"></div>'
       +'<div><label>Sign-in without internet: for … days after the last sign-in with internet</label><input type="number" id="sOff" min="1" max="365" value="'+offDays()+'"></div></div>'
       +'<label style="display:flex;gap:8px;align-items:center;font-weight:400"><input type="checkbox" id="sJoin"'+(DB.settings.selfJoin!==false?' checked':'')+'> A charge nurse of the unit can sign in the first time with the app account, without being added by an admin</label>'
@@ -2135,7 +2175,7 @@ if(location.protocol==='https:'&&'serviceWorker' in navigator){navigator.service
 if(window.__CCSD_TEST_DIR_PROMISE)window.__T={get DRAFT(){return DRAFT;},get DB(){return DB;},go:p=>go(p),save:()=>save(true)};
 // ---------------------------------------------------------------- one window at a time
 if(navigator.locks&&navigator.locks.request){
-  navigator.locks.request('ccs-desk-window',{ifAvailable:true},lock=>{if(!lock){screen('<h1>CCS Desk is already open</h1><p class="sub">It is open in another tab or window of this browser. Use that one, or close it and reload this page.</p>');return;}boot();return new Promise(()=>{});});
+  navigator.locks.request('ccs-desk-window',{ifAvailable:true},lock=>{if(!lock){screen('<h1>ShelfDesk is already open</h1><p class="sub">It is open in another tab or window of this browser. Use that one, or close it and reload this page.</p>');return;}boot();return new Promise(()=>{});});
 }else boot();
 })();
 </script>

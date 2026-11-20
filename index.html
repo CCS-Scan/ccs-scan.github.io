@@ -11,7 +11,7 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <link rel="icon" href="icon-192.png">
-<title>CCS Scan Helper</title>
+<title>ShelfApp</title>
 <style>
 :root{--bg:#f4f6f9;--card:#fff;--ink:#1c2733;--muted:#66758a;--line:#d8dee8;--blue:#1f4e78;--blue2:#2e75b6;
 --out:#b3261e;--outbg:#fdecea;--in:#1e7a3c;--inbg:#e7f5ec;--warn:#8a5a00;--warnbg:#fff4d6;--hi:#fff9c4}
@@ -315,7 +315,7 @@ header input{font-size:14px!important;padding:5px 8px!important;width:170px!impo
 </header>
 <div id="gate" style="display:none">
   <div id="gatePick">
-    <h2>CCS Scan Helper</h2>
+    <h2>ShelfApp</h2>
     <div class="note">Choose your unit</div>
     <div id="gateUnits"></div>
     <div class="note" id="gateLoading" style="margin-top:12px">Loading the units… (needs internet the first time)</div>
@@ -625,7 +625,7 @@ const TEMPLATE_COLS = [['ir_number','ir','s',14],['item name','name','s',70],['E
 // DEFAULT shared folder link (OneDrive / SharePoint / Microsoft Forms upload link). It is part of this file, so everybody who gets
 // the file already has it and it never gets lost when the page is closed. To change it for everybody, edit the text between the quotes.
 const UPLOAD_LINK = '';
-const VERSION = '8.2';
+const VERSION = '8.3';
 const FOLDER_FEATURE = false;          // shared-folder sync is switched off (not usable on the hospital PCs); the code is kept          // shown in the page header, so you can see which copy of the file you are running
 const EXPORT = {
   OUT: { sheet: 'inventory list', file: 'CCS_StockOut', cols: TEMPLATE_COLS },
@@ -721,7 +721,7 @@ function buildXlsx(sheetName,cols,rows,meta){
       const r2=meta.info.map((kv,i)=>'<row r="'+(i+1)+'"><c r="A'+(i+1)+'" t="inlineStr" s="2"><is><t>'+xmlEsc(kv[0])+'</t></is></c><c r="B'+(i+1)+'" t="inlineStr"><is><t xml:space="preserve">'+xmlEsc(kv[1])+'</t></is></c></row>').join('');
       parts.push(['xl/worksheets/sheet2.xml',X+'<worksheet xmlns="'+ns+'"><cols><col min="1" max="1" width="22" customWidth="1"/><col min="2" max="2" width="60" customWidth="1"/></cols><sheetData>'+r2+'</sheetData></worksheet>']);
     }
-    const iso=(meta.created||new Date()).toISOString().replace(/\.\d+Z$/,'Z'),who=xmlEsc(meta.who||'CCS Scan Helper');
+    const iso=(meta.created||new Date()).toISOString().replace(/\.\d+Z$/,'Z'),who=xmlEsc(meta.who||'ShelfApp');
     P('[Content_Types].xml')[1]=P('[Content_Types].xml')[1].replace('</Types>','<Override PartName="/docProps/core.xml" ContentType="application/vnd.openxmlformats-package.core-properties+xml"/></Types>');
     P('_rels/.rels')[1]=P('_rels/.rels')[1].replace('</Relationships>','<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/></Relationships>');
     parts.push(['docProps/core.xml',X+'<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:dcterms="http://purl.org/dc/terms/" xmlns:dcmitype="http://purl.org/dc/dcmitype/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"><dc:title>'+xmlEsc(meta.title||sheetName)+'</dc:title><dc:creator>'+who+'</dc:creator><cp:lastModifiedBy>'+who+'</cp:lastModifiedBy><dcterms:created xsi:type="dcterms:W3CDTF">'+iso+'</dcterms:created><dcterms:modified xsi:type="dcterms:W3CDTF">'+iso+'</dcterms:modified></cp:coreProperties>']);
@@ -1098,7 +1098,7 @@ function c128Scan(gray, w, h, K) {
   $('fAllow').onclick=async()=>{try{perm=await dir.requestPermission({mode:'readwrite'});}catch(e){perm='prompt';}renderFolder();if(ready())await refreshFromFolder();};
   async function testFolder(){
     try{
-      const stamp=new Date().toISOString(),txt='CCS Scan Helper connection test\n'+stamp+'\n'+(st.who||'');
+      const stamp=new Date().toISOString(),txt='ShelfApp connection test\n'+stamp+'\n'+(st.who||'');
       const fh=await dir.getFileHandle('CCS_connection_test.txt',{create:true});const w=await fh.createWritable();await w.write(txt);await w.close();
       const back=await (await fh.getFile()).text();if(back!==txt)throw new Error('the file was written but reads back different');
       const names=[];for await(const [n,h] of dir.entries()){names.push(n+(h.kind==='directory'?'/':''));}
@@ -1334,7 +1334,7 @@ function c128Scan(gray, w, h, K) {
     const cfg=EXPORT[st.mode],who0=(st.who||'').trim(),typeName=st.mode==='OUT'?'STOCK OUT':'STOCK IN',nowD=new Date();
     const meta={who:who0,created:nowD,title:typeName,infoName:'Info',info:st.infoSheet?[
       ['Prepared by',who0||'(not entered)'],['Saved on',nowD.getFullYear()+'-'+pad2(nowD.getMonth()+1)+'-'+pad2(nowD.getDate())+' '+pad2(nowD.getHours())+':'+pad2(nowD.getMinutes())],
-      ['Type',typeName],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Lines',list().length],['Total units',list().reduce((a,x)=>a+x.qty,0)],['Tool','CCS Scan Helper'],
+      ['Type',typeName],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Lines',list().length],['Total units',list().reduce((a,x)=>a+x.qty,0)],['Tool','ShelfApp'],
       ['Note','Information only. The data to import is on the first sheet (inventory list).']]:null};
     const bytes=buildXlsx(cfg.sheet,cfg.cols,buildRows(list(),items,$('allItems').checked),meta);
     const who=who0.replace(/\s+/g,'_').replace(/[^A-Za-z0-9_-]+/g,''),name=cfg.file+'_'+stamp()+(who?'_'+who:'')+'.xlsx';
@@ -1713,7 +1713,7 @@ function c128Scan(gray, w, h, K) {
     }
     const meta={who:who0,created:nowD,title:typeName,infoName:'Info',info:st.infoSheet?[
       ['Prepared by',who0||'(not entered)'],['Saved on',nowD.getFullYear()+'-'+pad2(nowD.getMonth()+1)+'-'+pad2(nowD.getDate())+' '+pad2(nowD.getHours())+':'+pad2(nowD.getMinutes())],
-      ['Type',typeName],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Lines',lines.length],['Total units',lines.reduce((a,x)=>a+x.qty,0)],['Combined from',names.join(', ')],['Source',$('shSource').value==='live'?'Shared list (live)':'Merged files'],['Tool','CCS Scan Helper'],
+      ['Type',typeName],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Lines',lines.length],['Total units',lines.reduce((a,x)=>a+x.qty,0)],['Combined from',names.join(', ')],['Source',$('shSource').value==='live'?'Shared list (live)':'Merged files'],['Tool','ShelfApp'],
       ['Note','Information only. The data to import is on the first sheet (inventory list).']]:null};
     const bytes=buildXlsx(cfg.sheet,cfg.cols,buildRows(lines,items,false),meta);
     const who=who0.replace(/\s+/g,'_').replace(/[^A-Za-z0-9_-]+/g,''),name=cfg.file+'_ALL_'+stamp()+(who?'_'+who:'')+'.xlsx';
@@ -1791,7 +1791,7 @@ function c128Scan(gray, w, h, K) {
   };
   // The unit's default link: a tiny file "config.json" next to index.html (edit it on GitHub, no need to touch the app).
   // Never overwrites a link the person typed by hand.
-  function showUnit(){const el=$('unitTag');if(UNIT_NAME){el.textContent=UNIT_NAME;el.style.display='';document.title='CCS Scan Helper - '+UNIT_NAME;}}
+  function showUnit(){const el=$('unitTag');if(UNIT_NAME){el.textContent=UNIT_NAME;el.style.display='';document.title='ShelfApp - '+UNIT_NAME;}}
   showUnit();
   async function shLoadConfig(){
     try{
@@ -1983,7 +1983,7 @@ function c128Scan(gray, w, h, K) {
     const meta={who:who0,created:nowD,title:'WRITE OFF',infoName:'Info',info:st.infoSheet?[
       ['Prepared by',who0||'(not entered)'],['Saved on',nowD.getFullYear()+'-'+pad2(nowD.getMonth()+1)+'-'+pad2(nowD.getDate())+' '+pad2(nowD.getHours())+':'+pad2(nowD.getMinutes())],
       ['Type','WRITE OFF'],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Lines',rows.length],['Total units',rows.reduce((a,x)=>a+(+x.qty||0),0)],
-      ...WOM.map(m=>[woName(m),lines.filter(l=>l.mode===m).reduce((a,x)=>a+x.qty,0)]),...(combined?[['Combined from',combined]]:[]),['Tool','CCS Scan Helper'],
+      ...WOM.map(m=>[woName(m),lines.filter(l=>l.mode===m).reduce((a,x)=>a+x.qty,0)]),...(combined?[['Combined from',combined]]:[]),['Tool','ShelfApp'],
       ['Note','Information only. The data is on the first sheet (inventory list). The last column is the write-off reason.']]:null};
     return buildXlsx('inventory list',WO_COLS,rows,meta);
   }
@@ -2004,7 +2004,7 @@ function c128Scan(gray, w, h, K) {
     ['CNT1','CNT2','CNT3'].forEach(m=>rows.push([roomName(m),sum(x=>x.mode===m)]));
     rows.push(['All rooms',sum(()=>true)],['EXPIRED',sum(x=>expStatus(x.expiry).t==='EXPIRED')],['Expire in < 3 months',sum(x=>expStatus(x.expiry).t==='< 3 MONTHS')],['Expire in < 6 months',sum(x=>expStatus(x.expiry).t==='< 6 MONTHS')],['No expiry date',sum(x=>!x.expiry)]);
     if(combined)rows.push(['Combined from',combined]);if(source)rows.push(['Source',source]);
-    rows.push(['Tool','CCS Scan Helper'],['Note','Sheet "count" = every room, every expiry date. Sheet "By item (all rooms)" = totals per item and expiry date. This file is a COUNT, not a CCS import file.']);return rows;
+    rows.push(['Tool','ShelfApp'],['Note','Sheet "count" = every room, every expiry date. Sheet "By item (all rooms)" = totals per item and expiry date. This file is a COUNT, not a CCS import file.']);return rows;
   }
   function countBook(lines,meta0){
     const info=new Map(items.map(i=>[i.ir,i]));
@@ -2213,10 +2213,10 @@ function c128Scan(gray, w, h, K) {
     catch(e){gateOnError(e);if(st.mode==='IC'&&/old version|unknown action/i.test(e.message||''))msg('warn','Counts are kept on this phone: the Google Sheet script is an old version (paste the new SharedList_Code and deploy a new version).');}
     finally{icBusy=false;}
   }
-  // ---- stock of CCS Desk (the computer of the unit sends it to the Google Sheet)
+  // ---- stock of ShelfDesk (the computer of the unit sends it to the Google Sheet)
   let DS={at:'',stock:{},got:0},dsBusy=false;try{DS=JSON.parse(localStorage.getItem('ccsDeskStock.v1'+PROFILE)||'null')||DS;}catch(e){}
   function dsTxt(ir,unit){if(!DS.at)return '';const s=DS.stock[ir],t=s?s.total:0,lots=s&&s.lots||[];
-    return 'In the store (CCS Desk): <b>'+t+'</b>'+(unit?' '+xmlEsc(unit):'')+(lots.length>1||(lots[0]&&lots[0].exp)?' · '+lots.map(l=>(l.exp?dmy(l.exp):'no expiry')+': '+l.qty).join(', '):'')+' <span style="opacity:.7">('+xmlEsc(String(DS.at).slice(8,10)+'/'+String(DS.at).slice(5,7)+' '+String(DS.at).slice(11,16))+')</span>';}
+    return 'In the store (ShelfDesk): <b>'+t+'</b>'+(unit?' '+xmlEsc(unit):'')+(lots.length>1||(lots[0]&&lots[0].exp)?' · '+lots.map(l=>(l.exp?dmy(l.exp):'no expiry')+': '+l.qty).join(', '):'')+' <span style="opacity:.7">('+xmlEsc(String(DS.at).slice(8,10)+'/'+String(DS.at).slice(5,7)+' '+String(DS.at).slice(11,16))+')</span>';}
   async function dsLoad(force){
     if(dsBusy||!shReady()||navigator.onLine===false||needLogin())return;if(!force&&Date.now()-(DS.got||0)<5*60000)return;dsBusy=true;
     try{const j=await shPost('stock',{code:sh.scanCode||sh.chargeCode},20000);DS={at:j.at||'',stock:j.stock||{},got:Date.now()};try{localStorage.setItem('ccsDeskStock.v1'+PROFILE,JSON.stringify(DS));}catch(e){}}
@@ -2243,19 +2243,19 @@ function c128Scan(gray, w, h, K) {
     return '<div class="hres"><b>'+xmlEsc(it?it.name:ir)+'</b><div class="note">'+xmlEsc(ir)+(it&&it.unit?' · '+xmlEsc(it.unit):'')+(it&&it.loc?' · '+xmlEsc(shortLoc(it.loc)):'')+'</div>'
       +(DS.at?'<div style="margin-top:4px">In the store: <b>'+tot+'</b>'+(low?' <span style="color:var(--out);font-weight:700">LOW (minimum '+u[1]+')</span>':'')+'</div>'+(lots.length?'<div class="note">'+lots.map((l,i)=>(i===0&&lots.length>1?'★ ':'')+(l.exp?dmy(l.exp):'no expiry')+': '+l.qty).join(' · ')+(lots.length>1?'  (★ = take first)':'')+'</div>':'')
         +(days!=null?'<div class="note">Use about '+ud+' per day · about '+days+' days of stock left</div>':'')
-        :'<div class="note">The stock of CCS Desk is not on this phone yet.</div>')+'</div>';}
+        :'<div class="note">The stock of ShelfDesk is not on this phone yet.</div>')+'</div>';}
   function homeRender(){
     const H=HM.home,C=HM.homeC,mid=$('hMid'),below=$('hBelow');if(!mid)return;
     const ago=HM.at?HM.at.slice(11,16)+' ('+HM.at.slice(8,10)+'/'+HM.at.slice(5,7)+')':'-';
     const stat=(k,n,l,bad)=>'<button type="button" class="hstat'+(bad&&n>0?' bad':'')+(hmOpen===k?' on':'')+'" data-k="'+k+'"><b>'+n+'</b><span>'+l+'</span></button>';
     const nDone=H?(H.cnt||[]).filter(x=>hmCounted(x.ir)).length:0;const nl=(()=>{let c=0;['CNT1','CNT2','CNT3'].forEach(m=>{c+=(st.lists[m]||[]).length;});return c;})();
-    mid.innerHTML=H?stat('low',H.nl||0,'Low stock',1)+stat('exp',H.ne||0,'Expiring',1)+stat('cnt',Math.max(0,(H.nn||0)-nDone),'To count')+(hmCharge()&&C?stat('ord',C.no||0,'Order list')+stat('cost',C.cost?C.cost.t:0,'QAR today'):'')+stat('cl',nl,'Count lists'):'<div class="note" style="grid-column:1/-1">'+xmlEsc(HM.err||'Loading… (needs internet and CCS Desk linked to this unit)')+'</div>'+stat('cl',nl,'Count lists');
+    mid.innerHTML=H?stat('low',H.nl||0,'Low stock',1)+stat('exp',H.ne||0,'Expiring',1)+stat('cnt',Math.max(0,(H.nn||0)-nDone),'To count')+(hmCharge()&&C?stat('ord',C.no||0,'Order list')+stat('cost',C.cost?C.cost.t:0,'QAR today'):'')+stat('cl',nl,'Count lists'):'<div class="note" style="grid-column:1/-1">'+xmlEsc(HM.err||'Loading… (needs internet and ShelfDesk linked to this unit)')+'</div>'+stat('cl',nl,'Count lists');
     const k=hmOpen,more=hmMore;let b='<div class="card" style="margin-top:4px"><input id="hQ" type="text" placeholder="Check an item: scan, last digits or name" autocomplete="off"><div id="hQr"></div></div>';
     const list=(title,arr,fmt)=>{const a=arr||[],shown=more?a:a.slice(0,12);return '<div class="card"><b>'+title+'</b>'+(a.length?shown.map(fmt).join(''):'<div class="note" style="margin-top:6px">Nothing.</div>')+(a.length>12&&!more?'<button type="button" class="btn alt" id="hMore" style="margin-top:8px">Show all ('+a.length+')</button>':'')+'</div>';};
     const today0=new Date().toISOString().slice(0,10);
     if(H&&k==='low')b+=list('Running low (at or below the minimum, or 7 days of stock or less)',H.low,x=>'<div class="hrow" data-ir="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>'+x.s+(x.m!=null?' / min '+x.m:'')+(x.d!=null?' · '+x.d+' d':'')+'</span></div>');
     if(H&&k==='exp')b+=list('Expiring in 60 days or already expired',H.exp,x=>'<div class="hrow'+(x.e<today0?' red':'')+'" data-ir="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>'+dmy(x.e)+' · '+x.q+'</span></div>');
-    if(H&&k==='cnt')b+=list('To count when you have time (tap to count)'+(nDone?' · '+nDone+' counted on this phone, waiting for CCS Desk':''),(H.cnt||[]).filter(x=>!hmCounted(x.ir)),x=>'<div class="hrow" data-cnt="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>'+xmlEsc(x.w)+'</span></div>');
+    if(H&&k==='cnt')b+=list('To count when you have time (tap to count)'+(nDone?' · '+nDone+' counted on this phone, waiting for ShelfDesk':''),(H.cnt||[]).filter(x=>!hmCounted(x.ir)),x=>'<div class="hrow" data-cnt="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>'+xmlEsc(x.w)+'</span></div>');
     if(C&&k==='ord')b+=list('Suggested order list (enough for 30 days)',C.ord,x=>'<div class="hrow" data-ir="'+xmlEsc(x.ir)+'"><b>'+xmlEsc(x.n)+'</b><span>order '+x.q+(x.d!=null?' · '+x.d+' d left':'')+'</span></div>');
     if(C&&k==='cost'&&C.cost){const c=C.cost,pc=c.b>0?Math.round(c.m/c.b*100):null;b+='<div class="card"><b>Cost (Stock Out + Write Off)</b><div class="hrow"><b>Today</b><span>QAR '+c.t+'</span></div><div class="hrow"><b>Last 7 days</b><span>QAR '+c.w+'</span></div><div class="hrow"><b>This month</b><span>QAR '+c.m+'</span></div>'+(c.b>0?'<div class="hrow"><b>Monthly budget</b><span>QAR '+c.b+' ('+pc+'% used)</span></div>':'')+'</div>';}
     if(k.startsWith('item:'))b+='<div class="card">'+hmItemCard(k.slice(5))+'</div>';
@@ -2303,7 +2303,7 @@ function c128Scan(gray, w, h, K) {
     const who0=(st.who||'').trim(),nowD=new Date(),label=$('icRange').selectedOptions[0].textContent.replace(/^Excel: /,'');
     const meta={who:who0,created:nowD,title:'INVENTORY COUNT',infoName:'Info',info:st.infoSheet?[
       ['Prepared by',who0||'(not entered)'],['Saved on',nowD.getFullYear()+'-'+pad2(nowD.getMonth()+1)+'-'+pad2(nowD.getDate())+' '+pad2(nowD.getHours())+':'+pad2(nowD.getMinutes())],
-      ['Type','INVENTORY COUNT'],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Period',label],['Items',nIt],['Lines',rows.length],['Total units',rows.reduce((a,x)=>a+(+x.qty||0),0)],['Tool','CCS Scan Helper'],
+      ['Type','INVENTORY COUNT'],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Period',label],['Items',nIt],['Lines',rows.length],['Total units',rows.reduce((a,x)=>a+(+x.qty||0),0)],['Tool','ShelfApp'],
       ['Note','The data is on the first sheet (inventory list). One row per item and expiry date (Store 1 and Store 2 added together in the quantity). Then the date of the last count, who counted, and the quantity in each store.']]:null};
     const wn=who0.replace(/\s+/g,'_').replace(/[^A-Za-z0-9_-]+/g,''),r=await saveExport('CCS_Count_'+stamp()+(wn?'_'+wn:'')+'.xlsx',buildXlsx('inventory list',IC_COLS,rows,meta));
     if(r.cancelled){msg('warn','Save cancelled - nothing was saved.');return;}
@@ -2318,7 +2318,7 @@ function c128Scan(gray, w, h, K) {
     rows.sort((a,b)=>(!a.loc)-(!b.loc)||a.loc.localeCompare(b.loc,undefined,{numeric:true,sensitivity:'base'})||a.name.localeCompare(b.name));
     const cols=[['Location','loc','s',30],['ir_number','ir','s',14],['item name','name','s',60],['Qty_type','unit','s',10],['Last counted','lastc','s',18],['Counted by','countedby','s',16],['Last total','last','n',10],['Note','nt','s',30]];
     const who0=(st.who||'').trim(),nowD=new Date();
-    const meta={who:who0,created:nowD,title:'NOT COUNTED',infoName:'Info',info:st.infoSheet?[['Prepared by',who0||'(not entered)'],['Saved on',icNow().slice(0,16)],['Type','ITEMS NOT COUNTED IN THE LAST 30 DAYS'],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Items',rows.length],['Tool','CCS Scan Helper']]:null};
+    const meta={who:who0,created:nowD,title:'NOT COUNTED',infoName:'Info',info:st.infoSheet?[['Prepared by',who0||'(not entered)'],['Saved on',icNow().slice(0,16)],['Type','ITEMS NOT COUNTED IN THE LAST 30 DAYS'],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Items',rows.length],['Tool','ShelfApp']]:null};
     const wn=who0.replace(/\s+/g,'_').replace(/[^A-Za-z0-9_-]+/g,''),r=await saveExport('CCS_NotCounted_'+stamp()+(wn?'_'+wn:'')+'.xlsx',buildXlsx('not counted',cols,rows,meta));
     if(r.cancelled){msg('warn','Save cancelled - nothing was saved.');return;}
     if(r.blocked){msg('err','The file was probably NOT saved (downloads are blocked in this preview).');beep(false);return;}
@@ -2372,7 +2372,7 @@ function c128Scan(gray, w, h, K) {
     const cols=[['Expiry','exp','s',12],['Days left','days','n',10],['ir_number','ir','s',14],['item name','name','s',60],['Qty','qty','n',8],['Qty_type','unit','s',10],['Store','store','n',7],['Last counted','lastc','s',18],['Counted by','by','s',16],['Give to (best)','best','s',14],['Their use / month','bm','n',12],['Can use before expiry','bc','n',12],['Other units','others','s',50]];
     const out=rows.map(r=>({exp:dmy(r.expiry),days:r.days,ir:r.ir,name:r.name,qty:r.qty,unit:r.unit,store:r.store,lastc:icAt(r.at),by:r.by,best:r.days<0?'WRITE OFF':(r.sug[0]?r.sug[0].unit:''),bm:r.sug[0]?r.sug[0].m:'',bc:r.sug[0]?r.sug[0].can:'',others:exSugTxt(r.sug.slice(1))}));
     const who0=(st.who||'').trim(),win=exWinDays();
-    const meta={who:who0,created:new Date(),title:'EXPIRING',infoName:'Info',info:st.infoSheet?[['Prepared by',who0||'(not entered)'],['Saved on',icNow().slice(0,16)],['Type','ITEMS THAT EXPIRE IN '+win+' DAYS'+($('exOld').checked?' (and expired)':'')],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Use of other units',exU?'last '+exU.days+' days, '+String(exU.now||'').slice(0,16):'not loaded'],['Lines',out.length],['Tool','CCS Scan Helper']]:null};
+    const meta={who:who0,created:new Date(),title:'EXPIRING',infoName:'Info',info:st.infoSheet?[['Prepared by',who0||'(not entered)'],['Saved on',icNow().slice(0,16)],['Type','ITEMS THAT EXPIRE IN '+win+' DAYS'+($('exOld').checked?' (and expired)':'')],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Use of other units',exU?'last '+exU.days+' days, '+String(exU.now||'').slice(0,16):'not loaded'],['Lines',out.length],['Tool','ShelfApp']]:null};
     const wn=who0.replace(/\s+/g,'_').replace(/[^A-Za-z0-9_-]+/g,''),r=await saveExport('CCS_Expiring_'+win+'d_'+stamp()+(wn?'_'+wn:'')+'.xlsx',buildXlsx('expiring',cols,out,meta));
     if(r.cancelled){msg('warn','Save cancelled - nothing was saved.');return;}
     if(r.blocked){msg('err','The file was probably NOT saved (downloads are blocked in this preview).');beep(false);return;}
@@ -2522,7 +2522,7 @@ function c128Scan(gray, w, h, K) {
       if(any){const per=Math.max(90/ls.length,15);ls.forEach((l,k)=>rowHt[r0+k]=Math.round(per));}}
     const who0=(st.who||'').trim(),nowD=new Date();
     const meta={who:who0,created:nowD,title:'ITEMS WITHOUT IR',rowHt,images,fitWide:true,infoName:'Info',info:[['Report','Items found in the store room WITHOUT an IR number'],['Purpose','For the CCS team: please add these items to the CCS item list of the unit'],
-      ['Prepared by',who0||'(not entered)'],['Saved on',nowD.getFullYear()+'-'+pad2(nowD.getMonth()+1)+'-'+pad2(nowD.getDate())+' '+pad2(nowD.getHours())+':'+pad2(nowD.getMinutes())],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Items',L.length],['Tool','CCS Scan Helper']]};
+      ['Prepared by',who0||'(not entered)'],['Saved on',nowD.getFullYear()+'-'+pad2(nowD.getMonth()+1)+'-'+pad2(nowD.getDate())+' '+pad2(nowD.getHours())+':'+pad2(nowD.getMinutes())],...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Items',L.length],['Tool','ShelfApp']]};
     const wn=who0.replace(/\s+/g,'_').replace(/[^A-Za-z0-9_-]+/g,''),r=await saveExport('CCS_NoIR_Report_'+stamp()+(wn?'_'+wn:'')+'.xlsx',buildXlsx('items without IR',cols,rows,meta));
     if(r.cancelled){msg('warn','Save cancelled - nothing was saved.');return;}
     if(r.blocked){msg('err','The file was probably NOT saved (downloads are blocked in this preview).');beep(false);return;}
@@ -2580,7 +2580,7 @@ function c128Scan(gray, w, h, K) {
     else{L.slice().sort((a,b)=>String(a.t).localeCompare(String(b.t))).forEach(x=>buildRows([{ir:x.ir,name:x.name,expiry:x.expiry||'',qty:x.qty}],items,false).forEach(r=>{r.by=x.by||'';r.when=hiDisp(x.t);if(wo)r.reason=woName(x.mode);rows.push(r);}));cols=wo?HI_DET.concat([['Reason','reason','s',28]]):HI_DET;}
     const who0=(st.who||'').trim(),nowD=new Date(),units=L.reduce((a,x)=>a+(+x.qty||0),0);
     const meta={who:who0,created:nowD,title:'HISTORY '+D.name,infoName:'Info',info:st.infoSheet?[['Report','HISTORY - '+D.name],['Period',hiDisp(D.f)+'  to  '+hiDisp(D.t)],['Layout',hiV==='total'?'In total (one line per item and expiry date)':'Per scan (staff name, date and time of every scan)'],
-      ...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Scans',L.length],['Total units',units],['Prepared by',who0||'(not entered)'],['Saved on',nowD.getFullYear()+'-'+pad2(nowD.getMonth()+1)+'-'+pad2(nowD.getDate())+' '+pad2(nowD.getHours())+':'+pad2(nowD.getMinutes())],['Tool','CCS Scan Helper']]:null};
+      ...(UNIT_NAME?[['Unit',UNIT_NAME]]:[]),['Scans',L.length],['Total units',units],['Prepared by',who0||'(not entered)'],['Saved on',nowD.getFullYear()+'-'+pad2(nowD.getMonth()+1)+'-'+pad2(nowD.getDate())+' '+pad2(nowD.getHours())+':'+pad2(nowD.getMinutes())],['Tool','ShelfApp']]:null};
     const tag=D.mode==='OUT'?'StockOut':D.mode==='IN'?'StockIn':'WriteOff',d8=x=>x.slice(0,10).replace(/-/g,'')+'_'+x.slice(11,16).replace(':',''),wn=who0.replace(/\s+/g,'_').replace(/[^A-Za-z0-9_-]+/g,'');
     const r=await saveExport('CCS_History_'+tag+'_'+(hiV==='total'?'Total':'PerScan')+'_'+d8(D.f)+'-'+d8(D.t)+(wn?'_'+wn:'')+'.xlsx',buildXlsx('inventory list',cols,rows,meta));
     if(r.cancelled){hiMsg('warn','Save cancelled - nothing was saved.');return;}
