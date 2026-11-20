@@ -138,7 +138,7 @@ body.locked #modal{display:none!important}
 <div id="modal" class="hidden"><div class="box" id="modalBox"></div></div>
 
 <script>
-const VERSION='2.9';
+const VERSION='3.0';
 // ==CORE START==
 function pad2(n){return (n<10?'0':'')+n;}
 function validYMD(y,m,d){const t=new Date(Date.UTC(y,m-1,d));return y>=2000&&y<=2100&&t.getUTCFullYear()===y&&t.getUTCMonth()===m-1&&t.getUTCDate()===d;}
@@ -1806,6 +1806,31 @@ function qrSettings(){const b=$('qrBox');if(!b)return;
     const css='@page{size:A4;margin:14mm}body{font-family:Arial,sans-serif;margin:0;text-align:center;color:#111}h1{font-size:30pt;margin:6mm 0 1mm}h2{font-size:22pt;margin:0 0 6mm;color:#0a5}.qr{width:95mm;height:95mm;margin:0 auto;border:2px solid #111;padding:2mm}.u{font-size:13pt;margin:4mm 0 8mm;word-break:break-all}ol{text-align:left;max-width:150mm;margin:0 auto;font-size:15pt;line-height:1.5;padding-left:8mm}li{margin-bottom:4mm}.f{margin-top:10mm;font-size:10pt;color:#555}';
     w.document.write('<!doctype html><html><head><meta charset="utf-8"><title>Join CCS Scan Helper</title><style>'+css+'</style></head><body><h1>Join CCS Scan Helper</h1><h2>'+esc(nm)+'</h2><div class="qr">'+svg+'</div><div class="u">'+esc(u)+'</div><ol><li>Scan the code with the camera of your phone (or open the link above).</li><li>Choose the unit <b>'+esc(nm)+'</b>, tap <b>New account</b>, and type your Corp No., your name and a password.</li><li>Install the app: <b>Android</b>: browser menu &gt; Install app / Add to Home screen. <b>iPhone</b>: Safari Share button &gt; Add to Home Screen.</li></ol><div class="f">Consumable stock tracking only. No patient data. Made by CCS Desk '+esc(VERSION)+'.</div><script>setTimeout(function(){window.print();},400)<\/script></body></html>');w.document.close();
     if(!DB.settings)DB.settings={};if(DB.settings.appUrl!==u){DB.settings.appUrl=u;try{await save();}catch(e){}}m.className='msg ok';m.textContent='The sheet is open in a new window: print it (or save as PDF).';};}
+
+// ---- v3.0: Home page data for the phones (low stock, expiring soon, counts, order list, cost)
+function homeData(){
+  const t=today(),since=addDays(-30),lim=addDays(60),use=new Map(),lastC=new Map();
+  DB.ledger.forEach(x=>{const d=x.t.slice(0,10);if((x.type==='OUT'||/^WO/.test(x.type))&&d>=since)use.set(x.ir,(use.get(x.ir)||0)-x.qty);if(x.type==='COUNT'&&x.t>(lastC.get(x.ir)||''))lastC.set(x.ir,x.t);});
+  const nm=ir=>{const it=itemOf(ir);return it?String(it.name).slice(0,70):ir;},low=[],u={},tot=new Map();
+  Object.keys(DB.stock).forEach(k=>{const q=DB.stock[k];if(q>0){const ir=k.slice(0,k.indexOf('|'));tot.set(ir,(tot.get(ir)||0)+q);}});
+  DB.items.forEach(it=>{const stk=tot.get(it.ir)||0,ud=(use.get(it.ir)||0)/30,min=it.min!=null&&it.min!==''?+it.min:null,max=it.max!=null&&it.max!==''?+it.max:null,days=ud>0?stk/ud:null;
+    if(ud>0||min!=null)u[it.ir]=[Math.round(ud*100)/100,min,max];
+    if((min!=null&&stk<min)||(days!=null&&days<=7))low.push({ir:it.ir,n:nm(it.ir),s:stk,m:min,d:days==null?null:Math.round(days*10)/10});});
+  low.sort((a,b)=>(a.d==null?1e9:a.d)-(b.d==null?1e9:b.d)||a.s-b.s);
+  const exp=[];Object.keys(DB.stock).forEach(k=>{const q=DB.stock[k];if(!(q>0))return;const i=k.indexOf('|'),e=k.slice(i+1);if(e&&e<=lim)exp.push({ir:k.slice(0,i),n:nm(k.slice(0,i)),e,q});});
+  exp.sort((a,b)=>a.e.localeCompare(b.e));
+  const nc=Object.keys(DB.flags||{}).filter(ir=>itemOf(ir)).map(ir=>({ir,n:nm(ir),w:String(DB.flags[ir].reason||'needs a real count').slice(0,60)}));
+  const hi=[];use.forEach((q,ir)=>{if(!itemOf(ir)||DB.flags[ir]||(tot.get(ir)||0)<=0)return;if(lastC.get(ir)&&lastC.get(ir).slice(0,10)>=since)return;const p=priceOf(ir);hi.push({ir,n:nm(ir),w:'High use, not counted for 30 days',k:q*(p==null?1:p)});});
+  hi.sort((a,b)=>b.k-a.k);hi.slice(0,10).forEach(x=>{delete x.k;nc.push(x);});
+  const home={at:nowStamp(),nl:low.length,low:low.slice(0,40),ne:exp.length,exp:exp.slice(0,40),nn:nc.length,cnt:nc.slice(0,40),u};
+  const s0=REPF.sw,c0=REPF.cov;REPF.sw=30;REPF.cov=30;let ord=[];try{ord=REP.sugg.rows().rows;}catch(e){}REPF.sw=s0;REPF.cov=c0;
+  const R=(a,b)=>{const c=costBetween(a,b);return R2(c.out+c.wo);};
+  const homeC={no:ord.length,ord:ord.slice(0,40).map(r=>({ir:r.ir,n:String(r.name).slice(0,70),q:r.order,d:r.days===''?null:r.days})),cost:{t:R(t,t),w:R(addDays(-6),t),m:R(monthRange(0).from,monthRange(0).to),b:+((DB.settings&&DB.settings.budget)||0)}};
+  if(JSON.stringify(home).length>44000)delete home.u;
+  return{home,homeC};}
+async function phSendHome(){
+  if(!phOk())return;
+  try{const d=homeData();await phPost('homeSet',d,30000);PH.homeAt=nowStamp();phSave();}catch(e){PH.homeErr=(e&&e.message)||'error';}}
 // ---- v2.2: daily totals (only numbers: quantity and cost per day, no names, no patients) for the central page of the hospital
 function summaryPayload(){
   const from=addDays(-399),by=new Map();let n=0;
@@ -1826,7 +1851,7 @@ function phSumMaybe(){if(!phOk()||PH.sum===false)return;const a=ageDays(PH.sumAt
 function phStockSoon(){if(!phOk()||PH.auto===false)return;clearTimeout(phStockT);phStockT=setTimeout(()=>phSendStock(false),3000);}
 async function phSendStock(show){
   const st={};Object.keys(DB.stock).forEach(k=>{if(!DB.stock[k])return;const i=k.indexOf('|'),ir=k.slice(0,i);(st[ir]=st[ir]||{lots:[]}).lots.push({exp:k.slice(i+1),qty:DB.stock[k]});});
-  try{const j=await phPost('stockSet',{stock:st},60000);PH.stockAt=j.at;phSave();phSendSummary(false);phBkMaybe();if(show)return j;}
+  try{const j=await phPost('stockSet',{stock:st},60000);PH.stockAt=j.at;phSave();phSendSummary(false);phBkMaybe();phSendHome();if(show)return j;}
   catch(e){saveState('err','Stock not sent to the phones: '+(e.message||e.name));if(show)throw e;}
 }
 // ---- Stock In / Stock Out / Write Off: take the open lists of the phones
